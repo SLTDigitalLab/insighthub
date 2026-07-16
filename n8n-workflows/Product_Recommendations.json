@@ -1,0 +1,191 @@
+{
+  "name": "Product & Solution Recommendations Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "product-recommendation",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "d1b2c3d4-0004-0004-0004-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "product-recommendation"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.prompt }}",
+        "options": {
+          "systemMessage": "You are a Product & Solution Recommendations Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYou are an expert on Mobitel's entire B2B/enterprise product portfolio. Given a company profile, industry, or specific pain points, your job is to recommend the most suitable Mobitel products and services, and suggest strategic product bundles.\n\n**You have TWO search tools available:**\n1. **SerpAPI** — Use for general Google web searches to research the company's current technology stack and industry-specific needs.\n2. **Apify LinkedIn Search** — Use for LinkedIn-specific searches to understand the company's size, technical team, and digital maturity.\n\n**===== MOBITEL B2B PRODUCT CATALOG =====**\n\n**1. Enterprise Connectivity**\n- Dedicated Internet Access (DIA) – Symmetric, high-speed, SLA-backed internet for businesses\n- MPLS VPN – Private, secure multi-site networking with QoS guarantees\n- SD-WAN Solutions – Software-defined WAN for intelligent traffic routing across branches\n- Leased Lines – Point-to-point dedicated bandwidth connections\n- Business Broadband – Cost-effective internet for SMBs\n- 4G/5G Enterprise Wireless – Fixed wireless access using LTE/5G for rapid deployment\n\n**2. Cloud & Data Center**\n- Mobitel Cloud IaaS – Virtual servers, storage, and compute on Mobitel's local cloud\n- Disaster Recovery as a Service (DRaaS) – Business continuity and failover solutions\n- Colocation Services – Rack space in Mobitel's Tier-3 data center\n- Cloud Backup Solutions – Automated, encrypted cloud backups\n- Managed Hosting – Fully managed server hosting\n\n**3. Cybersecurity**\n- Managed Firewall – Enterprise-grade firewall management\n- DDoS Protection – Volumetric attack mitigation\n- Endpoint Security – Device-level threat protection\n- Security Operations Center (SOC) – 24/7 threat monitoring and incident response\n- Email Security – Anti-phishing, anti-spam, and email encryption\n\n**4. Unified Communications**\n- Enterprise SIP Trunking – VoIP connectivity for PBX systems\n- Hosted PBX / UCaaS – Cloud-based phone system with video, chat, and collaboration\n- Microsoft Teams Direct Routing – Integrate Teams with Mobitel's PSTN network\n- Contact Center as a Service (CCaaS) – Cloud-based contact center with AI routing\n- Business SMS Gateway – Bulk SMS and API-based messaging\n\n**5. IoT & Digital Transformation**\n- IoT Connectivity (M2M SIMs) – Managed SIM cards for IoT devices\n- Fleet Management Solutions – GPS tracking and fleet analytics\n- Smart Building Solutions – IoT sensors for energy, security, and facility management\n- Industrial IoT – Connected manufacturing and warehouse automation\n\n**6. Managed Services**\n- Managed WiFi – Enterprise WiFi design, deployment, and management\n- IT Outsourcing – Full IT infrastructure management\n- Network Monitoring (NOC) – 24/7 network operations center services\n- Mobile Device Management (MDM) – Enterprise mobile device policy enforcement\n\n**===== END OF CATALOG =====**\n\n**Instructions:**\n1. Use the search tools to research the company and understand their specific needs.\n2. Based on the company's profile and pain points, recommend 3-5 specific products from the catalog above.\n3. For each product, explain WHY it solves their specific need.\n4. Suggest 1-2 product BUNDLES (combinations) that offer the best value.\n5. Include estimated deployment timeline and key benefits.\n\n**CRITICAL: You MUST return your response as a valid JSON array. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Product\": \"SD-WAN Solutions\",\n    \"Category\": \"Enterprise Connectivity\",\n    \"Why Recommended\": \"With 15 branches, SD-WAN provides intelligent traffic routing, 40% cost savings over MPLS, and seamless cloud app performance.\",\n    \"Priority\": \"High\"\n  },\n  {\n    \"Product\": \"Managed Firewall + SOC\",\n    \"Category\": \"Cybersecurity\",\n    \"Why Recommended\": \"Financial sector requires strong compliance and threat protection. 24/7 SOC ensures real-time monitoring.\",\n    \"Priority\": \"High\"\n  },\n  {\n    \"Product\": \"Recommended Bundle: Digital Enterprise Pack\",\n    \"Category\": \"Bundle\",\n    \"Why Recommended\": \"SD-WAN + Managed Firewall + Cloud Backup + Hosted PBX = Complete digital transformation package with 20% bundle discount.\",\n    \"Priority\": \"Strategic\"\n  }\n]"
+        }
+      },
+      "id": "d1b2c3d4-0004-0004-0004-000000000002",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "d1b2c3d4-0004-0004-0004-000000000003",
+      "name": "Google Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        520
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "google_search",
+        "description": "General Google Web Search. Use this to find companies, reviews, phone numbers, and news.",
+        "method": "GET",
+        "url": "https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $fromAI('query', 'The exact search query') }}"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_SERPAPI_KEY_HERE"
+            }
+          ]
+        }
+      },
+      "id": "d1b2c3d4-0004-0004-0004-000000000006",
+      "name": "SerpAPI Google Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        540,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "name": "apify_linkedin_search",
+        "description": "Searches Google via Apify, specifically for LinkedIn pages. Include 'site:linkedin.com' in your query to understand company size, technical team, and digital maturity.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_APIFY_API_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"queries\": $fromAI('query', 'The search query string'),\n  \"maxPagesPerQuery\": 1\n}"
+      },
+      "id": "d1b2c3d4-0004-0004-0004-000000000005",
+      "name": "Apify LinkedIn Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = $input.first().json.output;\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Product Recommendations\", results: results } }];"
+      },
+      "id": "d1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify LinkedIn Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

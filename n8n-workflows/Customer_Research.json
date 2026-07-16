@@ -1,0 +1,191 @@
+{
+  "name": "Customer Research Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "customer-research",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "customer-research"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.prompt }}",
+        "options": {
+          "systemMessage": "You are a Customer Research Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to thoroughly research a given company and provide a comprehensive intelligence report that the sales team can use before approaching the prospect.\n\n**You have TWO search tools available:**\n1. **SerpAPI** — Use for general Google web searches about the company, news, technology stack, and industry info.\n2. **Apify LinkedIn Search** — Use for LinkedIn-specific and social media searches. Include 'site:linkedin.com' or 'site:facebook.com' in your query.\n\n**Instructions:**\n1. You MUST use BOTH search tools to find REAL, up-to-date information. DO NOT guess or invent facts.\n2. **Company Overview**: What does the company do? What industry are they in? When were they founded? How large are they? What is their annual revenue?\n3. **Key Decision Makers**: Use LinkedIn search (via Apify) to find the CEO, CTO, CIO, IT Director, and other relevant contacts. Include their names, titles, and LinkedIn profile URLs. Also search Facebook for company pages and key personnel.\n4. **All Employees**: Search LinkedIn for employees working at this company. Use queries like 'site:linkedin.com/in/ [Company Name] Sri Lanka'. List as many employees as you can find with their names, titles, and LinkedIn URLs.\n5. **Social Media Presence**: Find the company's LinkedIn page, Facebook page, Twitter/X account, and any other social media profiles.\n6. **Recent Developments**: Any recent news, expansions, mergers, funding rounds, or digital transformation initiatives.\n7. **Technology Stack**: What technologies or telecom providers are they currently using (if discoverable)?\n8. **Pain Points**: Based on their industry and recent news, what business or IT pain points might they have?\n\n**CRITICAL: You MUST return your response as a valid JSON array with one object per research category. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Category\": \"Company Overview\",\n    \"Details\": \"ABC Holdings is a leading financial services company based in Colombo, Sri Lanka. Founded in 1990, they employ over 2000 staff across 15 branches.\"\n  },\n  {\n    \"Category\": \"Key Decision Makers\",\n    \"Details\": \"CEO: John Silva (linkedin.com/in/john-silva) | CTO: Priya Fernando (linkedin.com/in/priya-fernando) | IT Director: Kumar Perera (linkedin.com/in/kumar-perera)\"\n  },\n  {\n    \"Category\": \"Employees Found\",\n    \"Details\": \"1. Nimal Jayawardena - Senior Software Engineer (linkedin.com/in/nimal-j) | 2. Asha Wijesinghe - Marketing Manager (linkedin.com/in/asha-w) | 3. Rohan De Silva - Network Admin (linkedin.com/in/rohan-ds)\"\n  },\n  {\n    \"Category\": \"Social Media Presence\",\n    \"Details\": \"LinkedIn: linkedin.com/company/abc-holdings | Facebook: facebook.com/abcholdings | Twitter: @abcholdings\"\n  },\n  {\n    \"Category\": \"Recent Developments\",\n    \"Details\": \"In Q1 2024, ABC Holdings announced a digital transformation initiative worth $5M, focusing on cloud migration and cybersecurity.\"\n  },\n  {\n    \"Category\": \"Current Technology\",\n    \"Details\": \"Currently using legacy PBX systems and on-premise servers. ISP: Dialog Enterprise.\"\n  },\n  {\n    \"Category\": \"Potential Pain Points\",\n    \"Details\": \"1. Legacy infrastructure limiting digital growth. 2. Cybersecurity vulnerabilities with expansion. 3. Need for unified communications across branches.\"\n  }\n]"
+        }
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000002",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000003",
+      "name": "Google Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        520
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "google_search",
+        "description": "General Google Web Search. Use this to find companies, reviews, phone numbers, and news.",
+        "method": "GET",
+        "url": "https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $fromAI('query', 'The exact search query') }}"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_SERPAPI_KEY_HERE"
+            }
+          ]
+        }
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000004",
+      "name": "SerpAPI Google Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        540,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "name": "apify_linkedin_search",
+        "description": "Searches Google via Apify, specifically for LinkedIn and Facebook pages. Include 'site:linkedin.com' or 'site:facebook.com' in your query to find company profiles, employees, and social media pages.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_APIFY_API_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"queries\": $fromAI('query', 'The search query string'),\n  \"maxPagesPerQuery\": 1\n}"
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000005",
+      "name": "Apify LinkedIn Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = $input.first().json.output;\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Customer Research\", results: results } }];"
+      },
+      "id": "b1b2c3d4-0002-0002-0002-000000000006",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify LinkedIn Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

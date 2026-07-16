@@ -1,0 +1,191 @@
+{
+  "name": "Meeting Preparation Assistant",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "meeting-prep",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        300
+      ],
+      "webhookId": "meeting-prep"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.prompt }}",
+        "options": {
+          "systemMessage": "You are a Meeting Preparation Assistant for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYou are a senior sales strategist. Given a company name (and optionally additional context about the company), your job is to prepare a comprehensive meeting brief that will give the sales rep a strategic advantage.\n\n**You have TWO search tools available:**\n1. **SerpAPI** — Use for general Google web searches about the company, news, and industry trends.\n2. **Apify LinkedIn Search** — Use for LinkedIn-specific searches. Include 'site:linkedin.com' in your query to find company profiles and key people to meet.\n\n**Instructions:**\n1. You MUST use BOTH search tools to find REAL, up-to-date information about the company and its industry. DO NOT guess or invent facts.\n2. **Company Insights**: Key facts about the company's business, market position, and strategic direction.\n3. **Key People to Meet**: Use LinkedIn search to identify who the sales rep should request meetings with (CTO, IT Director, Procurement Head). Include names and titles.\n4. **Industry Trends**: 2-3 current trends in their industry that are relevant to telecom/IT solutions.\n5. **Potential Pain Points**: 3-5 specific business or IT challenges this type of company typically faces.\n6. **Discussion Points**: 3-5 strategic conversation starters that position Mobitel as a solution provider.\n7. **Objection Handling**: 2-3 common objections the prospect might raise and suggested responses.\n8. **Competitor Analysis**: Which telecom competitors (Dialog Enterprise, SLT, Airtel) might be serving this client and how Mobitel can differentiate.\n\n**CRITICAL: You MUST return your response as a valid JSON array. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Section\": \"Company Insights\",\n    \"Content\": \"ABC Holdings is a major financial services firm with 15 branches needing reliable inter-branch connectivity and unified communications.\"\n  },\n  {\n    \"Section\": \"Key People to Meet\",\n    \"Content\": \"1. John Silva - CTO (linkedin.com/in/john-silva) | 2. Priya Fernando - IT Director (linkedin.com/in/priya-f) | 3. Kumar Perera - Head of Procurement (linkedin.com/in/kumar-p)\"\n  },\n  {\n    \"Section\": \"Industry Trends\",\n    \"Content\": \"1. Digital banking transformation. 2. Cloud-first strategies. 3. Regulatory compliance driving cybersecurity investment.\"\n  },\n  {\n    \"Section\": \"Potential Pain Points\",\n    \"Content\": \"1. Legacy PBX systems causing downtime. 2. No centralized IT management across branches. 3. Rising cybersecurity threats. 4. Poor WAN performance for cloud apps.\"\n  },\n  {\n    \"Section\": \"Discussion Points\",\n    \"Content\": \"1. Ask about their current inter-branch connectivity challenges. 2. Discuss their cloud migration plans. 3. Explore their business continuity strategy.\"\n  },\n  {\n    \"Section\": \"Objection Handling\",\n    \"Content\": \"1. 'We already have a provider' → Highlight Mobitel's superior SLA and 4G/5G backup. 2. 'Too expensive' → Show TCO comparison with bundled solutions.\"\n  },\n  {\n    \"Section\": \"Competitor Analysis\",\n    \"Content\": \"Dialog Enterprise is the incumbent. SLT provides leased lines. Mobitel differentiates with better 5G coverage, competitive pricing, and dedicated enterprise account management.\"\n  }\n]"
+        }
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000002",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        520,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-2.0-flash",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Google Gemini",
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.2,
+      "position": [
+        400,
+        520
+      ],
+      "credentials": {
+        "googlePalmApi": {
+          "id": "REPLACE_WITH_YOUR_GEMINI_CREDENTIAL_ID",
+          "name": "Google Gemini API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "name": "google_search",
+        "description": "General Google Web Search. Use this to find companies, reviews, phone numbers, and news.",
+        "method": "GET",
+        "url": "https://serpapi.com/search",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $fromAI('query', 'The exact search query') }}"
+            },
+            {
+              "name": "api_key",
+              "value": "YOUR_SERPAPI_KEY_HERE"
+            }
+          ]
+        }
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000004",
+      "name": "SerpAPI Google Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        540,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "name": "apify_linkedin_search",
+        "description": "Searches Google via Apify, specifically for LinkedIn pages. Include 'site:linkedin.com' in your query to find company profiles and key people.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_APIFY_API_TOKEN"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"queries\": $fromAI('query', 'The search query string'),\n  \"maxPagesPerQuery\": 1\n}"
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000005",
+      "name": "Apify LinkedIn Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        680,
+        520
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = $input.first().json.output;\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Meeting Preparation\", results: results } }];"
+      },
+      "id": "c1b2c3d4-0003-0003-0003-000000000006",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "SerpAPI": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify LinkedIn Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}
