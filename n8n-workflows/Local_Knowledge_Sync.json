@@ -1,0 +1,166 @@
+{
+  "name": "Local Backend Knowledge Base Sync",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "local-knowledge-sync",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "f1b2c3d4-0008-0008-0008-000000000001",
+      "name": "Local Webhook Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [240, 300],
+      "webhookId": "local-knowledge-sync"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process incoming local payload\nconst inputJson = $input.first().json || {};\nconst body = inputJson.body || inputJson;\n\nconst fileBase64 = body.fileBase64 || inputJson.fileBase64;\nconst fileName = body.fileName || inputJson.fileName || \"document.pdf\";\nconst mimeType = body.mimeType || inputJson.mimeType || \"application/pdf\";\n\nif (fileBase64) {\n  return [{\n    json: {\n      fileName: fileName,\n      mimeType: mimeType\n    },\n    binary: {\n      data: {\n        data: fileBase64,\n        mimeType: mimeType,\n        fileName: fileName\n      }\n    }\n  }];\n} else {\n  return [{\n    json: {\n      error: \"No fileBase64 payload provided in request body.\"\n    }\n  }];\n}"
+      },
+      "id": "f1b2c3d4-0008-0008-0008-000000000009",
+      "name": "Process Local Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "collectionName": "mobitel-knowledge-base",
+        "options": {}
+      },
+      "id": "f1b2c3d4-0008-0008-0008-000000000004",
+      "name": "Local Chroma Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreChroma",
+      "typeVersion": 1,
+      "position": [740, 300],
+      "credentials": {
+        "chromaApi": {
+          "id": "REPLACE_WITH_YOUR_CHROMA_CREDENTIAL_ID",
+          "name": "Chroma API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f1b2c3d4-0008-0008-0008-000000000005",
+      "name": "OpenAI Embeddings",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1,
+      "position": [660, 520],
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chunkSize": 1000,
+        "chunkOverlap": 200,
+        "options": {}
+      },
+      "id": "f1b2c3d4-0008-0008-0008-000000000006",
+      "name": "Recursive Character Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterRecursiveCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [800, 520]
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "id": "f1b2c3d4-0008-0008-0008-000000000007",
+      "name": "Default Data Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [940, 520]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: { success: true, message: \"Document successfully embedded and stored in Local ChromaDB Knowledge Base!\" } }];"
+      },
+      "id": "f1b2c3d4-0008-0008-0008-000000000008",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [960, 300]
+    }
+  ],
+  "connections": {
+    "Local Webhook Trigger": {
+      "main": [
+        [
+          {
+            "node": "Process Local Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Local Payload": {
+      "main": [
+        [
+          {
+            "node": "Local Chroma Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Local Chroma Vector Store": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Embeddings": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Local Chroma Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Local Chroma Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

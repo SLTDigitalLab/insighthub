@@ -7,10 +7,35 @@ export default defineConfig({
   server: {
     proxy: {
       '/api/n8n': {
-        target: 'https://shalikahathurusinghe533.app.n8n.cloud',
+        target: 'https://sltrnddigitallab.app.n8n.cloud',
         changeOrigin: true,
         secure: false,
         rewrite: (path) => path.replace(/^\/api\/n8n/, '/webhook')
+      },
+      '/api/documents': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/api/vector': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/api/recommendations': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/api/health': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
+      },
+      '/api': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false
       }
     }
   }

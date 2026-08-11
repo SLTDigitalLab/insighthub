@@ -7,10 +7,12 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import jsPDF from 'jspdf';
-import 'jspdf-autotable';
+import autoTable from 'jspdf-autotable';
 import { WEBHOOK_URLS } from '../config';
+import { fetchProductRecommendations } from '../api';
 
 // Star Rating Component
+
 const StarRating = ({ rating }) => {
   const numRating = parseFloat(rating) || 0;
   const stars = [];
@@ -29,6 +31,44 @@ const StarRating = ({ rating }) => {
       <span className="rating-value" style={{ fontSize: '1rem' }}>{numRating > 0 ? numRating.toFixed(1) : 'N/A'}</span>
     </div>
   );
+};
+
+// Helper to make URLs clickable
+const renderTextWithLinks = (text) => {
+  if (typeof text !== 'string') return text;
+  
+  const urlRegex = /((?:https?:\/\/|www\.|linkedin\.com|facebook\.com)[^\s]+)/g;
+  const parts = text.split(urlRegex);
+  
+  return parts.map((part, i) => {
+    if (part.match(urlRegex)) {
+      let href = part;
+      let suffix = '';
+      
+      if (href.endsWith(')') && !href.includes('(')) {
+        suffix = ')';
+        href = href.slice(0, -1);
+      } else if (href.endsWith('.') || href.endsWith(',')) {
+        suffix = href.slice(-1);
+        href = href.slice(0, -1);
+      }
+      
+      let displayHref = href;
+      if (!href.startsWith('http')) {
+        href = 'https://' + href;
+      }
+      
+      return (
+        <React.Fragment key={i}>
+          <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>
+            {displayHref}
+          </a>
+          {suffix}
+        </React.Fragment>
+      );
+    }
+    return part;
+  });
 };
 
 const BusinessDetail = () => {
@@ -115,6 +155,37 @@ const BusinessDetail = () => {
         ? `Prepare me for a meeting with "${decodedName}". Include key people to meet from LinkedIn.`
         : `Recommend Mobitel products for "${decodedName}" based on their industry and size: ${business?.Industry || 'Unknown'}, ${business?.Size || 'Unknown'}.`;
 
+      if (type === 'product') {
+        try {
+          const response = await axios.post(
+            WEBHOOK_URLS['product'],
+            { prompt: promptText },
+            { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
+          );
+          const data = response.data;
+          let parsed = null;
+          if (data.results && Array.isArray(data.results) && data.results.length > 0) parsed = data.results;
+          else if (Array.isArray(data) && data.length > 0) parsed = data;
+          else if (typeof data === 'object' && data.output) {
+            const jsonMatch = data.output.match(/\[[\s\S]*\]/);
+            if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+          }
+
+          if (parsed && parsed.length > 0) {
+            setResultsFn(parsed);
+            return;
+          }
+        } catch (n8nErr) {
+          console.warn('[BusinessDetail Product] n8n unavailable. Falling back to local ChromaDB RAG API:', n8nErr.message);
+        }
+
+        const ragRes = await fetchProductRecommendations(promptText);
+        if (ragRes && ragRes.results && ragRes.results.length > 0) {
+          setResultsFn(ragRes.results);
+          return;
+        }
+      }
+
       const response = await axios.post(
         WEBHOOK_URLS[webhookKey],
         { prompt: promptText },
@@ -141,12 +212,13 @@ const BusinessDetail = () => {
         setResultsFn([{ 'Response': JSON.stringify(data) }]);
       }
     } catch (err) {
-      console.error(`Error calling ${type} webhook:`, err);
-      showToast(`Failed to generate ${type} results. Check n8n.`, 'error');
+      console.error(`Error generating ${type}:`, err);
+      showToast(`Failed to generate ${type} results.`, 'error');
     } finally {
       setLoading(false);
     }
   };
+
 
   const exportSectionToPDF = (sectionName, data) => {
     if (!data || data.length === 0) return;
@@ -174,7 +246,7 @@ const BusinessDetail = () => {
     const tableColumn = Object.keys(data[0]);
     const tableRows = data.map(row => tableColumn.map(col => String(row[col] || '')));
 
-    doc.autoTable({
+    autoTable(doc, {
       head: [tableColumn],
       body: tableRows,
       startY: 46,
@@ -241,7 +313,7 @@ const BusinessDetail = () => {
                       }}>
                         {row[col]}
                       </span>
-                    ) : row[col] || ''}
+                    ) : renderTextWithLinks(row[col] || '')}
                   </td>
                 ))}
               </tr>
@@ -286,7 +358,14 @@ const BusinessDetail = () => {
 
       {/* Hero Section */}
       <div className="business-detail-hero animate-fade-in">
-        <h1>{business['Company Name'] || decodedName}</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <h1>{business['Company Name'] || decodedName}</h1>
+          {useMock && (
+            <span style={{ background: '#f59e0b', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>
+              DEMO DATA
+            </span>
+          )}
+        </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.25rem' }}>
           {business['Reason'] || 'Enterprise prospect for Mobitel B2B solutions'}
         </p>
