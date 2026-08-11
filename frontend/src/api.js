@@ -95,3 +95,13 @@ export const fetchCustomerResearch = async (promptText) => {
   return response.data;
 };
 
+/**
+ * Fetches service improvement & review sentiment analysis
+ */
+export const fetchHelpImproveService = async (promptText) => {
+  const response = await axios.post(BACKEND_ENDPOINTS.helpImproveService, {
+    prompt: promptText
+  });
+  return response.data;
+};
+

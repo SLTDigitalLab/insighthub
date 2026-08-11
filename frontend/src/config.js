@@ -16,13 +16,14 @@ export const WEBHOOK_URLS = {
 };
 
 export const BACKEND_ENDPOINTS = {
-  documents:        `${LOCAL_BACKEND_URL}/documents`,
-  uploadDocument:   `${LOCAL_BACKEND_URL}/documents/upload`,
-  vectorSearch:     `${LOCAL_BACKEND_URL}/vector/search`,
-  recommendations:  `${LOCAL_BACKEND_URL}/recommendations`,
-  meetingPrep:      `${LOCAL_BACKEND_URL}/meeting-prep`,
-  leadDiscovery:    `${LOCAL_BACKEND_URL}/lead-discovery`,
-  customerResearch: `${LOCAL_BACKEND_URL}/customer-research`,
-  health:           `${LOCAL_BACKEND_URL}/health`,
+  documents:          `${LOCAL_BACKEND_URL}/documents`,
+  uploadDocument:     `${LOCAL_BACKEND_URL}/documents/upload`,
+  vectorSearch:       `${LOCAL_BACKEND_URL}/vector/search`,
+  recommendations:    `${LOCAL_BACKEND_URL}/recommendations`,
+  meetingPrep:        `${LOCAL_BACKEND_URL}/meeting-prep`,
+  leadDiscovery:      `${LOCAL_BACKEND_URL}/lead-discovery`,
+  customerResearch:   `${LOCAL_BACKEND_URL}/customer-research`,
+  helpImproveService: `${LOCAL_BACKEND_URL}/help-improve-service`,
+  health:             `${LOCAL_BACKEND_URL}/health`,
 };
 
