@@ -85,3 +85,13 @@ export const fetchLeadDiscovery = async (promptText) => {
   return response.data;
 };
 
+/**
+ * Fetches customer research report with verified company profiles & social links
+ */
+export const fetchCustomerResearch = async (promptText) => {
+  const response = await axios.post(BACKEND_ENDPOINTS.customerResearch, {
+    prompt: promptText
+  });
+  return response.data;
+};
+

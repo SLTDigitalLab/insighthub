@@ -260,13 +260,13 @@ const Dashboard = () => {
       { 'Company Name': 'Sampath Bank PLC', 'Industry': 'Banking & Finance', 'Size': 'Enterprise', 'Location': 'Colombo', 'Contact Number': '+94 11 230 3050', 'Customer Rating': 4.1, 'Lead Score': 'High', 'Key Decision Makers': 'MD: Nanda Fernando, CTO: Chaminda Jayasuriya', 'LinkedIn URL': 'https://linkedin.com/company/sampath-bank', 'Website': 'www.sampath.lk', 'Reason': 'Major bank needing cybersecurity, SD-WAN, and disaster recovery' },
     ],
     research: [
-      { 'Category': 'Company Overview', 'Details': 'John Keells Holdings is Sri Lanka\'s largest listed conglomerate on the Colombo Stock Exchange. Diversified across transportation, leisure, property, consumer foods, and IT.' },
-      { 'Category': 'Key Decision Makers', 'Details': 'Chairman: Krishan Balendra (linkedin.com/in/krishan-balendra) | Group Finance Director: Gihan Cooray | CTO: Ramesh Fernando' },
-      { 'Category': 'Employees Found', 'Details': '1. Nimal Jayawardena - Senior Software Engineer (linkedin.com/in/nimal-j) | 2. Asha Wijesinghe - Marketing Manager (linkedin.com/in/asha-w) | 3. Rohan De Silva - Network Admin (linkedin.com/in/rohan-ds) | 4. Priya Mendis - HR Director (linkedin.com/in/priya-m)' },
-      { 'Category': 'Social Media Presence', 'Details': 'LinkedIn: linkedin.com/company/john-keells-holdings | Facebook: facebook.com/JohnKeellsGroup | Twitter: @JohnKeellsGroup' },
-      { 'Category': 'Recent Developments', 'Details': 'Investing $500M in Colombo Port City mixed-use development. Launched digital transformation across leisure sector in 2024.' },
-      { 'Category': 'Current Technology', 'Details': 'Uses a mix of Dialog and SLT for enterprise connectivity. On-premise data centers. Microsoft 365 for collaboration.' },
-      { 'Category': 'Potential Pain Points', 'Details': '1. Managing connectivity across 70+ companies. 2. Legacy systems in some subsidiaries. 3. Cybersecurity at scale. 4. Cloud migration challenges.' },
+      { 'Category': 'Company Overview', 'Details': 'Asiri Hospital Holdings PLC is Sri Lanka\'s leading private healthcare provider operating 6 tertiary hospitals with 800+ beds.' },
+      { 'Category': 'Key Decision Makers', 'Details': 'Group Chairman: Ashok Pathirage (https://www.asirihealth.com/board-of-directors) | Group CEO: Dr. Manjula Karunaratne | CFO: Haresh Somashantha | Head of IT: Sameera Alwis' },
+      { 'Category': 'Employees Found', 'Details': '1. Dr. Manjula Karunaratne - Group CEO | 2. Haresh Somashantha - Group CFO | 3. Sameera Alwis - Group Head of IT | 4. Dr. Niroshan Siriwardena - Chief Medical Officer' },
+      { 'Category': 'Social Media Presence', 'Details': 'Official LinkedIn: https://www.linkedin.com/company/asiri-health | Official Facebook: https://www.facebook.com/AsiriHealth/ | Website: https://www.asirihealth.com' },
+      { 'Category': 'Recent Developments', 'Details': 'Invested LKR 2.5B in PACS/DICOM radiology cloud integration across regional hospitals.' },
+      { 'Category': 'Current Technology', 'Details': 'Uses fiber leased lines for PACS/DICOM radiology transfers and patient SMS notification gateways.' },
+      { 'Category': 'Potential Pain Points', 'Details': '1. High bandwidth fiber needed for inter-hospital image sync. 2. High density guest Wi-Fi for patient waiting rooms. 3. 24/7 SOC security perimeter.' },
     ],
     meeting: [
       { 'Section': 'Company Insights', 'Content': 'Commercial Bank is the largest private bank in Sri Lanka with 270+ branches and 900+ ATMs. Revenue exceeded LKR 150B in 2023.' },
@@ -309,143 +309,94 @@ const Dashboard = () => {
     }
 
     try {
-      if (activeAgent.id === 'lead') {
-        try {
-          const response = await axios.post(
-            WEBHOOK_URLS['lead'],
-            { prompt: prompt },
-            { headers: { 'Content-Type': 'application/json' }, timeout: 25000 }
-          );
+      const targetWebhook = WEBHOOK_URLS[activeAgent.id];
+      console.log(`[Real-Time n8n Agent] Sending prompt to live n8n webhook: ${targetWebhook}`);
 
-          const data = response.data;
-          let parsed = null;
+      let response = null;
+      let n8nSuccess = false;
 
-          if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-            parsed = data.results;
-          } else if (Array.isArray(data) && data.length > 0) {
-            parsed = data;
-          } else if (typeof data === 'object' && data.output) {
+      try {
+        // Send request directly to live n8n AI Chat Agent with a 3-minute timeout for Apify web scraping
+        response = await axios.post(
+          targetWebhook,
+          { prompt: prompt },
+          { headers: { 'Content-Type': 'application/json' }, timeout: 180000 }
+        );
+
+        const data = response.data;
+        let parsed = null;
+
+        if (data.results && Array.isArray(data.results) && data.results.length > 0) {
+          parsed = data.results;
+        } else if (Array.isArray(data) && data.length > 0) {
+          parsed = data;
+        } else if (typeof data === 'object' && data.output) {
+          try {
             const jsonMatch = data.output.match(/\[[\s\S]*\]/);
             if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+            else parsed = [{ 'Response': data.output }];
+          } catch {
+            parsed = [{ 'Response': data.output }];
           }
-
-          if (parsed && parsed.length > 0) {
-            setResults(parsed);
-            return;
-          }
-        } catch (n8nErr) {
-          console.warn('[Lead Agent] n8n webhook unavailable or errored out. Falling back to local Sri Lanka business directory API:', n8nErr.message);
-        }
-
-        // Direct Local Sri Lanka Business Directory fallback
-        const leadRes = await fetchLeadDiscovery(prompt);
-        if (leadRes && leadRes.results && leadRes.results.length > 0) {
-          setResults(leadRes.results);
-          return;
-        }
-      } else if (activeAgent.id === 'product') {
-        try {
-          const response = await axios.post(
-            WEBHOOK_URLS['product'],
-            { prompt: prompt },
-            { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
-          );
-
-          const data = response.data;
-          let parsed = null;
-
-          if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-            parsed = data.results;
-          } else if (Array.isArray(data) && data.length > 0) {
-            parsed = data;
-          } else if (typeof data === 'object' && data.output) {
-            const jsonMatch = data.output.match(/\[[\s\S]*\]/);
+        } else if (typeof data === 'object' && data.message) {
+          parsed = [{ 'Response': data.message }];
+        } else if (typeof data === 'string') {
+          try {
+            const jsonMatch = data.match(/\[[\s\S]*\]/);
             if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+            else parsed = [{ 'Response': data }];
+          } catch {
+            parsed = [{ 'Response': data }];
           }
-
-          if (parsed && parsed.length > 0) {
-            setResults(parsed);
-            return;
-          }
-        } catch (n8nErr) {
-          console.warn('[Product Agent] n8n webhook unavailable or errored out. Falling back to local ChromaDB RAG API:', n8nErr.message);
         }
 
-        // Direct Local ChromaDB RAG fallback
-        const ragRes = await fetchProductRecommendations(prompt);
-        if (ragRes && ragRes.results && ragRes.results.length > 0) {
-          setResults(ragRes.results);
+        if (parsed && parsed.length > 0) {
+          console.log(`[Real-Time n8n Agent] Received live response (${parsed.length} items) from n8n!`);
+          setResults(parsed);
+          n8nSuccess = true;
           return;
         }
-      } else if (activeAgent.id === 'meeting') {
-        try {
-          const response = await axios.post(
-            WEBHOOK_URLS['meeting'],
-            { prompt: prompt },
-            { headers: { 'Content-Type': 'application/json' }, timeout: 25000 }
-          );
-
-          const data = response.data;
-          let parsed = null;
-
-          if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-            parsed = data.results;
-          } else if (Array.isArray(data) && data.length > 0) {
-            parsed = data;
-          } else if (typeof data === 'object' && data.output) {
-            const jsonMatch = data.output.match(/\[[\s\S]*\]/);
-            if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-          }
-
-          if (parsed && parsed.length > 0) {
-            setResults(parsed);
-            return;
-          }
-        } catch (n8nErr) {
-          console.warn('[Meeting Agent] n8n webhook unavailable or errored out. Falling back to local ChromaDB RAG API:', n8nErr.message);
-        }
-
-        // Direct Local ChromaDB RAG fallback for Meeting Prep
-        const meetingRes = await fetchMeetingPreparation(prompt);
-        if (meetingRes && meetingRes.results && meetingRes.results.length > 0) {
-          setResults(meetingRes.results);
-          return;
-        }
+      } catch (n8nErr) {
+        console.warn(`[Live n8n Agent] Webhook error for ${activeAgent.name}:`, n8nErr.message);
       }
 
-      // 2. Standard webhook call for other agents
-      const response = await axios.post(
-        WEBHOOK_URLS[activeAgent.id],
-        { prompt: prompt },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 120000 }
-      );
-
-      const data = response.data;
-
-      if (data.results && Array.isArray(data.results)) {
-        setResults(data.results);
-      } else if (Array.isArray(data)) {
-        setResults(data);
-      } else if (typeof data === 'object' && data.output) {
-        try {
-          const jsonMatch = data.output.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            setResults(JSON.parse(jsonMatch[0]));
-          } else {
-            setResults([{ 'Response': data.output }]);
+      // If n8n Webhook is offline or unreachable, fall back to local backend API
+      if (!n8nSuccess) {
+        console.log(`[InsightHub] Falling back to local backend service for agent: ${activeAgent.id}`);
+        if (activeAgent.id === 'lead') {
+          const leadRes = await fetchLeadDiscovery(prompt);
+          if (leadRes && leadRes.results && leadRes.results.length > 0) {
+            setResults(leadRes.results);
+            return;
           }
-        } catch {
-          setResults([{ 'Response': data.output }]);
+        } else if (activeAgent.id === 'research') {
+          const researchRes = await fetchCustomerResearch(prompt);
+          if (researchRes && researchRes.results && researchRes.results.length > 0) {
+            setResults(researchRes.results);
+            return;
+          }
+        } else if (activeAgent.id === 'product') {
+          const ragRes = await fetchProductRecommendations(prompt);
+          if (ragRes && ragRes.results && ragRes.results.length > 0) {
+            setResults(ragRes.results);
+            return;
+          }
+        } else if (activeAgent.id === 'meeting') {
+          const meetingRes = await fetchMeetingPreparation(prompt);
+          if (meetingRes && meetingRes.results && meetingRes.results.length > 0) {
+            setResults(meetingRes.results);
+            return;
+          }
         }
-      } else {
-        setResults([{ 'Response': JSON.stringify(data) }]);
+
+        setError('No response received from n8n AI Agent or local backup.');
       }
     } catch (err) {
       console.error('Error calling webhook/backend:', err);
       setError(
         err.response?.data?.message ||
         err.message ||
-        'Failed to connect to backend or n8n service.'
+        'Failed to connect to n8n AI Agent or backend service.'
       );
     } finally {
       setLoading(false);
@@ -713,7 +664,10 @@ const Dashboard = () => {
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem'
           }}>
             <div className="spin" style={{ width: '48px', height: '48px', border: `3px solid var(--border-color)`, borderTop: `3px solid ${activeAgent.color}`, borderRadius: '50%' }}></div>
-            <p style={{ color: 'var(--text-muted)' }}>AI Agent is analyzing your request...</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', textAlign: 'center' }}>
+              ⚡ <strong>Live n8n AI Chat Agent</strong> is executing real-time web scraping & analysis...<br/>
+              <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>Fetching real-time business data via Apify & Mobitel Knowledge Base (this may take 20–60s)...</span>
+            </p>
           </div>
         )}
 
