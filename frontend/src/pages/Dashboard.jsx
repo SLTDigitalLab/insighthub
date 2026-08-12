@@ -155,7 +155,6 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
-  const [useMock, setUseMock] = useState(() => localStorage.getItem('useMock') !== 'false');
   const [emailSending, setEmailSending] = useState(false);
   
   // Knowledge Base State
@@ -233,11 +232,6 @@ const Dashboard = () => {
     }
   };
 
-  const toggleMock = () => {
-    const newValue = !useMock;
-    setUseMock(newValue);
-    localStorage.setItem('useMock', newValue);
-  };
   const [toast, setToast] = useState(null);
   const navigate = useNavigate();
   const userEmail = localStorage.getItem('userEmail') || '';
@@ -252,48 +246,6 @@ const Dashboard = () => {
     navigate('/login');
   };
 
-  // ====== MOCK DATA FOR EACH AGENT (for testing without n8n) ======
-  const mockData = {
-    lead: [
-      { 'Company Name': 'Lanka Hospitals PLC', 'Industry': 'Healthcare', 'Size': 'Large', 'Location': 'Colombo', 'Contact Number': '+94 11 553 0000', 'Customer Rating': 4.2, 'Lead Score': 'High', 'Key Decision Makers': 'CEO: Dr. Prasad Medawatte, CTO: Amal Perera', 'LinkedIn URL': 'https://linkedin.com/company/lanka-hospitals', 'Website': 'www.lankahospitals.com', 'Reason': 'Large hospital chain needing SD-WAN and IoT for medical devices' },
-      { 'Company Name': 'MAS Holdings', 'Industry': 'Manufacturing', 'Size': 'Enterprise', 'Location': 'Colombo', 'Contact Number': '+94 11 200 5000', 'Customer Rating': 4.5, 'Lead Score': 'High', 'Key Decision Makers': 'CEO: Suren Fernando, CIO: Dinesh Wickramasinghe', 'LinkedIn URL': 'https://linkedin.com/company/mas-holdings', 'Website': 'www.masholdings.com', 'Reason': 'Global manufacturer needing MPLS VPN across 50+ factories' },
-      { 'Company Name': 'Virtusa (Pvt) Ltd', 'Industry': 'IT/BPO', 'Size': 'Enterprise', 'Location': 'Colombo', 'Contact Number': '+94 11 267 8000', 'Customer Rating': 3.8, 'Lead Score': 'Medium', 'Key Decision Makers': 'Country Head: Madu Ratnayake, VP Engineering: Sanjeev Kumar', 'LinkedIn URL': 'https://linkedin.com/company/virtusa', 'Website': 'www.virtusa.com', 'Reason': 'IT company requiring high-speed DIA and cloud solutions' },
-      { 'Company Name': 'Cinnamon Hotels & Resorts', 'Industry': 'Hospitality', 'Size': 'Large', 'Location': 'Colombo', 'Contact Number': '+94 11 230 0800', 'Customer Rating': 4.4, 'Lead Score': 'High', 'Key Decision Makers': 'CEO: Hiran Cooray, IT Director: Ruwan Silva', 'LinkedIn URL': 'https://linkedin.com/company/cinnamon-hotels', 'Website': 'www.cinnamonhotels.com', 'Reason': 'Hotel chain needing managed WiFi and UCaaS across properties' },
-      { 'Company Name': 'Sampath Bank PLC', 'Industry': 'Banking & Finance', 'Size': 'Enterprise', 'Location': 'Colombo', 'Contact Number': '+94 11 230 3050', 'Customer Rating': 4.1, 'Lead Score': 'High', 'Key Decision Makers': 'MD: Nanda Fernando, CTO: Chaminda Jayasuriya', 'LinkedIn URL': 'https://linkedin.com/company/sampath-bank', 'Website': 'www.sampath.lk', 'Reason': 'Major bank needing cybersecurity, SD-WAN, and disaster recovery' },
-    ],
-    research: [
-      { 'Category': 'Company Overview', 'Details': 'Asiri Hospital Holdings PLC is Sri Lanka\'s leading private healthcare provider operating 6 tertiary hospitals with 800+ beds.' },
-      { 'Category': 'Key Decision Makers', 'Details': 'Group Chairman: Ashok Pathirage (https://www.asirihealth.com/board-of-directors) | Group CEO: Dr. Manjula Karunaratne | CFO: Haresh Somashantha | Head of IT: Sameera Alwis' },
-      { 'Category': 'Employees Found', 'Details': '1. Dr. Manjula Karunaratne - Group CEO | 2. Haresh Somashantha - Group CFO | 3. Sameera Alwis - Group Head of IT | 4. Dr. Niroshan Siriwardena - Chief Medical Officer' },
-      { 'Category': 'Social Media Presence', 'Details': 'Official LinkedIn: https://www.linkedin.com/company/asiri-health | Official Facebook: https://www.facebook.com/AsiriHealth/ | Website: https://www.asirihealth.com' },
-      { 'Category': 'Recent Developments', 'Details': 'Invested LKR 2.5B in PACS/DICOM radiology cloud integration across regional hospitals.' },
-      { 'Category': 'Current Technology', 'Details': 'Uses fiber leased lines for PACS/DICOM radiology transfers and patient SMS notification gateways.' },
-      { 'Category': 'Potential Pain Points', 'Details': '1. High bandwidth fiber needed for inter-hospital image sync. 2. High density guest Wi-Fi for patient waiting rooms. 3. 24/7 SOC security perimeter.' },
-    ],
-    meeting: [
-      { 'Section': 'Company Insights', 'Content': 'Commercial Bank is the largest private bank in Sri Lanka with 270+ branches and 900+ ATMs. Revenue exceeded LKR 150B in 2023.' },
-      { 'Section': 'Key People to Meet', 'Content': '1. CTO: Sanjeev Jha (linkedin.com/in/sanjeev-jha) | 2. IT Director: Pradeep Amirthanayagam (linkedin.com/in/pradeep-a) | 3. Head of Procurement: Mahesh Gunasekara' },
-      { 'Section': 'Industry Trends', 'Content': '1. Digital banking & mobile-first strategies. 2. Open Banking API adoption. 3. AI-powered fraud detection. 4. Regulatory push for data localization.' },
-      { 'Section': 'Pain Points', 'Content': '1. Inter-branch connectivity latency affecting core banking. 2. Growing cybersecurity threats targeting financial data. 3. Customer demand for omni-channel contact center.' },
-      { 'Section': 'Discussion Points', 'Content': '1. Ask about their branch network expansion plans. 2. Discuss SD-WAN benefits over legacy MPLS. 3. Explore their disaster recovery readiness.' },
-      { 'Section': 'Objection Handling', 'Content': '1. "We use Dialog" → Highlight Mobitel\'s 5G coverage advantage and competitive SLA. 2. "Budget constraints" → Propose phased rollout starting with critical branches.' },
-      { 'Section': 'Competitor Analysis', 'Content': 'Dialog Enterprise is the incumbent. SLT provides leased lines. Mobitel differentiates with bundled solutions, local cloud, and dedicated enterprise account managers.' },
-    ],
-    product: [
-      { 'Product': 'SD-WAN Solutions', 'Category': 'Enterprise Connectivity', 'Why Recommended': 'With 270+ branches, SD-WAN provides intelligent routing, 40% cost reduction over MPLS, and seamless cloud banking app performance.', 'Priority': 'High' },
-      { 'Product': 'Managed Firewall + SOC', 'Category': 'Cybersecurity', 'Why Recommended': 'Banking sector compliance requires robust threat protection. 24/7 SOC ensures real-time monitoring of financial transactions.', 'Priority': 'High' },
-      { 'Product': 'Contact Center as a Service (CCaaS)', 'Category': 'Unified Communications', 'Why Recommended': 'Replace legacy call center with AI-powered routing, omni-channel support, and analytics for better customer experience.', 'Priority': 'Medium' },
-      { 'Product': 'Disaster Recovery as a Service (DRaaS)', 'Category': 'Cloud & Data Center', 'Why Recommended': 'Financial regulators require business continuity plans. DRaaS ensures zero data loss and rapid failover.', 'Priority': 'High' },
-      { 'Product': 'Bundle: Digital Banking Infrastructure Pack', 'Category': 'Strategic Bundle', 'Why Recommended': 'SD-WAN + SOC + DRaaS + CCaaS = Complete digital transformation at 25% bundle discount. Estimated deployment: 8-12 weeks.', 'Priority': 'Strategic' },
-    ],
-    improve: [
-      { 'Category': 'Overall Sentiment', 'Details': 'Mixed (3.5/5 on Google, 3.2/5 on Facebook). Generally praised for network coverage but criticized for customer service responsiveness.' },
-      { 'Category': 'Key Complaints', 'Details': '1. Long wait times on customer service hotline. 2. Billing discrepancies and delayed refunds. 3. Poor communication during scheduled maintenance.' },
-      { 'Category': 'Service Improvement Recommendations', 'Details': '1. Implement an AI chatbot for initial customer service triage to reduce wait times. 2. Automate SMS notifications for billing and maintenance. 3. Introduce a self-service portal for bill disputes.' },
-      { 'Category': 'Employees Found (Facebook/LinkedIn)', 'Details': '1. Kamal Silva - Customer Service Manager (facebook.com/kamal.s) | 2. Nuwan Perera - Technical Support Lead (linkedin.com/in/nuwan-p) | 3. Dilani Fernando - PR Manager (facebook.com/dilani.f)' }
-    ],
-  };
-
   const handleSearch = async (e) => {
     e.preventDefault();
     if (!prompt) return;
@@ -302,119 +254,37 @@ const Dashboard = () => {
     setResults(null);
     setError(null);
 
-    if (useMock) {
-      setTimeout(() => {
-        setResults(mockData[activeAgent.id]);
-        setLoading(false);
-      }, 1500);
-      return;
-    }
-
     try {
-      const targetWebhook = WEBHOOK_URLS[activeAgent.id];
-      console.log(`[Real-Time n8n Agent] Sending prompt to live n8n webhook: ${targetWebhook}`);
+      console.log(`[InsightHub Gateway] Requesting live n8n AI Agent for "${activeAgent.name}" with prompt: "${prompt}"`);
 
-      let response = null;
-      let n8nSuccess = false;
+      let responseData = null;
 
-      try {
-        // Send request directly to live n8n AI Chat Agent with an 85s timeout (to stay within Cloudflare's 90-100s limit)
-        response = await axios.post(
-          targetWebhook,
-          { prompt: prompt },
-          { headers: { 'Content-Type': 'application/json' }, timeout: 85000 }
-        );
-
-        const data = response.data;
-        let parsed = null;
-
-        if (data.results && Array.isArray(data.results) && data.results.length > 0) {
-          parsed = data.results;
-        } else if (Array.isArray(data) && data.length > 0) {
-          parsed = data;
-        } else if (typeof data === 'object' && data.output) {
-          try {
-            const jsonMatch = data.output.match(/\[[\s\S]*\]/);
-            if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-            else parsed = [{ 'Response': data.output }];
-          } catch {
-            parsed = [{ 'Response': data.output }];
-          }
-        } else if (typeof data === 'object' && data.message) {
-          parsed = [{ 'Response': data.message }];
-        } else if (typeof data === 'string') {
-          try {
-            const jsonMatch = data.match(/\[[\s\S]*\]/);
-            if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-            else parsed = [{ 'Response': data }];
-          } catch {
-            parsed = [{ 'Response': data }];
-          }
-        }
-
-        if (parsed && parsed.length > 0) {
-          console.log(`[Real-Time n8n Agent] Received live response (${parsed.length} items) from n8n!`);
-          setResults(parsed);
-          n8nSuccess = true;
-          return;
-        }
-      } catch (n8nErr) {
-        console.warn(`[Live n8n Agent] Webhook error for ${activeAgent.name} (Cloudflare timeout / offline):`, n8nErr.message);
+      if (activeAgent.id === 'lead') {
+        responseData = await fetchLeadDiscovery(prompt);
+      } else if (activeAgent.id === 'research') {
+        responseData = await fetchCustomerResearch(prompt);
+      } else if (activeAgent.id === 'product') {
+        responseData = await fetchProductRecommendations(prompt);
+      } else if (activeAgent.id === 'meeting') {
+        responseData = await fetchMeetingPreparation(prompt);
+      } else if (activeAgent.id === 'improve') {
+        responseData = await fetchHelpImproveService(prompt);
       }
 
-      // If n8n Webhook is offline or timed out, fall back to local backend API
-      if (!n8nSuccess) {
-        console.log(`[InsightHub] Falling back to local backend service for agent: ${activeAgent.id}`);
-        try {
-          if (activeAgent.id === 'lead') {
-            const leadRes = await fetchLeadDiscovery(prompt);
-            if (leadRes && leadRes.results && leadRes.results.length > 0) {
-              setResults(leadRes.results);
-              return;
-            }
-          } else if (activeAgent.id === 'research') {
-            const researchRes = await fetchCustomerResearch(prompt);
-            if (researchRes && researchRes.results && researchRes.results.length > 0) {
-              setResults(researchRes.results);
-              return;
-            }
-          } else if (activeAgent.id === 'product') {
-            const ragRes = await fetchProductRecommendations(prompt);
-            if (ragRes && ragRes.results && ragRes.results.length > 0) {
-              setResults(ragRes.results);
-              return;
-            }
-          } else if (activeAgent.id === 'meeting') {
-            const meetingRes = await fetchMeetingPreparation(prompt);
-            if (meetingRes && meetingRes.results && meetingRes.results.length > 0) {
-              setResults(meetingRes.results);
-              return;
-            }
-          } else if (activeAgent.id === 'improve') {
-            const improveRes = await fetchHelpImproveService(prompt);
-            if (improveRes && improveRes.results && improveRes.results.length > 0) {
-              setResults(improveRes.results);
-              return;
-            }
-          }
-        } catch (fallbackErr) {
-          console.error('[InsightHub] Local backend fallback error:', fallbackErr.message);
-        }
-
-        // If local backend is down, use rich offline demonstration data so the app NEVER crashes
-        if (mockData[activeAgent.id]) {
-          setResults(mockData[activeAgent.id]);
-          return;
-        }
-
-        setError('No response received from n8n AI Agent or local backup.');
+      if (responseData && responseData.results && responseData.results.length > 0) {
+        setResults(responseData.results);
+      } else if (Array.isArray(responseData) && responseData.length > 0) {
+        setResults(responseData);
+      } else {
+        setError(`No results returned from live n8n ${activeAgent.name} Agent.`);
       }
     } catch (err) {
-      console.error('Error calling webhook/backend:', err);
+      console.error('[Dashboard Search Error]', err);
       setError(
+        err.response?.data?.error ||
         err.response?.data?.message ||
         err.message ||
-        'Failed to connect to n8n AI Agent or backend service.'
+        `Failed to connect to live n8n ${activeAgent.name} Agent.`
       );
     } finally {
       setLoading(false);
@@ -569,23 +439,9 @@ const Dashboard = () => {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</span>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem' }}>
-            <label style={{ color: 'var(--text-muted)', flex: 1 }}>
-              {useMock ? '🟡 Demo Mode' : '🟢 Live (n8n)'}
-            </label>
-            <button
-              onClick={toggleMock}
-              style={{
-                background: useMock ? '#f59e0b' : '#10b981',
-                color: 'white',
-                padding: '0.3rem 0.75rem',
-                borderRadius: '1rem',
-                fontSize: '0.75rem',
-                fontWeight: 'bold'
-              }}
-            >
-              {useMock ? 'Switch to Live' : 'Switch to Demo'}
-            </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#10b981', padding: '0.25rem 0' }}>
+            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }}></span>
+            <span style={{ fontWeight: '500' }}>Live n8n Agent connected</span>
           </div>
           <button
             onClick={handleLogout}
