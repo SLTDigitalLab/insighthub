@@ -23,7 +23,7 @@
         "promptType": "define",
         "text": "={{ $json.body.prompt }}",
         "options": {
-          "maxIterations": 5,
+          "maxIterations": 3,
           "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find business leads STRICTLY AND EXCLUSIVELY extracted from live Apify web search results (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`).\n\n**100% LIVE APIFY SCRAPING DIRECTIVE:**\n1. Call search tools (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`) to query live web sources.\n2. Parse and extract ONLY the real company names, ratings, contact numbers, and website URLs found directly inside the scraped Apify search result snippets.\n3. **DO NOT USE PRELOADED LISTS, MOCK DATA, OR INTERNAL KNOWLEDGE DEFAULTS.** If Apify returns 0 scraped results, output an empty array `[]`.\n4. Populate the JSON array for EVERY scraped company item with these keys:\n   - \"Company Name\": The real business name from the scraped snippet.\n   - \"Industry\": The industry category matching the prompt.\n   - \"Size\": \"Enterprise\" or \"Medium\" or \"SMB\".\n   - \"Location\": The exact Sri Lankan city/address from snippet.\n   - \"Contact Number\": Verified phone number from snippet (or N/A).\n   - \"Customer Rating\": Exact Google/Facebook review rating decimal from snippet (e.g. 4.6, 4.3).\n   - \"Lead Score\": \"High\"\n   - \"LinkedIn URL\": Real LinkedIn URL from search snippet.\n   - \"Website\": Real website domain from search snippet.\n   - \"Reason\": Mobitel B2B sales recommendation based on the company profile.\n5. Output ALL scraped search result entities in a valid JSON array only."
         }
       },
@@ -73,7 +73,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 30\n}",
+        "jsonBody": "={\n  \"queries\": \"{{ $fromAI('query', 'The search query string to search on Google') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000006",
@@ -102,7 +102,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 30\n}",
+        "jsonBody": "={\n  \"queries\": \"{{ $fromAI('query', 'The search query string to search on Google') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000007",
@@ -131,7 +131,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 30\n}",
+        "jsonBody": "={\n  \"queries\": \"{{ $fromAI('query', 'The search query string to search on Google') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000004",
