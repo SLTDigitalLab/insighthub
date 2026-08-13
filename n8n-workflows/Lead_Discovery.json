@@ -59,7 +59,7 @@
     {
       "parameters": {
         "name": "google_search",
-        "description": "General Google Web Search via Apify. Use this to find all matching companies, reviews, phone numbers, and news across Google.",
+        "description": "PRIMARY AND DEFAULT WEB SEARCH TOOL. ALWAYS call this tool FIRST to perform a live Google Search for companies, hotels, hospitals, ratings, reviews, and contact info.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "sendHeaders": true,
