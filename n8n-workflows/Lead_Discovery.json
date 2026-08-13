@@ -24,7 +24,7 @@
         "text": "={{ $json.body.prompt }}",
         "options": {
           "maxIterations": 2,
-          "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find 10 to 15 REAL, high-quality business leads based on the industry, location, company size, or keyword criteria provided by the sales representative.\n\n**CRITICAL SINGLE SEARCH DIRECTIVE:**\n1. Call `google_search` EXACTLY ONCE for the user query (e.g. 'private hospitals in Sri Lanka').\n2. Immediately parse search results and return the final JSON array of business leads.\n3. Do NOT call secondary search tools repeatedly. Stop tool execution after 1 search call.\n\n**CRITICAL INDUSTRY FILTERING DIRECTIVE:**\nYou MUST return ONLY companies that belong strictly to the industry requested in the user prompt. For example:\n- If the prompt is 'hospitals in sri lanka', output ONLY healthcare entities, hospitals, clinics, and medical centers (e.g., Asiri Hospitals, Nawaloka Hospitals, Lanka Hospitals, Durdans, Kings Hospital). Do NOT include banks, apparel companies, or tech firms.\n- If the prompt is 'banks in sri lanka', output ONLY banking and financial institutions (e.g., Commercial Bank, HNB, Sampath Bank, NDB, Seylan Bank).\n- If the prompt is 'hotels in kandy', output ONLY hotels and resorts (e.g., Earl's Regency, Grand Kandyan, Amaya Hills, Radisson).\n\n**AVAILABLE SEARCH TOOLS:**\n1. **google_search** — General web & business search via Apify.\n2. **apify_directory_booking_search** — Search Booking.com (`site:booking.com`), Google Maps (`site:google.com/maps`), Sri Lanka Yellow Pages (`site:yellowpages.lk`), and social pages (`site:facebook.com`). Use this specifically to extract real Sri Lankan hotels, resorts, phone shops, electronics centers, supermarkets, and local places.\n3. **apify_linkedin_search** — Search LinkedIn company pages (`site:linkedin.com/company/`).\n\n**INSTRUCTIONS & TARGETED SEARCHING:**\n1. **For Hotel & Hospitality Queries** (e.g. 'Hotels in Kandy', 'Resorts in Galle'):\n   - Search `site:booking.com Sri Lanka [query]` or Google Travel Hotels.\n   - Extract 10 to 15 REAL hotels and resorts listed on Booking.com.\n   - Include exact hotel name, star rating (e.g. 4.6), contact number, location (e.g. Kandy, Sri Lanka), company size (Large/Medium), and lead score.\n2. **For Shops, Stores & Local Places in Sri Lanka** (e.g. 'Phone shops in Colombo', 'Supermarkets in Kandy', 'my fone center'):\n   - Search `site:google.com/maps` or `site:yellowpages.lk` or `site:facebook.com [query] Sri Lanka`.\n   - Extract 10 to 15 REAL shops, electronics stores, mobile hubs, and local places.\n   - Include business name, verified contact number, customer star rating, exact city location, and lead score.\n3. **For Hospitals & Healthcare** (e.g. 'hospitals in sri lanka'):\n   - Search `hospitals private medical clinics Sri Lanka contact phone`.\n   - Extract 10 to 15 REAL private hospitals, clinics, and medical institutions.\n4. Extract ALL leads from initial search results to avoid timing out.\n5. Output **10 to 15 real business leads** formatted cleanly as a JSON array.\n\n**FALLBACK DIRECTIVE FOR EMPTY TOOL RESULTS:**\nIf the web search tool returns no results, 0 items, or an unauthenticated error:\nDo NOT output an empty array `[]`. Instead, use your internal knowledge base of Sri Lankan companies to find 5 to 10 real, operating Sri Lankan business entities matching the requested industry and location (e.g. for 'tech startups in colombo', return Virtusa, WSO2, Sysco LABS, 99x, Zone24x7, Calcey, Axiata Digital Labs, DirectPay). Formatted cleanly as a JSON array.\n\n**CRITICAL: You MUST return your response as a valid JSON array only. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Company Name\": \"Asiri Hospital Holdings PLC\",\n    \"Industry\": \"Healthcare & Hospitals\",\n    \"Size\": \"Enterprise (6 Major Hospitals)\",\n    \"Location\": \"Colombo / Kandy / Matara, Sri Lanka\",\n    \"Contact Number\": \"+94 11 452 4400\",\n    \"Customer Rating\": 4.4,\n    \"Lead Score\": \"High\",\n    \"Key Decision Makers\": \"Group IT Director / Chief Medical Officer\",\n    \"LinkedIn URL\": \"https://www.linkedin.com/company/asiri-health\",\n    \"Website\": \"https://www.asirihealth.com\",\n    \"Reason\": \"Leading private hospital chain requiring high-speed DICOM medical image fiber, HIPAA-compliant Managed Firewall, and Patient Care SMS Gateway.\"\n  }\n]"
+          "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find 10 to 15 REAL, high-quality business leads strictly extracted from live Apify web search results based on the query provided by the sales representative.\n\n**CRITICAL SINGLE SEARCH DIRECTIVE:**\n1. Call `google_search` EXACTLY ONCE for the user query (e.g. 'private hospitals in Sri Lanka').\n2. Extract real business leads directly from the web search results.\n3. Output 10 to 15 real business leads formatted cleanly as a JSON array.\n\n**CRITICAL INDUSTRY FILTERING DIRECTIVE:**\nYou MUST return ONLY companies that belong strictly to the industry requested in the user prompt.\n\n**CRITICAL: You MUST return your response as a valid JSON array only. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Company Name\": \"Asiri Hospital Holdings PLC\",\n    \"Industry\": \"Healthcare & Hospitals\",\n    \"Size\": \"Enterprise (6 Major Hospitals)\",\n    \"Location\": \"Colombo / Kandy / Matara, Sri Lanka\",\n    \"Contact Number\": \"+94 11 452 4400\",\n    \"Customer Rating\": 4.4,\n    \"Lead Score\": \"High\",\n    \"Key Decision Makers\": \"Group IT Director / Chief Medical Officer\",\n    \"LinkedIn URL\": \"https://www.linkedin.com/company/asiri-health\",\n    \"Website\": \"https://www.asirihealth.com\",\n    \"Reason\": \"Leading private hospital chain requiring high-speed DICOM medical image fiber, HIPAA-compliant Managed Firewall, and Patient Care SMS Gateway.\"\n  }\n]"
         }
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000002",
@@ -145,17 +145,10 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = String($input.first().json.output || '');\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else if (output.includes('max iterations') || output.includes('stopped')) {\n    results = [\n      {\n        \"Company Name\": \"Asiri Hospital Holdings PLC\",\n        \"Industry\": \"Healthcare & Hospitals\",\n        \"Size\": \"Enterprise (6 Major Hospitals)\",\n        \"Location\": \"Colombo / Kandy / Matara, Sri Lanka\",\n        \"Contact Number\": \"+94 11 452 4400\",\n        \"Customer Rating\": 4.4,\n        \"Lead Score\": \"High\",\n        \"Key Decision Makers\": \"Group IT Director / Chief Medical Officer\",\n        \"LinkedIn URL\": \"https://www.linkedin.com/company/asiri-health\",\n        \"Website\": \"https://www.asirihealth.com\",\n        \"Reason\": \"Leading private hospital chain requiring high-speed DICOM medical image fiber, HIPAA-compliant Managed Firewall, and Patient Care SMS Gateway.\"\n      },\n      {\n        \"Company Name\": \"Nawaloka Hospitals PLC\",\n        \"Industry\": \"Healthcare & Clinical Services\",\n        \"Size\": \"Enterprise (3 Hospitals)\",\n        \"Location\": \"Colombo 02, Sri Lanka\",\n        \"Contact Number\": \"+94 11 557 7111\",\n        \"Customer Rating\": 4.3,\n        \"Lead Score\": \"High\",\n        \"Key Decision Makers\": \"Head of IT Infrastructure\",\n        \"LinkedIn URL\": \"https://www.linkedin.com/company/nawaloka-hospitals-plc\",\n        \"Website\": \"https://www.nawaloka.com\",\n        \"Reason\": \"Premier private hospital chain requiring IP-VPN across diagnostic centers and Cloud Backup.\"\n      },\n      {\n        \"Company Name\": \"Lanka Hospitals PLC\",\n        \"Industry\": \"Healthcare & Hospitals\",\n        \"Size\": \"Enterprise (350+ Beds)\",\n        \"Location\": \"Colombo 05, Sri Lanka\",\n        \"Contact Number\": \"+94 11 553 0000\",\n        \"Customer Rating\": 4.5,\n        \"Lead Score\": \"High\",\n        \"Key Decision Makers\": \"Chief Information Officer\",\n        \"LinkedIn URL\": \"https://www.linkedin.com/company/lanka-hospitals-corporation-plc\",\n        \"Website\": \"https://www.lankahospitals.com\",\n        \"Reason\": \"JCI-accredited hospital needing leased lines for radiology telemetry and SD-WAN.\"\n      }\n    ];\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Lead Discovery\", results: results } }];"
+        "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = String($input.first().json.output || '');\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Lead Discovery\", results: results } }];"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000005",
       "name": "Format Response",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        780,
-        300
-      ]
-    }
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -187,17 +180,6 @@
         ]
       ]
     },
-    "Apify LinkedIn Search": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "OpenAI Chat Model": {
       "ai_languageModel": [
         [
@@ -221,6 +203,17 @@
       ]
     },
     "Apify Booking & Directory Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify LinkedIn Search": {
       "ai_tool": [
         [
           {
