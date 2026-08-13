@@ -73,7 +73,16 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"queries\": \"{{ $fromAI('query', 'The search query string to search on Google') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
+        "placeholderValues": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The search query string to search on Google",
+              "type": "string"
+            }
+          ]
+        },
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000006",
@@ -102,7 +111,16 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"queries\": \"{{ $fromAI('query', 'The search query string to search on Google') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
+        "placeholderValues": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The search query string to search on Google",
+              "type": "string"
+            }
+          ]
+        },
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000007",
@@ -131,7 +149,16 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"queries\": \"{{ $fromAI('query', 'The search query string to search on Google') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
+        "placeholderValues": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The search query string to search on Google",
+              "type": "string"
+            }
+          ]
+        },
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000004",
