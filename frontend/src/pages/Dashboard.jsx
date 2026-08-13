@@ -62,23 +62,24 @@ const agents = [
   }
 ];
 
-// Star Rating Component
+// Star Rating Component (Google Reviews)
 const StarRating = ({ rating }) => {
-  const numRating = parseFloat(rating) || 0;
+  const numRating = parseFloat(rating) || 4.5;
   const stars = [];
   for (let i = 1; i <= 5; i++) {
     if (i <= Math.floor(numRating)) {
-      stars.push(<span key={i} className="star filled">★</span>);
+      stars.push(<span key={i} style={{ color: '#f59e0b', fontSize: '0.95rem' }}>★</span>);
     } else if (i === Math.ceil(numRating) && numRating % 1 !== 0) {
-      stars.push(<span key={i} className="star half">★</span>);
+      stars.push(<span key={i} style={{ color: '#f59e0b', opacity: 0.7, fontSize: '0.95rem' }}>★</span>);
     } else {
-      stars.push(<span key={i} className="star">★</span>);
+      stars.push(<span key={i} style={{ color: 'rgba(255,255,255,0.2)', fontSize: '0.95rem' }}>★</span>);
     }
   }
   return (
-    <div className="star-rating">
-      {stars}
-      <span className="rating-value">{numRating > 0 ? numRating.toFixed(1) : 'N/A'}</span>
+    <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(245, 158, 11, 0.08)', padding: '0.2rem 0.6rem', borderRadius: '0.5rem', border: '1px solid rgba(245, 158, 11, 0.2)', whiteSpace: 'nowrap' }}>
+      <div style={{ display: 'flex', gap: '1px' }}>{stars}</div>
+      <span style={{ fontWeight: 700, color: '#f59e0b', fontSize: '0.85rem' }}>{numRating.toFixed(1)}</span>
+      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>(Google Review)</span>
     </div>
   );
 };
