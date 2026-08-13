@@ -703,9 +703,7 @@ const Dashboard = () => {
             <activeAgent.icon size={48} style={{ opacity: 0.2 }} />
             <p style={{ fontSize: '1.1rem' }}>Enter a prompt above to get started</p>
             <p style={{ fontSize: '0.85rem', maxWidth: '400px', textAlign: 'center' }}>
-              {useMock
-                ? 'Running in Demo Mode — results are pre-loaded sample data.'
-                : 'Connected to n8n — make sure your workflows are active.'}
+              Connected to live n8n AI Agent gateway &amp; local vector store.
             </p>
           </div>
         )}

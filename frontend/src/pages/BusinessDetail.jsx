@@ -85,8 +85,6 @@ const BusinessDetail = () => {
   const [loadingProduct, setLoadingProduct] = useState(false);
   const [expandedSections, setExpandedSections] = useState({ research: true, meeting: true, product: true });
   const [toast, setToast] = useState(null);
-  const useMock = localStorage.getItem('useMock') !== 'false';
-
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 4000);
@@ -105,48 +103,12 @@ const BusinessDetail = () => {
     }
   }, [decodedName]);
 
-  // Mock data for business detail page
-  const mockResearch = [
-    { 'Category': 'Company Overview', 'Details': `${decodedName} is a prominent business entity in Sri Lanka, operating across multiple sectors with a strong market presence.` },
-    { 'Category': 'Key Decision Makers', 'Details': 'CEO: Dr. Anil Jayasinghe (linkedin.com/in/anil-j) | CTO: Ruvini Perera (linkedin.com/in/ruvini-p) | CFO: Malik Fernando' },
-    { 'Category': 'Employees Found', 'Details': '1. Kasun Silva - Senior Network Engineer (linkedin.com/in/kasun-s) | 2. Nimali Gunawardena - Project Manager (linkedin.com/in/nimali-g) | 3. Thilak Bandara - System Admin (linkedin.com/in/thilak-b)' },
-    { 'Category': 'Social Media Presence', 'Details': `LinkedIn: linkedin.com/company/${decodedName.toLowerCase().replace(/\s+/g, '-')} | Facebook: facebook.com/${decodedName.replace(/\s+/g, '')}` },
-    { 'Category': 'Recent Developments', 'Details': 'Recently announced a digital transformation initiative. Expanding operations to new regions within Sri Lanka.' },
-    { 'Category': 'Current Technology', 'Details': 'Legacy on-premise infrastructure with partial cloud migration. Uses a mix of Dialog and SLT for connectivity.' },
-    { 'Category': 'Potential Pain Points', 'Details': '1. Aging network infrastructure. 2. Growing cybersecurity concerns. 3. Need for unified communications. 4. Disaster recovery gaps.' },
-  ];
-
-  const mockMeeting = [
-    { 'Section': 'Company Insights', 'Content': `${decodedName} is a key player in their sector with significant enterprise connectivity needs across multiple locations.` },
-    { 'Section': 'Key People to Meet', 'Content': '1. CTO: Ruvini Perera - Technical decision maker | 2. IT Director: Sampath Jayaweera - Infrastructure buyer | 3. Head of Procurement: Dilini Rathnayake' },
-    { 'Section': 'Industry Trends', 'Content': '1. Cloud-first migration strategies. 2. Zero-trust security adoption. 3. 5G-powered IoT solutions. 4. AI-driven automation.' },
-    { 'Section': 'Pain Points', 'Content': '1. High network downtime costs. 2. Fragmented communication tools. 3. Compliance and data sovereignty requirements.' },
-    { 'Section': 'Discussion Points', 'Content': '1. Current connectivity challenges across branches. 2. Cloud migration timeline and strategy. 3. Business continuity and DR readiness.' },
-    { 'Section': 'Objection Handling', 'Content': '1. "Happy with current provider" → Show TCO comparison and 5G advantage. 2. "Budget freeze" → Propose OpEx model with phased deployment.' },
-  ];
-
-  const mockProduct = [
-    { 'Product': 'SD-WAN Solutions', 'Category': 'Enterprise Connectivity', 'Why Recommended': 'Multi-branch architecture benefits from intelligent traffic routing, 40% cost savings, and cloud app optimization.', 'Priority': 'High' },
-    { 'Product': 'Managed Firewall + SOC', 'Category': 'Cybersecurity', 'Why Recommended': 'Growing cyber threats require enterprise-grade protection with 24/7 monitoring.', 'Priority': 'High' },
-    { 'Product': 'Hosted PBX / UCaaS', 'Category': 'Unified Communications', 'Why Recommended': 'Replace legacy PBX with cloud-based system for voice, video, chat, and collaboration.', 'Priority': 'Medium' },
-    { 'Product': 'Bundle: Enterprise Digital Pack', 'Category': 'Strategic Bundle', 'Why Recommended': 'SD-WAN + SOC + UCaaS + Cloud Backup = Complete transformation at 20% bundle discount.', 'Priority': 'Strategic' },
-  ];
-
   const handleGenerate = async (type) => {
     const setLoading = type === 'research' ? setLoadingResearch : type === 'meeting' ? setLoadingMeeting : setLoadingProduct;
     const setResultsFn = type === 'research' ? setResearchResults : type === 'meeting' ? setMeetingResults : setProductResults;
     const webhookKey = type === 'research' ? 'research' : type === 'meeting' ? 'meeting' : 'product';
-    const mockResults = type === 'research' ? mockResearch : type === 'meeting' ? mockMeeting : mockProduct;
 
     setLoading(true);
-
-    if (useMock) {
-      setTimeout(() => {
-        setResultsFn(mockResults);
-        setLoading(false);
-      }, 2000);
-      return;
-    }
 
     try {
       const promptText = type === 'research'
@@ -360,11 +322,6 @@ const BusinessDetail = () => {
       <div className="business-detail-hero animate-fade-in">
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <h1>{business['Company Name'] || decodedName}</h1>
-          {useMock && (
-            <span style={{ background: '#f59e0b', color: 'white', padding: '0.25rem 0.75rem', borderRadius: '1rem', fontSize: '0.8rem', fontWeight: 'bold' }}>
-              DEMO DATA
-            </span>
-          )}
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.25rem' }}>
           {business['Reason'] || 'Enterprise prospect for Mobitel B2B solutions'}
