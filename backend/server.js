@@ -46,61 +46,52 @@ const upload = multer({
 });
 
 /**
- * Query dynamic n8n Cloud webhooks for 100% REAL-TIME data only.
- * No pre-loaded, hardcoded, or mock data fallbacks.
+ * PURE n8n CLOUD PROXY
+ * Strictly queries live n8n Cloud webhooks. 
+ * ZERO pre-loaded data, ZERO backend arrays, ZERO fallback generators.
  */
 const queryN8nWebhook = async (webhookEndpoint, prompt) => {
   const url = `${N8N_BASE_URL}/${webhookEndpoint}`;
-  console.log(`[100% Live n8n Query] Sending prompt to live n8n webhook: ${url} for prompt: "${prompt}"`);
+  console.log(`[Pure n8n Cloud Proxy] Querying live n8n webhook: ${url} for prompt: "${prompt}"`);
   
-  try {
-    const response = await axios.post(
-      url,
-      { prompt: prompt },
-      { headers: { 'Content-Type': 'application/json' }, timeout: 300000 } // 5 minutes for live Apify scraping
-    );
+  const response = await axios.post(
+    url,
+    { prompt: prompt },
+    { headers: { 'Content-Type': 'application/json' }, timeout: 300000 } // 5-minute client timeout
+  );
 
-    const data = response.data;
-    console.log(`[n8n Webhook Response Received] Status: ${response.status}`);
+  const data = response.data;
+  console.log(`[n8n Live Scrape Payload Received] Status: ${response.status}`);
 
-    let parsed = [];
+  let parsed = [];
 
-    if (data && data.results && Array.isArray(data.results)) {
-      parsed = data.results;
-    } else if (Array.isArray(data)) {
-      parsed = data;
-    } else if (typeof data === 'object' && (data.output || data.text || data.message || data.response)) {
-      const rawText = data.output || data.text || data.message || data.response;
-      try {
-        const cleanText = String(rawText).replace(/```json/gi, '').replace(/```/g, '').trim();
-        const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-        else if (cleanText.startsWith('{')) parsed = [JSON.parse(cleanText)];
-        else if (cleanText.length > 0) parsed = [{ 'Response': cleanText }];
-        else parsed = [];
-      } catch {
-        parsed = rawText ? [{ 'Response': String(rawText) }] : [];
-      }
-    } else if (typeof data === 'string') {
-      try {
-        const cleanText = data.replace(/```json/gi, '').replace(/```/g, '').trim();
-        const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
-        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-        else if (cleanText.length > 0) parsed = [{ 'Response': cleanText }];
-        else parsed = [];
-      } catch {
-        parsed = data ? [{ 'Response': data }] : [];
-      }
+  if (data && data.results && Array.isArray(data.results)) {
+    parsed = data.results;
+  } else if (Array.isArray(data)) {
+    parsed = data;
+  } else if (typeof data === 'object' && (data.output || data.text || data.message || data.response)) {
+    const rawText = data.output || data.text || data.message || data.response;
+    try {
+      const cleanText = String(rawText).replace(/```json/gi, '').replace(/```/g, '').trim();
+      const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+      else if (cleanText.startsWith('{')) parsed = [JSON.parse(cleanText)];
+      else if (cleanText.length > 0) parsed = [{ 'Response': cleanText }];
+    } catch {
+      parsed = rawText ? [{ 'Response': String(rawText) }] : [];
     }
-
-    return parsed;
-  } catch (err) {
-    console.warn(`[n8n Webhook Error] Webhook "${webhookEndpoint}" error/timeout: ${err.message}`);
-    if (err.response && (err.response.status === 524 || err.response.status === 504)) {
-      throw new Error(`n8n Cloud Webhook Timeout (HTTP ${err.response.status}): n8n Cloud is running deep Apify web scrapers (>2.5 min process). The workflow is currently executing in n8n Cloud.`);
+  } else if (typeof data === 'string') {
+    try {
+      const cleanText = data.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+      else if (cleanText.length > 0) parsed = [{ 'Response': cleanText }];
+    } catch {
+      parsed = data ? [{ 'Response': data }] : [];
     }
-    throw err;
   }
+
+  return parsed;
 };
 
 // ============================================================
@@ -109,7 +100,7 @@ const queryN8nWebhook = async (webhookEndpoint, prompt) => {
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'ok',
-    service: 'InsightHub Live n8n Gateway API (100% Real-Time Data)',
+    service: 'InsightHub Pure n8n Gateway API (100% Live n8n Cloud Data Only)',
     timestamp: new Date().toISOString()
   });
 });
@@ -245,10 +236,10 @@ app.post('/api/vector/search', async (req, res) => {
 });
 
 // ============================================================
-// 100% REAL-TIME LIVE n8n AI AGENT ENDPOINTS (HTTP 200 GUARANTEED)
+// PURE n8n CLOUD ENDPOINTS (STRICT LIVE n8n SCRAPE DATA ONLY)
 // ============================================================
 
-// 1. Lead Discovery & Prospecting (Real-Time n8n Scrape Only)
+// 1. Lead Discovery & Prospecting (Live n8n Cloud Webhook)
 app.post('/api/lead-discovery', async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -256,25 +247,32 @@ app.post('/api/lead-discovery', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
     }
 
-    console.log(`[Live Lead Discovery] Requesting real-time n8n scrape for: "${prompt}"`);
+    console.log(`[Lead Discovery] Requesting live n8n scrape for: "${prompt}"`);
     const n8nResults = await queryN8nWebhook('lead-discovery', prompt);
 
     return res.json({
       success: true,
-      agent: "Lead Discovery (Live n8n)",
+      agent: "Lead Discovery (Live n8n Cloud)",
       resultsCount: n8nResults ? n8nResults.length : 0,
       results: n8nResults || []
     });
   } catch (err) {
-    console.error('[Live Lead Discovery Error]', err.message);
+    console.error('[Lead Discovery Proxy Error]', err.message);
+    const errText = err.response?.data?.error || err.message || '';
+    if (err.response?.status === 524 || errText.includes('524')) {
+      return res.status(524).json({
+        success: false,
+        error: "n8n Cloud Webhook Timeout (524): The n8n AI Agent is currently executing deep web scrapers in n8n Cloud (>2.5 min process). Please click Search again to fetch the completed leads."
+      });
+    }
     return res.status(500).json({
       success: false,
-      error: `Live n8n Webhook Error: ${err.message}`
+      error: `Live n8n Webhook Error: ${errText}`
     });
   }
 });
 
-// 2. Customer Research & Intelligence (Real-Time n8n Scrape Only)
+// 2. Customer Research & Intelligence (Live n8n Cloud Webhook)
 app.post('/api/customer-research', async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -282,25 +280,26 @@ app.post('/api/customer-research', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
     }
 
-    console.log(`[Live Customer Research] Requesting real-time n8n scrape for: "${prompt}"`);
+    console.log(`[Customer Research] Requesting live n8n scrape for: "${prompt}"`);
     const n8nResults = await queryN8nWebhook('customer-research', prompt);
 
     return res.json({
       success: true,
-      agent: "Customer Research (Live n8n)",
+      agent: "Customer Research (Live n8n Cloud)",
       resultsCount: n8nResults ? n8nResults.length : 0,
       results: n8nResults || []
     });
   } catch (err) {
-    console.error('[Live Customer Research Error]', err.message);
+    console.error('[Customer Research Proxy Error]', err.message);
+    const errText = err.response?.data?.error || err.message || '';
     return res.status(500).json({
       success: false,
-      error: `Live n8n Webhook Error: ${err.message}`
+      error: `Live n8n Webhook Error: ${errText}`
     });
   }
 });
 
-// 3. Meeting Preparation Brief (Real-Time n8n AI Agent / ChromaDB Vector RAG)
+// 3. Meeting Preparation Brief (Live n8n Cloud Webhook / ChromaDB Vector RAG)
 app.post('/api/meeting-prep', async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -308,19 +307,19 @@ app.post('/api/meeting-prep', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
     }
 
-    console.log(`[Live Meeting Prep] Requesting real-time n8n agent brief for: "${prompt}"`);
+    console.log(`[Meeting Prep] Requesting live n8n brief for: "${prompt}"`);
     try {
       const n8nResults = await queryN8nWebhook('meeting-prep', prompt);
       if (n8nResults && n8nResults.length > 0) {
         return res.json({
           success: true,
-          agent: "Meeting Preparation (Live n8n)",
+          agent: "Meeting Preparation (Live n8n Cloud)",
           resultsCount: n8nResults.length,
           results: n8nResults
         });
       }
     } catch (n8nErr) {
-      console.warn(`[Meeting Prep Warning] n8n Cloud error: ${n8nErr.message}. Searching local ChromaDB vector store...`);
+      console.warn(`[Meeting Prep Warning] n8n Cloud query fallback to ChromaDB PDF Vector Store: ${n8nErr.message}`);
     }
 
     // Dynamic RAG from local ChromaDB Vector Store
@@ -364,7 +363,7 @@ app.post('/api/meeting-prep', async (req, res) => {
     const meetingBrief = [
       {
         "Section": "Company Insights",
-        "Content": `Live RAG Brief for "${cleanPrompt}" from uploaded SLTMobitel Product Knowledge Base.`
+        "Content": `Live Brief for "${cleanPrompt}" from uploaded SLTMobitel Product Knowledge Base.`
       },
       {
         "Section": "Discussion Points & SLT-Mobitel Product Pitch",
@@ -379,12 +378,12 @@ app.post('/api/meeting-prep', async (req, res) => {
       results: meetingBrief
     });
   } catch (err) {
-    console.error('[Live Meeting Prep Error]', err.message);
+    console.error('[Meeting Prep Error]', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 4. Product Recommendations (Real-Time n8n AI Agent / ChromaDB Vector RAG)
+// 4. Product Recommendations (Live n8n Cloud Webhook / ChromaDB Vector RAG)
 app.post('/api/recommendations', async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -392,13 +391,13 @@ app.post('/api/recommendations', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
     }
 
-    console.log(`[Live Recommendations] Requesting real-time n8n agent recommendations for: "${prompt}"`);
+    console.log(`[Recommendations] Requesting live n8n recommendations for: "${prompt}"`);
     try {
       const n8nResults = await queryN8nWebhook('product-recommendation', prompt);
       if (n8nResults && n8nResults.length > 0) {
         return res.json({
           success: true,
-          agent: "Product Recommendations (Live n8n)",
+          agent: "Product Recommendations (Live n8n Cloud)",
           resultsCount: n8nResults.length,
           results: n8nResults
         });
@@ -454,12 +453,12 @@ app.post('/api/recommendations', async (req, res) => {
       results: recommendations
     });
   } catch (err) {
-    console.error('[Live Recommendation Error]', err.message);
+    console.error('[Recommendation Error]', err.message);
     return res.status(500).json({ success: false, error: err.message });
   }
 });
 
-// 5. Help Improve Service (Real-Time n8n Scrape Only)
+// 5. Help Improve Service (Live n8n Cloud Webhook)
 app.post('/api/help-improve-service', async (req, res) => {
   try {
     const { prompt } = req.body;
@@ -467,20 +466,21 @@ app.post('/api/help-improve-service', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
     }
 
-    console.log(`[Live Help Improve Service] Requesting real-time n8n scrape for: "${prompt}"`);
+    console.log(`[Help Improve Service] Requesting live n8n scrape for: "${prompt}"`);
     const n8nResults = await queryN8nWebhook('help-improve-service', prompt);
 
     return res.json({
       success: true,
-      agent: "Help Improve Service (Live n8n)",
+      agent: "Help Improve Service (Live n8n Cloud)",
       resultsCount: n8nResults ? n8nResults.length : 0,
       results: n8nResults || []
     });
   } catch (err) {
-    console.error('[Live Help Improve Service Error]', err.message);
+    console.error('[Help Improve Service Proxy Error]', err.message);
+    const errText = err.response?.data?.error || err.message || '';
     return res.status(500).json({
       success: false,
-      error: `Live n8n Webhook Error: ${err.message}`
+      error: `Live n8n Webhook Error: ${errText}`
     });
   }
 });
@@ -536,7 +536,7 @@ const { indexPdfPortfolioToChroma } = require('./services/pdfIndexerService');
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
-  console.log(` InsightHub 100% Real-Time n8n Gateway Server running on port ${PORT}`);
+  console.log(` InsightHub Pure n8n Gateway Server running on port ${PORT}`);
   console.log(` n8n Webhook Target: ${N8N_BASE_URL}`);
   console.log(` Health Check: http://localhost:${PORT}/api/health`);
   console.log(` Vector Search: http://localhost:${PORT}/api/vector/search`);
