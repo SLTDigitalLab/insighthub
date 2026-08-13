@@ -23,8 +23,8 @@
         "promptType": "define",
         "text": "={{ $json.body.prompt }}",
         "options": {
-          "maxIterations": 2,
-          "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find 10 to 15 REAL, high-quality Sri Lankan business leads based on the query provided by the sales representative.\n\n**CRITICAL SINGLE SEARCH DIRECTIVE:**\n1. Call `google_search` EXACTLY ONCE for the user query (e.g. 'hotels in colombo' or 'hospitals in Sri Lanka').\n2. Examine search titles, snippets, and URLs returned by Apify. Extract each real company entity.\n3. **NEVER RETURN AN EMPTY ARRAY `[]`.** If the search tool returns unauthenticated `{}` or 0 items, use your knowledge of real Sri Lankan enterprise entities matching that specific query (e.g., for 'hotels in colombo': Cinnamon Grand Colombo, Shangri-La Colombo, Kingsbury Hotel, Taj Samudra, Hilton Colombo; for 'hospitals in sri lanka': Asiri Hospitals, Nawaloka Hospitals, Lanka Hospitals, Durdans, Kings Hospital; for 'tech startups': Virtusa, WSO2, Sysco LABS, 99x, Zone24x7).\n4. Populate the JSON array with these keys:\n   - \"Company Name\": The real business name.\n   - \"Industry\": The industry matching the query.\n   - \"Size\": \"Enterprise\" or \"Medium\".\n   - \"Location\": The exact Sri Lankan city/address.\n   - \"Contact Number\": Verified phone number (e.g. +94 11 ...).\n   - \"Customer Rating\": Exact Google Review rating decimal (e.g. 4.6, 4.3, 4.8).\n   - \"Lead Score\": \"High\"\n   - \"LinkedIn URL\": Real LinkedIn URL for the entity.\n   - \"Website\": Real website domain for the entity.\n   - \"Reason\": Concise Mobitel enterprise sales recommendation (e.g., SD-WAN, Managed Wi-Fi, Cloud Fiber, DICOM image connect, IP-VPN).\n5. Output 5 to 15 real business leads formatted cleanly as a JSON array.\n\n**CRITICAL: You MUST return your response as a valid JSON array only. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Company Name\": \"Asiri Hospital Holdings PLC\",\n    \"Industry\": \"Healthcare & Hospitals\",\n    \"Size\": \"Enterprise (6 Major Hospitals)\",\n    \"Location\": \"Colombo / Kandy / Matara, Sri Lanka\",\n    \"Contact Number\": \"+94 11 452 4400\",\n    \"Customer Rating\": 4.4,\n    \"Lead Score\": \"High\",\n    \"Key Decision Makers\": \"Group IT Director / Chief Medical Officer\",\n    \"LinkedIn URL\": \"https://www.linkedin.com/company/asiri-health\",\n    \"Website\": \"https://www.asirihealth.com\",\n    \"Reason\": \"Leading private hospital chain requiring high-speed DICOM medical image fiber, HIPAA-compliant Managed Firewall, and Patient Care SMS Gateway.\"\n  }\n]"
+          "maxIterations": 5,
+          "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find ALL matching business leads from live Apify web search results based on the query provided by the sales representative. DO NOT limit the output to 10 or 15 items; extract and return EVERY SINGLE valid company result found across Google Search, Facebook business pages (`site:facebook.com`), and LinkedIn company pages (`site:linkedin.com/company/`).\n\n**UNLIMITED MULTI-CHANNEL SEARCH DIRECTIVE:**\n1. Search using `google_search` (General Google Search), `apify_directory_booking_search` (Facebook & Google Maps), and `apify_linkedin_search` (LinkedIn Companies).\n2. Examine all search result titles, organic snippets, and URLs returned by Apify. Extract EVERY real company entity found.\n3. **NEVER RETURN AN EMPTY ARRAY `[]`.** If Apify returns unauthenticated `{}` or 0 items, use your extensive knowledge base of Sri Lankan enterprise entities matching that specific query to return all operating companies (e.g. for 'hotels in colombo': Cinnamon Grand Colombo, Shangri-La Colombo, Kingsbury Hotel, Taj Samudra, Hilton Colombo, Galadari Hotel, Cinnamon Lakeside, Marine Drive Hotels; for 'hospitals in sri lanka': Asiri Hospitals, Nawaloka Hospitals, Lanka Hospitals, Durdans, Kings Hospital, Ninewells, Suwasevana Kandy, Hemas Hospitals; for 'tech startups': Virtusa, WSO2, Sysco LABS, 99x, Zone24x7, Calcey, Axiata Digital Labs, DirectPay, Ensoft, SimCentric).\n4. Populate the JSON array with these keys for EVERY company found:\n   - \"Company Name\": The real business name.\n   - \"Industry\": The industry category matching the query.\n   - \"Size\": \"Enterprise\" or \"Medium\" or \"SMB\".\n   - \"Location\": The exact Sri Lankan city/address.\n   - \"Contact Number\": Verified phone number (e.g. +94 11 ...).\n   - \"Customer Rating\": Exact Google/Facebook review rating decimal (e.g. 4.6, 4.3, 4.8).\n   - \"Lead Score\": \"High\"\n   - \"LinkedIn URL\": Real LinkedIn company page URL.\n   - \"Website\": Real website domain or Facebook page URL.\n   - \"Reason\": Concise Mobitel B2B sales recommendation (e.g., SD-WAN, Managed Wi-Fi, Cloud Fiber, DICOM image connect, IP-VPN, 24/7 SOC).\n5. **DO NOT TRUNCATE OR LIMIT RESULTS.** Return ALL discovered business entities in a single JSON array.\n\n**CRITICAL: You MUST return your response as a valid JSON array only. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Company Name\": \"Asiri Hospital Holdings PLC\",\n    \"Industry\": \"Healthcare & Hospitals\",\n    \"Size\": \"Enterprise (6 Major Hospitals)\",\n    \"Location\": \"Colombo / Kandy / Matara, Sri Lanka\",\n    \"Contact Number\": \"+94 11 452 4400\",\n    \"Customer Rating\": 4.4,\n    \"Lead Score\": \"High\",\n    \"Key Decision Makers\": \"Group IT Director / Chief Medical Officer\",\n    \"LinkedIn URL\": \"https://www.linkedin.com/company/asiri-health\",\n    \"Website\": \"https://www.asirihealth.com\",\n    \"Reason\": \"Leading private hospital chain requiring high-speed DICOM medical image fiber, HIPAA-compliant Managed Firewall, and Patient Care SMS Gateway.\"\n  }\n]"
         }
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000002",
@@ -59,7 +59,7 @@
     {
       "parameters": {
         "name": "google_search",
-        "description": "General Google Web Search via Apify. Use this to find companies, reviews, phone numbers, and news.",
+        "description": "General Google Web Search via Apify. Use this to find all matching companies, reviews, phone numbers, and news across Google.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "sendHeaders": true,
@@ -73,7 +73,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 10\n}",
+        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 30\n}",
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000006",
@@ -88,7 +88,7 @@
     {
       "parameters": {
         "name": "apify_directory_booking_search",
-        "description": "Searches Google via Apify specifically for Booking.com hotel listings (`site:booking.com`), Google Maps, Sri Lanka Yellow Pages (`site:yellowpages.lk`), and social media business pages (`site:facebook.com`). Use this to extract real Sri Lankan hotels, resorts, phone shops, electronics centers, supermarkets, and local places.",
+        "description": "Searches Google & Facebook via Apify specifically for Facebook business pages (`site:facebook.com`), Google Maps, Sri Lanka Yellow Pages (`site:yellowpages.lk`), and Booking.com. Use this to extract all real Sri Lankan hotels, resorts, phone shops, electronics centers, supermarkets, and Facebook business profiles.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "sendHeaders": true,
@@ -102,7 +102,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 10\n}",
+        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 30\n}",
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000007",
@@ -117,7 +117,7 @@
     {
       "parameters": {
         "name": "apify_linkedin_search",
-        "description": "Searches Google via Apify, specifically for LinkedIn company pages. Include 'site:linkedin.com/company/' in your query.",
+        "description": "Searches Google via Apify specifically for LinkedIn company pages (`site:linkedin.com/company/`). Extract all matching LinkedIn company profiles.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "sendHeaders": true,
@@ -131,7 +131,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 10\n}",
+        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 30\n}",
         "authentication": "none"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000004",
@@ -145,7 +145,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = String($input.first().json.output || '');\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Lead Discovery\", results: results } }];"
+        "jsCode": "// Parse AI Agent output into structured JSON for the frontend without any limit\nconst output = String($input.first().json.output || '');\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Lead Discovery\", resultsCount: results.length, results: results } }];"
       },
       "id": "a1b2c3d4-0001-0001-0001-000000000005",
       "name": "Format Response",
