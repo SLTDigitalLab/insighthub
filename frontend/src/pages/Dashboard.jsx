@@ -280,12 +280,14 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('[Dashboard Search Error]', err);
-      setError(
-        err.response?.data?.error ||
-        err.response?.data?.message ||
-        err.message ||
-        `Failed to connect to live n8n ${activeAgent.name} Agent.`
-      );
+      const rawError = err.response?.data?.error || err.response?.data?.message || err.message || '';
+      if (rawError.includes('524') || err.response?.status === 524) {
+        setError("n8n Cloud Webhook Timeout (524): n8n Cloud is running deep Apify web scrapers (>2.5 min process). The workflow execution is running in your n8n Cloud instance. Please wait a moment and click Search again to view the finished leads.");
+      } else {
+        setError(
+          rawError || `Failed to connect to live n8n ${activeAgent.name} Agent.`
+        );
+      }
     } finally {
       setLoading(false);
     }

@@ -53,46 +53,54 @@ const queryN8nWebhook = async (webhookEndpoint, prompt) => {
   const url = `${N8N_BASE_URL}/${webhookEndpoint}`;
   console.log(`[100% Live n8n Query] Sending prompt to live n8n webhook: ${url} for prompt: "${prompt}"`);
   
-  const response = await axios.post(
-    url,
-    { prompt: prompt },
-    { headers: { 'Content-Type': 'application/json' }, timeout: 300000 } // 5 minutes for live Apify scraping
-  );
+  try {
+    const response = await axios.post(
+      url,
+      { prompt: prompt },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 300000 } // 5 minutes for live Apify scraping
+    );
 
-  const data = response.data;
-  console.log(`[n8n Webhook Response Received] Status: ${response.status}`);
+    const data = response.data;
+    console.log(`[n8n Webhook Response Received] Status: ${response.status}`);
 
-  let parsed = [];
+    let parsed = [];
 
-  if (data && data.results && Array.isArray(data.results)) {
-    parsed = data.results;
-  } else if (Array.isArray(data)) {
-    parsed = data;
-  } else if (typeof data === 'object' && (data.output || data.text || data.message || data.response)) {
-    const rawText = data.output || data.text || data.message || data.response;
-    try {
-      const cleanText = String(rawText).replace(/```json/gi, '').replace(/```/g, '').trim();
-      const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
-      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-      else if (cleanText.startsWith('{')) parsed = [JSON.parse(cleanText)];
-      else if (cleanText.length > 0) parsed = [{ 'Response': cleanText }];
-      else parsed = [];
-    } catch {
-      parsed = rawText ? [{ 'Response': String(rawText) }] : [];
+    if (data && data.results && Array.isArray(data.results)) {
+      parsed = data.results;
+    } else if (Array.isArray(data)) {
+      parsed = data;
+    } else if (typeof data === 'object' && (data.output || data.text || data.message || data.response)) {
+      const rawText = data.output || data.text || data.message || data.response;
+      try {
+        const cleanText = String(rawText).replace(/```json/gi, '').replace(/```/g, '').trim();
+        const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+        else if (cleanText.startsWith('{')) parsed = [JSON.parse(cleanText)];
+        else if (cleanText.length > 0) parsed = [{ 'Response': cleanText }];
+        else parsed = [];
+      } catch {
+        parsed = rawText ? [{ 'Response': String(rawText) }] : [];
+      }
+    } else if (typeof data === 'string') {
+      try {
+        const cleanText = data.replace(/```json/gi, '').replace(/```/g, '').trim();
+        const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
+        if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
+        else if (cleanText.length > 0) parsed = [{ 'Response': cleanText }];
+        else parsed = [];
+      } catch {
+        parsed = data ? [{ 'Response': data }] : [];
+      }
     }
-  } else if (typeof data === 'string') {
-    try {
-      const cleanText = data.replace(/```json/gi, '').replace(/```/g, '').trim();
-      const jsonMatch = cleanText.match(/\[[\s\S]*\]/);
-      if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-      else if (cleanText.length > 0) parsed = [{ 'Response': cleanText }];
-      else parsed = [];
-    } catch {
-      parsed = data ? [{ 'Response': data }] : [];
+
+    return parsed;
+  } catch (err) {
+    console.warn(`[n8n Webhook Error] Webhook "${webhookEndpoint}" error/timeout: ${err.message}`);
+    if (err.response && (err.response.status === 524 || err.response.status === 504)) {
+      throw new Error(`n8n Cloud Webhook Timeout (HTTP ${err.response.status}): n8n Cloud is running deep Apify web scrapers (>2.5 min process). The workflow is currently executing in n8n Cloud.`);
     }
+    throw err;
   }
-
-  return parsed;
 };
 
 // ============================================================
