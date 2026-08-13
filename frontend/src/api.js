@@ -51,7 +51,7 @@ export const searchKnowledgeBaseVectors = async (queryText, nResults = 5) => {
   const response = await axios.post(BACKEND_ENDPOINTS.vectorSearch, {
     query: queryText,
     nResults: nResults
-  });
+  }, { timeout: 240000 });
   return response.data;
 };
 
@@ -61,7 +61,7 @@ export const searchKnowledgeBaseVectors = async (queryText, nResults = 5) => {
 export const fetchProductRecommendations = async (promptText) => {
   const response = await axios.post(BACKEND_ENDPOINTS.recommendations, {
     prompt: promptText
-  });
+  }, { timeout: 240000 });
   return response.data;
 };
 
@@ -71,7 +71,7 @@ export const fetchProductRecommendations = async (promptText) => {
 export const fetchMeetingPreparation = async (promptText) => {
   const response = await axios.post(BACKEND_ENDPOINTS.meetingPrep, {
     prompt: promptText
-  });
+  }, { timeout: 240000 });
   return response.data;
 };
 
@@ -81,7 +81,7 @@ export const fetchMeetingPreparation = async (promptText) => {
 export const fetchLeadDiscovery = async (promptText) => {
   const response = await axios.post(BACKEND_ENDPOINTS.leadDiscovery, {
     prompt: promptText
-  });
+  }, { timeout: 240000 });
   return response.data;
 };
 
@@ -91,7 +91,7 @@ export const fetchLeadDiscovery = async (promptText) => {
 export const fetchCustomerResearch = async (promptText) => {
   const response = await axios.post(BACKEND_ENDPOINTS.customerResearch, {
     prompt: promptText
-  });
+  }, { timeout: 240000 });
   return response.data;
 };
 
@@ -101,7 +101,7 @@ export const fetchCustomerResearch = async (promptText) => {
 export const fetchHelpImproveService = async (promptText) => {
   const response = await axios.post(BACKEND_ENDPOINTS.helpImproveService, {
     prompt: promptText
-  });
+  }, { timeout: 240000 });
   return response.data;
 };
 
