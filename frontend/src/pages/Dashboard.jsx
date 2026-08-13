@@ -271,12 +271,12 @@ const Dashboard = () => {
         responseData = await fetchHelpImproveService(prompt);
       }
 
-      if (responseData && responseData.results && responseData.results.length > 0) {
+      if (responseData && responseData.results && Array.isArray(responseData.results)) {
         setResults(responseData.results);
-      } else if (Array.isArray(responseData) && responseData.length > 0) {
+      } else if (Array.isArray(responseData)) {
         setResults(responseData);
       } else {
-        setError(`No results returned from live n8n ${activeAgent.name} Agent.`);
+        setResults([]);
       }
     } catch (err) {
       console.error('[Dashboard Search Error]', err);
@@ -700,12 +700,16 @@ const Dashboard = () => {
         {(!results || results.length === 0) && !loading && !error && (
           <div style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-            color: 'var(--text-muted)', gap: '0.75rem'
+            color: 'var(--text-muted)', gap: '0.75rem', padding: '2rem', textAlign: 'center'
           }}>
-            <activeAgent.icon size={48} style={{ opacity: 0.2 }} />
-            <p style={{ fontSize: '1.1rem' }}>Enter a prompt above to get started</p>
-            <p style={{ fontSize: '0.85rem', maxWidth: '400px', textAlign: 'center' }}>
-              Connected to live n8n AI Agent gateway &amp; local vector store.
+            <activeAgent.icon size={48} style={{ opacity: 0.3, color: activeAgent.color }} />
+            <p style={{ fontSize: '1.15rem', fontWeight: 600, color: 'var(--text-main)' }}>
+              {results && results.length === 0 ? `No scraped leads returned for "${prompt}"` : 'Enter a prompt above to get started'}
+            </p>
+            <p style={{ fontSize: '0.88rem', maxWidth: '480px', textAlign: 'center', lineHeight: 1.5 }}>
+              {results && results.length === 0 
+                ? "The live n8n AI Agent finished its execution on n8n Cloud but scraped 0 items for this prompt. Try refining your query (e.g. 'private hospitals sri lanka' or 'hotels in kandy')."
+                : "Connected to live n8n AI Agent gateway & local vector store."}
             </p>
           </div>
         )}
