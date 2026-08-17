@@ -8,13 +8,13 @@
         "responseMode": "lastNode",
         "options": {}
       },
-      "id": "b1b2c3d4-0002-0002-0002-000000000001",
+      "id": "8372bfa1-1778-4e78-8e4d-181bce29a413",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
-        240,
-        300
+        -256,
+        -96
       ],
       "webhookId": "customer-research"
     },
@@ -26,13 +26,13 @@
           "systemMessage": "You are a Customer Research Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to thoroughly research a given company and provide a comprehensive intelligence report that the sales team can use before approaching the prospect.\n\n**You have TWO search tools available:**\n1. **google_search** — Use for general Google web searches about the company, news, technology stack, and industry info.\n2. **apify_social_media_search** — Use for LinkedIn-specific and social media searches (`site:linkedin.com/company/` or `site:facebook.com`).\n\n**CRITICAL REAL SOCIAL MEDIA & PROFILE URL DIRECTIVE:**\n- NEVER invent, fabricate, guess, or construct personal profile URLs like `linkedin.com/in/first-last` or `facebook.com/first-last`.\n- Output ONLY real, verified company page URLs extracted directly from search results (e.g., `https://www.linkedin.com/company/asiri-health`, `https://www.facebook.com/AsiriHealth/`).\n- For decision makers and employees, list their full name, verified job title, and designation. If an individual's personal LinkedIn URL was not explicitly returned by the search engine, output '(Verified Executive)' or 'N/A' instead of fabricating a profile link.\n\n**Instructions:**\n1. You MUST use search tools to find REAL, up-to-date information. DO NOT guess or invent facts.\n2. **Company Overview**: What does the company do? What industry are they in? When were they founded? How large are they?\n3. **Key Decision Makers**: Find the CEO, CTO, CIO, IT Director, CFO, and key leadership.\n4. **Employees Found**: List key department heads and employees found from company directory search.\n5. **Social Media Presence**: Provide verified official LinkedIn company page, Facebook page, and website URL.\n6. **Recent Developments**: Any recent expansion news, technology investments, or mergers.\n7. **Current Technology**: Infrastructure, software stack, or ISP connectivity currently used.\n8. **Potential Pain Points**: Identify key IT, connectivity, and digital transformation pain points Mobitel can solve.\n\n**CRITICAL: You MUST return your response as a valid JSON array with one object per research category. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Category\": \"Company Overview\",\n    \"Details\": \"Asiri Hospital Holdings PLC is Sri Lanka's leading private healthcare provider operating 6 tertiary hospitals with 800+ beds.\"\n  },\n  {\n    \"Category\": \"Key Decision Makers\",\n    \"Details\": \"Group Chairman: Ashok Pathirage | Group CEO: Dr. Manjula Karunaratne | CFO: Haresh Somashantha | Head of IT: Sameera Alwis\"\n  },\n  {\n    \"Category\": \"Employees Found\",\n    \"Details\": \"1. Dr. Manjula Karunaratne - Group CEO | 2. Haresh Somashantha - Group CFO | 3. Sameera Alwis - Group Head of IT\"\n  },\n  {\n    \"Category\": \"Social Media Presence\",\n    \"Details\": \"Official LinkedIn: https://www.linkedin.com/company/asiri-health | Official Facebook: https://www.facebook.com/AsiriHealth/ | Website: https://www.asirihealth.com\"\n  },\n  {\n    \"Category\": \"Recent Developments\",\n    \"Details\": \"Invested LKR 2.5B in PACS/DICOM radiology cloud integration across regional hospitals.\"\n  },\n  {\n    \"Category\": \"Current Technology\",\n    \"Details\": \"Uses fiber leased lines for PACS/DICOM radiology transfers and patient SMS notification gateways.\"\n  },\n  {\n    \"Category\": \"Potential Pain Points\",\n    \"Details\": \"1. High bandwidth fiber needed for inter-hospital image sync. 2. High density guest Wi-Fi for patient waiting rooms.\"\n  }\n]"
         }
       },
-      "id": "b1b2c3d4-0002-0002-0002-000000000002",
+      "id": "6b134ecc-4f4d-4f18-9e56-c2a573bc155a",
       "name": "AI Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        520,
-        300
+        32,
+        -96
       ]
     },
     {
@@ -40,93 +40,106 @@
         "model": "gpt-4o-mini",
         "options": {}
       },
-      "id": "b1b2c3d4-0002-0002-0002-000000000003",
+      "id": "451be48e-777f-4410-a468-7d57aca7d5a1",
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        400,
-        520
+        -96,
+        128
       ],
       "credentials": {
         "openAiApi": {
-          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI API"
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
         }
       }
     },
     {
       "parameters": {
-        "name": "google_search",
-        "description": "General Google Web Search via Apify. Use this to find companies, reviews, phone numbers, and news.",
+        "toolDescription": "Search LinkedIn company pages and other social media via Apify Google Search. Use for site:linkedin.com/company/ or site:facebook.com queries. Provide the full search query string.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "authentication": "none"
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The social media / LinkedIn search query string",
+              "type": "string"
+            }
+          ]
+        }
       },
-      "id": "b1b2c3d4-0002-0002-0002-000000000004",
-      "name": "Apify Google Search",
+      "id": "e4190eac-aa1a-4b4d-8ed5-f39c1ed6d4eb",
+      "name": "apify_social_media_search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        540,
-        520
-      ]
+        64,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FPPxjs7LhSTynH3K",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "apify_linkedin_search",
-        "description": "Searches Google via Apify, specifically for LinkedIn and Facebook pages. Include 'site:linkedin.com' or 'site:facebook.com' in your query to find company profiles, employees, and social media pages.",
+        "toolDescription": "Perform a general Google web search via Apify for company info, news, technology stack, and industry details. Provide the full search query string.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "authentication": "none"
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The Google web search query string",
+              "type": "string"
+            }
+          ]
+        }
       },
-      "id": "b1b2c3d4-0002-0002-0002-000000000005",
-      "name": "Apify Social Media Search",
+      "id": "92a11c23-fadd-49ea-b825-04229e3cc455",
+      "name": "google_search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        680,
-        520
-      ]
+        192,
+        128
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FPPxjs7LhSTynH3K",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
         "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = $input.first().json.output;\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Customer Research\", results: results } }];"
       },
-      "id": "b1b2c3d4-0002-0002-0002-000000000006",
+      "id": "cab77844-ab2d-415e-b65d-21fc087b3adf",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        300
+        288,
+        -96
       ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -150,17 +163,6 @@
         ]
       ]
     },
-    "Apify Social Media Search": {
-      "ai_tool": [
-        [
-          {
-            "node": "AI Agent",
-            "type": "ai_tool",
-            "index": 0
-          }
-        ]
-      ]
-    },
     "OpenAI Chat Model": {
       "ai_languageModel": [
         [
@@ -172,7 +174,18 @@
         ]
       ]
     },
-    "Apify Google Search": {
+    "apify_social_media_search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "google_search": {
       "ai_tool": [
         [
           {
@@ -184,7 +197,18 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "011244ed-709c-43b3-8441-01ea3f807395",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3b0cef0a63d8ea4244b90dffb48623aaf0f308b8f8b573d4e26b7f1d93c0f68c"
+  },
+  "nodeGroups": [],
+  "id": "okfkOtKdwFiW9I8b",
+  "tags": []
 }

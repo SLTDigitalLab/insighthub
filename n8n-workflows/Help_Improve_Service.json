@@ -8,13 +8,13 @@
         "responseMode": "lastNode",
         "options": {}
       },
-      "id": "c1b2c3d4-0003-0003-0003-000000000001",
+      "id": "4741e62e-2678-4f38-be13-438f57256ce2",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
-        240,
-        300
+        0,
+        0
       ],
       "webhookId": "help-improve-service"
     },
@@ -23,16 +23,16 @@
         "promptType": "define",
         "text": "={{ $json.body.prompt }}",
         "options": {
-          "systemMessage": "You are the Customer Experience & Service Improvement AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise team.\n\nYour job is to analyze a target company's online reviews and customer feedback (Google Reviews, Facebook, etc.), identify customer pain points and service complaints, and propose 5 to 7 specific SLT-Mobitel enterprise products from the official SLT-Mobitel Product & Solution Portfolio Knowledge Base (`SLTMobitel Product & Solution Portfolio - Knowledge Base v1 (1).pdf` indexed in local ChromaDB) to resolve their operational challenges.\n\n**AVAILABLE TOOLS:**\n1. **knowledge_base_search** — Search SLT-Mobitel's official vector database across all 9 Strategic Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, Business Solutions). You MUST use this tool to retrieve real SLT-Mobitel products, specifications, and solution features.\n2. **google_search** — Search Google Reviews, customer complaints, and public feedback.\n3. **apify_facebook_search** — Search Facebook for company reviews, customer feedback, and public employee profiles.\n\n**INSTRUCTIONS:**\n1. You MUST execute `knowledge_base_search` to retrieve official SLT-Mobitel products from the vector database.\n2. **Overall Sentiment**: Summarize customer reviews on Google and Facebook.\n3. **Key Complaints**: Identify specific operational issues (e.g. hotline delay, call drops, network downtime, billing alerts, slow online portal).\n4. **Service Improvement Recommendations**: Provide a RICH, HIGHLY DETAILED breakdown recommending 5 to 7 specific SLT-Mobitel products retrieved from the vector database. For EACH product, format as:\n   - **Product Name & Official Pillar** (e.g. 'Omnichannel Contact Center as a Service (CCaaS) [Pillar: 6. ENTERPRISE VOICE]')\n   - **Problem Solved**: Direct mapping to the specific customer complaint.\n   - **Key Features from PDF**: 2-3 technical features retrieved from the official catalog.\n   - **Expected Business Impact**: Value delivered to customer satisfaction and operational SLA.\n5. **Employees Found (Facebook)**: Search Facebook for employee profiles ('site:facebook.com [Company Name] Sri Lanka'). Include profile URLs found.\n\n**CRITICAL: You MUST return your response as a valid JSON array with one object per research category. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Category\": \"Overall Sentiment\",\n    \"Details\": \"Mixed (3.6/5 on Google Reviews, 3.4/5 on Facebook). High praise for physical store layout but complaints regarding customer service hotline waiting times and online portal speed.\"\n  },\n  {\n    \"Category\": \"Key Complaints\",\n    \"Details\": \"1. Long queue hold times on customer support hotline. 2. Frequent customer portal downtime during billing cycles. 3. Lack of automated SMS delivery/repair status notifications. 4. Inconsistent branch internet connectivity. 5. Cybersecurity concerns over online payment gateway.\"\n  },\n  {\n    \"Category\": \"Service Improvement Recommendations\",\n    \"Details\": \"1. **Omnichannel Contact Center as a Service (CCaaS)** [Pillar: 6. ENTERPRISE VOICE]: Addresses Complaint #1 (Hotline Delays). Features AI-driven voice routing, IVR auto-attendant, omnichannel agent desks across voice/SMS/WhatsApp. Business Impact: Reduces customer hold times by up to 60%. \\n2. **Akaza Cloud VPS & Virtual Hosting** [Pillar: 4. CLOUD & IDC]: Addresses Complaint #2 (Portal Downtime). Features high-performance virtual cloud compute hosted in Mobitel Sri Lanka Tier-III Data Center with 99.999% uptime. Business Impact: Guarantees 24/7 web portal availability. \\n3. **Business SMS Gateway API** [Pillar: 2. INTERNET / VOICE]: Addresses Complaint #3 (Order Notifications). Features high-throughput REST API for automated transactional SMS alerts and OTP authentication. Business Impact: Instant customer notification upon dispatch/repair. \\n4. **SD-WAN Solutions** [Pillar: 1. NETWORKING]: Addresses Complaint #4 (Branch Connectivity). Features multi-path traffic routing over MPLS, LTE, and 5G with automatic failover. Business Impact: Zero billing downtime for retail branches. \\n5. **Managed Web Application Firewall (WAF)** [Pillar: 3. CYBER SECURITY]: Addresses Complaint #5 (Payment Gateway Security). Features perimeter protection against OWASP Top 10 web vulnerabilities and SQL injection. Business Impact: Ensures PCI-DSS compliance and protects customer financial data.\"\n  },\n  {\n    \"Category\": \"Employees Found (Facebook)\",\n    \"Details\": \"1. Kamal Silva - Head of Customer Care (facebook.com/kamal.s) | 2. Nuwan Perera - IT Systems Lead | 3. Dilani Fernando - Operations Director\"\n  }\n]"
+          "systemMessage": "You are the Customer Experience & Service Improvement AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise team.\n\nYour job is to analyze a target company's online reviews and customer feedback (Google Reviews, Facebook, etc.), identify customer pain points and service complaints, and propose 5 to 7 specific SLT-Mobitel enterprise products from the official SLT-Mobitel Product & Solution Portfolio Knowledge Base (`SLTMobitel Product & Solution Portfolio - Knowledge Base v1 (1).pdf` indexed in local ChromaDB) to resolve their operational challenges.\n\n**AVAILABLE TOOLS:**\n1. **knowledge_base_search** — Search SLT-Mobitel's official vector database across all 9 Strategic Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, Business Solutions). You MUST use this tool to retrieve real SLT-Mobitel products, specifications, and solution features.\n2. **google_search** — Search Google Reviews, customer complaints, and public feedback.\n3. **apify_facebook_search** — Search Facebook for company reviews, customer feedback, and public employee profiles.\n\n**INSTRUCTIONS:**\n1. You MUST execute `knowledge_base_search` to retrieve official SLT-Mobitel products from the vector database.\n2. **Overall Sentiment**: Summarize customer reviews on Google and Facebook.\n3. **Key Complaints**: Identify specific operational issues (e.g. hotline delay, call drops, network downtime, billing alerts, slow online portal).\n4. **Service Improvement Recommendations**: Provide a RICH, HIGHLY DETAILED breakdown recommending 5 to 7 specific SLT-Mobitel products retrieved from the vector database. For EACH product, format as:\n   - **Product Name & Official Pillar** (e.g. 'Omnichannel Contact Center as a Service (CCaaS) [Pillar: 6. ENTERPRISE VOICE]')\n   - **Problem Solved**: Direct mapping to the specific customer complaint.\n   - **Key Features from PDF**: 2-3 technical features retrieved from the official catalog.\n   - **Expected Business Impact**: Value delivered to customer satisfaction and operational SLA.\n5. **Employees Found (Facebook)**: Search Facebook for employee profiles ('site:facebook.com [Company Name] Sri Lanka').\n\n**CRITICAL — NO FABRICATION RULE FOR EMPLOYEES/PROFILES:**\nYou may ONLY include a name, job title, or profile URL in \"Employees Found\" if that EXACT text appears verbatim in the `apify_facebook_search` tool's raw output. Do not paraphrase, complete, guess, or construct a plausible-sounding name, title, or URL under any circumstances. Real Facebook usernames do not follow a clean \"companyname.role.title\" pattern — any URL you generate that looks like this is fabricated and forbidden.\n\nIf the tool results contain no real, verbatim employee names or matching profile links, you MUST set \"Details\" to exactly: \"No specific employee profiles were found.\" Do not leave this field empty and do not invent placeholder entries to make the response look complete.\n\n**CRITICAL: You MUST return your response as a valid JSON array with one object per research category. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Category\": \"Overall Sentiment\",\n    \"Details\": \"Mixed (3.6/5 on Google Reviews, 3.4/5 on Facebook). High praise for physical store layout but complaints regarding customer service hotline waiting times and online portal speed.\"\n  },\n  {\n    \"Category\": \"Key Complaints\",\n    \"Details\": \"1. Long queue hold times on customer support hotline. 2. Frequent customer portal downtime during billing cycles. 3. Lack of automated SMS delivery/repair status notifications. 4. Inconsistent branch internet connectivity. 5. Cybersecurity concerns over online payment gateway.\"\n  },\n  {\n    \"Category\": \"Service Improvement Recommendations\",\n    \"Details\": \"1. **Omnichannel Contact Center as a Service (CCaaS)** [Pillar: 6. ENTERPRISE VOICE]: Addresses Complaint #1 (Hotline Delays). Features AI-driven voice routing, IVR auto-attendant, omnichannel agent desks across voice/SMS/WhatsApp. Business Impact: Reduces customer hold times by up to 60%. \\n2. **Akaza Cloud VPS & Virtual Hosting** [Pillar: 4. CLOUD & IDC]: Addresses Complaint #2 (Portal Downtime). Features high-performance virtual cloud compute hosted in Mobitel Sri Lanka Tier-III Data Center with 99.999% uptime. Business Impact: Guarantees 24/7 web portal availability. \\n3. **Business SMS Gateway API** [Pillar: 2. INTERNET / VOICE]: Addresses Complaint #3 (Order Notifications). Features high-throughput REST API for automated transactional SMS alerts and OTP authentication. Business Impact: Instant customer notification upon dispatch/repair. \\n4. **SD-WAN Solutions** [Pillar: 1. NETWORKING]: Addresses Complaint #4 (Branch Connectivity). Features multi-path traffic routing over MPLS, LTE, and 5G with automatic failover. Business Impact: Zero billing downtime for retail branches. \\n5. **Managed Web Application Firewall (WAF)** [Pillar: 3. CYBER SECURITY]: Addresses Complaint #5 (Payment Gateway Security). Features perimeter protection against OWASP Top 10 web vulnerabilities and SQL injection. Business Impact: Ensures PCI-DSS compliance and protects customer financial data.\"\n  },\n  {\n    \"Category\": \"Employees Found (Facebook)\",\n    \"Details\": \"No specific employee profiles were found.\"\n  }\n]"
         }
       },
-      "id": "c1b2c3d4-0003-0003-0003-000000000002",
+      "id": "b44f424a-1797-45ac-abc8-566bdc48ec6f",
       "name": "AI Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        520,
-        300
+        288,
+        0
       ]
     },
     {
@@ -40,123 +40,112 @@
         "model": "gpt-4o-mini",
         "options": {}
       },
-      "id": "c1b2c3d4-0003-0003-0003-000000000003",
+      "id": "8c780f6a-eaab-4dc8-b652-9926969dad50",
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        400,
-        520
+        160,
+        224
       ],
       "credentials": {
         "openAiApi": {
-          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI API"
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
         }
       }
     },
     {
       "parameters": {
-        "name": "google_search",
-        "description": "General Google Web Search via Apify. Use this to find companies, Google reviews, customer complaints, and news.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "authentication": "none"
+        "jsonBody": "={\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}"
       },
-      "id": "c1b2c3d4-0003-0003-0003-000000000004",
+      "id": "367c2c7f-9d76-46f3-b23f-25f28518827b",
       "name": "Apify Google Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        540,
-        520
-      ]
+        304,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FPPxjs7LhSTynH3K",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "apify_facebook_search",
-        "description": "Searches Google via Apify specifically for Facebook pages. Include 'site:facebook.com' in query to find Facebook reviews, customer feedback, and public employee profiles.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "authentication": "none"
+        "jsonBody": "={\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 20\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The Facebook/social media search query string",
+              "type": "string"
+            }
+          ]
+        }
       },
-      "id": "c1b2c3d4-0003-0003-0003-000000000005",
+      "id": "26ae0d60-e6cb-4b29-9342-1ad71b77f69b",
       "name": "Apify Facebook Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        680,
-        520
-      ]
+        448,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FPPxjs7LhSTynH3K",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "knowledge_base_search",
-        "description": "Searches SLT-Mobitel's official ChromaDB vector database across 9 Solution Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, Business Solutions) populated from SLTMobitel Product & Solution Portfolio PDF. Use this to find real SLT-Mobitel enterprise products and solutions to solve customer complaints.",
         "method": "POST",
         "url": "http://localhost:5000/api/vector/search",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
-          ]
-        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"query\": \"{{ $fromAI('query', 'The search query string to look up products in vector database') }}\",\n  \"nResults\": 5\n}",
-        "authentication": "none",
-        "onError": "continueRegularOutput"
+        "jsonBody": "={\n  \"query\": \"{{ $fromAI('query', 'The search query string to look up products in vector database') }}\",\n  \"nResults\": 5\n}"
       },
-      "id": "c1b2c3d4-0003-0003-0003-000000000007",
+      "id": "591500c1-6bcb-448b-87c7-08cd300146c8",
       "name": "Knowledge Base Vector Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        820,
-        520
+        592,
+        224
       ]
     },
     {
       "parameters": {
         "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = $input.first().json.output;\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Category\": \"Service Improvement Analysis\", \"Details\": output }];\n  }\n} catch (e) {\n  results = [{ \"Category\": \"Service Improvement Analysis\", \"Details\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Help Improve Service\", results: results } }];"
       },
-      "id": "c1b2c3d4-0003-0003-0003-000000000006",
+      "id": "f9db46bc-68c7-4f8e-aa8c-d120cfd7c33e",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        300
+        544,
+        0
       ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -225,7 +214,18 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "51992116-9746-44f1-bc88-bd9b1bae9313",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3b0cef0a63d8ea4244b90dffb48623aaf0f308b8f8b573d4e26b7f1d93c0f68c"
+  },
+  "nodeGroups": [],
+  "id": "inTzhY0fE8qAXbM0",
+  "tags": []
 }

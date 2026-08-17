@@ -8,13 +8,13 @@
         "responseMode": "lastNode",
         "options": {}
       },
-      "id": "e1b2c3d4-0005-0005-0005-000000000001",
+      "id": "7a6c2168-d686-4d84-bf66-221dcb18a3d4",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
-        240,
-        300
+        0,
+        0
       ],
       "webhookId": "meeting-prep"
     },
@@ -23,16 +23,16 @@
         "promptType": "define",
         "text": "={{ $json.body.prompt }}",
         "options": {
-          "systemMessage": "You are the Senior SLT-MOBITEL Enterprise Sales Strategist and Meeting Preparation Assistant.\n\nGiven a target company name (and optional context), your job is to prepare an EXTREMELY COMPREHENSIVE, HIGHLY DETAILED meeting brief that gives the sales representative a total competitive advantage.\n\n**AVAILABLE TOOLS:**\n1. **knowledge_base_search** — Search SLT-Mobitel's official vector database across all 9 Strategic Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, and Business Solutions) populated from `SLTMobitel Product & Solution Portfolio - Knowledge Base v1 (1).pdf` into local ChromaDB. You MUST use this tool to retrieve real SLT-Mobitel enterprise products, specifications, and solution features.\n2. **google_search** — General web search for company information, news, and industry trends.\n3. **apify_social_media_search** — Search LinkedIn/Facebook for company profiles and key decision-makers to meet.\n\n**INSTRUCTIONS & SECTION FORMATTING:**\n1. You MUST execute `knowledge_base_search` FIRST to retrieve 5 to 7 specific SLT-Mobitel products from the PDF vector database.\n2. **Company Insights**: Comprehensive breakdown of company business model, branch count, market position, and recent news.\n3. **Key People to Meet**: Identify 3-4 key decision-makers (CTO, IT Director, Procurement Manager, Head of Infrastructure) with profile links.\n4. **Industry Trends**: 3 major industry trends relevant to enterprise IT, telecommunications, and digital transformation.\n5. **Potential Pain Points**: 4-5 specific operational, technical, or financial pain points facing this company.\n6. **Discussion Points & SLT-Mobitel Product Pitch**: Provide a DEEP, IN-DEPTH breakdown for 5 to 7 recommended SLT-Mobitel products retrieved from the vector store. For EACH product, format as:\n   - **Product Name & Pillar** (e.g., 'SD-WAN Solutions [Pillar: 1. NETWORKING]')\n   - **Why Recommended**: Deep explanation of why the client needs this product and how it solves their exact pain point.\n   - **Key Features from Knowledge Base**: 3-4 technical features retrieved from the official catalog (e.g. multi-path MPLS/5G routing, zero downtime, end-to-end encryption).\n   - **Sales Pitch Question**: Exact conversation starter question for the rep to ask in the meeting.\n   - **Expected ROI & Value**: SLA guarantee, cost reduction %, or operational efficiency gain.\n7. **Objection Handling**: Deep counter-pitch strategies for 3 major objections (e.g., 'Currently with Dialog', 'Cloud migration security', 'Budget constraints'), referencing SLT-Mobitel's Tier-III Data Center, 24/7 SOC, and island-wide fiber backbone.\n8. **Competitor Analysis**: Thorough breakdown of competitor weaknesses and SLT-Mobitel's unique differentiators.\n\n**CRITICAL: You MUST return your response as a valid JSON array. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Section\": \"Company Insights\",\n    \"Content\": \"ABC Holdings is a major enterprise with 20 regional hubs and 500+ employees. Currently undergoing digital transformation to support cloud-first applications and remote workforce management.\"\n  },\n  {\n    \"Section\": \"Key People to Meet\",\n    \"Content\": \"1. Niroshan Jayasinghe - CTO (linkedin.com/in/niroshan) | 2. Anusha Saranath - Head of IT | 3. Chathura Perera - Procurement Director\"\n  },\n  {\n    \"Section\": \"Industry Trends\",\n    \"Content\": \"1. Cloud-first architecture adoption. 2. Increasing regulatory mandates for 24/7 cybersecurity monitoring. 3. High demand for low-latency hybrid workforce connectivity.\"\n  },\n  {\n    \"Section\": \"Potential Pain Points\",\n    \"Content\": \"1. High MPLS branch line costs. 2. Legacy PBX hardware failures. 3. Vulnerability to ransomware targeting customer data. 4. Poor video conferencing bandwidth across regional hubs.\"\n  },\n  {\n    \"Section\": \"Discussion Points & SLT-Mobitel Product Pitch\",\n    \"Content\": \"1. **SD-WAN Solutions** [Pillar: 1. NETWORKING]: Why Recommended: Replaces expensive branch MPLS lines with intelligent multi-path traffic routing. Features: Routes over Fiber/5G, zero packet loss, centralized cloud dashboard. Pitch Question: 'How are you currently managing application latency across your 20 branch offices?' ROI: 40% reduction in WAN costs. \\n2. **Managed Firewall & 24/7 SOC** [Pillar: 3. CYBER SECURITY]: Why Recommended: Protects sensitive financial & subscriber data against cyber threats. Features: Next-Gen Firewall (NGFW), IPS, 24/7 Security Operations Center monitoring. Pitch Question: 'What protocols do you have in place for 24/7 real-time threat detection?' ROI: Full regulatory compliance. \\n3. **Hosted PBX / UCaaS** [Pillar: 6. ENTERPRISE VOICE]: Why Recommended: Replaces legacy hardware PABX with cloud virtual extension dialing. Features: Mobile app integration, IVR auto-attendant, omni-channel voice. Pitch Question: 'Are your regional offices able to seamlessly transfer calls to mobile staff?' ROI: Eliminates hardware maintenance fees. \\n4. **Disaster Recovery as a Service (DRaaS)** [Pillar: 4. CLOUD & IDC]: Why Recommended: High-availability cloud replication in Sri Lanka Tier-III Data Center. Features: Continuous replication, zero RPO, automated failover. Pitch Question: 'What is your current RTO recovery time objective if primary servers go offline?' ROI: 99.999% business continuity guarantee.\"\n  },\n  {\n    \"Section\": \"Objection Handling\",\n    \"Content\": \"1. 'We currently use Dialog Enterprise' → Emphasize SLT-Mobitel's proprietary Tier-III Data Center, island-wide symmetrical fiber infrastructure, and dedicated 24/7 local SOC engineers. \\n2. 'Cloud migration is too risky' → Propose a phased hybrid cloud migration leveraging SLT-Mobitel Premium VPN with dedicated SLAs. \\n3. 'Budget is tight this quarter' → Present SLT-Mobitel Digital Enterprise Bundle discounts saving 25% across combined networking and security packages.\"\n  },\n  {\n    \"Section\": \"Competitor Analysis\",\n    \"Content\": \"Dialog Enterprise is the incumbent mobile provider. SLT-Mobitel differentiates through Sri Lanka's only carrier-neutral Tier-III Data Center, superior fiber backbone coverage, 24/7 SOC threat defense, and lower TCO bundled enterprise rates.\"\n  }\n]"
+          "systemMessage": "You are the Senior SLT-MOBITEL Enterprise Sales Strategist and Meeting Preparation Assistant.\n\nGiven a target company name (and optional context), your job is to prepare an EXTREMELY COMPREHENSIVE, HIGHLY DETAILED meeting brief that gives the sales representative a total competitive advantage.\n\n**AVAILABLE TOOLS:**\n1. **knowledge_base_search** — Search SLT-Mobitel's official vector database across all 9 Strategic Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, and Business Solutions) populated from `SLTMobitel Product & Solution Portfolio - Knowledge Base v1 (1).pdf` into local ChromaDB. You MUST use this tool to retrieve real SLT-Mobitel enterprise products, specifications, and solution features.\n2. **google_search** — General web search for company information, news, and industry trends.\n3. **apify_social_media_search** — Search LinkedIn/Facebook for company profiles and key decision-makers to meet.\n\n**INSTRUCTIONS & SECTION FORMATTING:**\n1. You MUST execute `knowledge_base_search` FIRST to retrieve 5 to 7 specific SLT-Mobitel products from the PDF vector database.\n2. **Company Insights**: Comprehensive breakdown of company business model, branch count, market position, and recent news. Only state facts that appear in tool search results; if search results are thin, state what's known and note what wasn't found rather than inferring details.\n3. **Key People to Meet**: Identify 3-4 key decision-makers (CTO, IT Director, Procurement Manager, Head of Infrastructure) with profile links — see the CRITICAL rule below on sourcing these.\n4. **Industry Trends**: 3 major industry trends relevant to enterprise IT, telecommunications, and digital transformation.\n5. **Potential Pain Points**: 4-5 specific operational, technical, or financial pain points facing this company, grounded in what reviews/search results actually indicate where possible.\n6. **Discussion Points & SLT-Mobitel Product Pitch**: Provide a DEEP, IN-DEPTH breakdown for 5 to 7 recommended SLT-Mobitel products retrieved from the vector store. For EACH product, format as:\n   - **Product Name & Pillar** (e.g., 'SD-WAN Solutions [Pillar: 1. NETWORKING]')\n   - **Why Recommended**: Deep explanation of why the client needs this product and how it solves their exact pain point.\n   - **Key Features from Knowledge Base**: 3-4 technical features retrieved from the official catalog (e.g. multi-path MPLS/5G routing, zero downtime, end-to-end encryption).\n   - **Sales Pitch Question**: Exact conversation starter question for the rep to ask in the meeting.\n   - **Expected ROI & Value**: SLA guarantee, cost reduction %, or operational efficiency gain.\n7. **Objection Handling**: Deep counter-pitch strategies for 3 major objections (e.g., 'Currently with Dialog', 'Cloud migration security', 'Budget constraints'), referencing SLT-Mobitel's Tier-III Data Center, 24/7 SOC, and island-wide fiber backbone. Treat \"Currently with Dialog\" as a generic illustrative objection, not a confirmed fact about this specific client, unless search results confirm their current provider.\n8. **Competitor Analysis**: Thorough breakdown of competitor weaknesses and SLT-Mobitel's unique differentiators.\n\n**CRITICAL — NO FABRICATION RULE FOR PEOPLE/PROFILES:**\nFor \"Key People to Meet,\" you may ONLY include a name, title, or profile URL that appears VERBATIM in the tool's raw search output (from `apify_social_media_search` or `google_search`). Do not guess, paraphrase, or construct plausible-sounding names or LinkedIn URLs. Real LinkedIn URLs do not follow a predictable \"linkedin.com/in/firstname\" pattern — any URL you generate this way is fabricated and forbidden.\n\nIf no real decision-makers are found in the tool output, set \"Content\" to exactly: \"No specific decision-makers were found via available search tools — recommend requesting an org chart or LinkedIn Sales Navigator lookup before the meeting.\" Do not invent placeholder names to fill this section.\n\n**CRITICAL: You MUST return your response as a valid JSON array. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Section\": \"Company Insights\",\n    \"Content\": \"ABC Holdings is a major enterprise with 20 regional hubs and 500+ employees. Currently undergoing digital transformation to support cloud-first applications and remote workforce management.\"\n  },\n  {\n    \"Section\": \"Key People to Meet\",\n    \"Content\": \"No specific decision-makers were found via available search tools — recommend requesting an org chart or LinkedIn Sales Navigator lookup before the meeting.\"\n  },\n  {\n    \"Section\": \"Industry Trends\",\n    \"Content\": \"1. Cloud-first architecture adoption. 2. Increasing regulatory mandates for 24/7 cybersecurity monitoring. 3. High demand for low-latency hybrid workforce connectivity.\"\n  },\n  {\n    \"Section\": \"Potential Pain Points\",\n    \"Content\": \"1. High MPLS branch line costs. 2. Legacy PBX hardware failures. 3. Vulnerability to ransomware targeting customer data. 4. Poor video conferencing bandwidth across regional hubs.\"\n  },\n  {\n    \"Section\": \"Discussion Points & SLT-Mobitel Product Pitch\",\n    \"Content\": \"1. **SD-WAN Solutions** [Pillar: 1. NETWORKING]: Why Recommended: Replaces expensive branch MPLS lines with intelligent multi-path traffic routing. Features: Routes over Fiber/5G, zero packet loss, centralized cloud dashboard. Pitch Question: 'How are you currently managing application latency across your 20 branch offices?' ROI: 40% reduction in WAN costs. \\n2. **Managed Firewall & 24/7 SOC** [Pillar: 3. CYBER SECURITY]: Why Recommended: Protects sensitive financial & subscriber data against cyber threats. Features: Next-Gen Firewall (NGFW), IPS, 24/7 Security Operations Center monitoring. Pitch Question: 'What protocols do you have in place for 24/7 real-time threat detection?' ROI: Full regulatory compliance. \\n3. **Hosted PBX / UCaaS** [Pillar: 6. ENTERPRISE VOICE]: Why Recommended: Replaces legacy hardware PABX with cloud virtual extension dialing. Features: Mobile app integration, IVR auto-attendant, omni-channel voice. Pitch Question: 'Are your regional offices able to seamlessly transfer calls to mobile staff?' ROI: Eliminates hardware maintenance fees. \\n4. **Disaster Recovery as a Service (DRaaS)** [Pillar: 4. CLOUD & IDC]: Why Recommended: High-availability cloud replication in Sri Lanka Tier-III Data Center. Features: Continuous replication, zero RPO, automated failover. Pitch Question: 'What is your current RTO recovery time objective if primary servers go offline?' ROI: 99.999% business continuity guarantee.\"\n  },\n  {\n    \"Section\": \"Objection Handling\",\n    \"Content\": \"1. 'We currently use Dialog Enterprise' → Emphasize SLT-Mobitel's proprietary Tier-III Data Center, island-wide symmetrical fiber infrastructure, and dedicated 24/7 local SOC engineers. \\n2. 'Cloud migration is too risky' → Propose a phased hybrid cloud migration leveraging SLT-Mobitel Premium VPN with dedicated SLAs. \\n3. 'Budget is tight this quarter' → Present SLT-Mobitel Digital Enterprise Bundle discounts saving 25% across combined networking and security packages.\"\n  },\n  {\n    \"Section\": \"Competitor Analysis\",\n    \"Content\": \"Dialog Enterprise is the incumbent mobile provider. SLT-Mobitel differentiates through Sri Lanka's only carrier-neutral Tier-III Data Center, superior fiber backbone coverage, 24/7 SOC threat defense, and lower TCO bundled enterprise rates.\"\n  }\n]"
         }
       },
-      "id": "e1b2c3d4-0005-0005-0005-000000000002",
+      "id": "bf085cea-0cfd-48de-9d3c-0d5824b1c8af",
       "name": "AI Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        520,
-        300
+        288,
+        0
       ]
     },
     {
@@ -40,123 +40,137 @@
         "model": "gpt-4o-mini",
         "options": {}
       },
-      "id": "e1b2c3d4-0005-0005-0005-000000000003",
+      "id": "e97769e6-7a79-4529-a741-6cc875e815d5",
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        400,
-        520
+        160,
+        224
       ],
       "credentials": {
         "openAiApi": {
-          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI API"
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
         }
       }
     },
     {
       "parameters": {
-        "name": "google_search",
-        "description": "General Google Web Search via Apify. Use this to find companies, news, and industry trends.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
+        "parametersHeaders": {
+          "values": [
+            {}
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "authentication": "none"
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 20\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "type": "string"
+            }
+          ]
+        }
       },
-      "id": "e1b2c3d4-0005-0005-0005-000000000004",
+      "id": "8d793a32-ae73-428d-8f18-e71340c56757",
       "name": "Apify Google Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        540,
-        520
-      ]
+        304,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FPPxjs7LhSTynH3K",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "apify_social_media_search",
-        "description": "Searches Google via Apify for LinkedIn and Facebook pages. Include 'site:linkedin.com' or 'site:facebook.com' in query to find company profiles and executive team details.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
+        "parametersHeaders": {
+          "values": [
+            {}
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "authentication": "none"
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 20\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "type": "string"
+            }
+          ]
+        }
       },
-      "id": "e1b2c3d4-0005-0005-0005-000000000005",
+      "id": "652f43c8-ca10-433e-8783-9a272281ef99",
       "name": "Apify Social Media Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        680,
-        520
-      ]
+        448,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FPPxjs7LhSTynH3K",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "knowledge_base_search",
-        "description": "Searches SLT-Mobitel's official ChromaDB vector database across 9 Solution Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, Business Solutions) populated from SLTMobitel Product & Solution Portfolio PDF. Use this to find real SLT-Mobitel enterprise products and features.",
         "method": "POST",
         "url": "http://localhost:5000/api/vector/search",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Content-Type",
-              "value": "application/json"
-            }
+        "parametersHeaders": {
+          "values": [
+            {}
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"query\": \"{{ $fromAI('query', 'The search query string to look up products in vector database') }}\",\n  \"nResults\": 5\n}",
-        "authentication": "none",
-        "onError": "continueRegularOutput"
+        "jsonBody": "{\n  \"query\": \"{{ $fromAI('query', 'The search query string to look up products in vector database') }}\",\n  \"nResults\": 5\n}"
       },
-      "id": "e1b2c3d4-0005-0005-0005-000000000007",
+      "id": "523bb471-df55-4325-a7dc-888966be2a0c",
       "name": "Knowledge Base Vector Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        820,
-        520
+        592,
+        224
       ]
     },
     {
       "parameters": {
         "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = $input.first().json.output;\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Section\": \"Meeting Strategy Brief\", \"Content\": output }];\n  }\n} catch (e) {\n  results = [{ \"Section\": \"Meeting Strategy Brief\", \"Content\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Meeting Preparation\", results: results } }];"
       },
-      "id": "e1b2c3d4-0005-0005-0005-000000000006",
+      "id": "df66925c-3f67-4837-9e30-653c9d52d48d",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        300
+        544,
+        0
       ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -225,7 +239,18 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ac883521-4879-4ae2-bec5-5b826635b30e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3b0cef0a63d8ea4244b90dffb48623aaf0f308b8f8b573d4e26b7f1d93c0f68c"
+  },
+  "nodeGroups": [],
+  "id": "iAepncZIMVi6LX1N",
+  "tags": []
 }

@@ -8,13 +8,13 @@
         "responseMode": "lastNode",
         "options": {}
       },
-      "id": "d1b2c3d4-0004-0004-0004-000000000001",
+      "id": "69a48a35-7bef-46d1-bac6-47ff7f63eafd",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
-        240,
-        300
+        0,
+        0
       ],
       "webhookId": "product-recommendation"
     },
@@ -26,13 +26,13 @@
           "systemMessage": "You are the SLT-MOBITEL Enterprise Solutions Advisor AI Agent.\n\nYour job is to provide highly detailed, comprehensive product recommendations for Sri Lanka Telecom Mobitel's B2B enterprise sales team, backed by the official SLT-Mobitel Product & Solution Portfolio Knowledge Base (`SLTMobitel Product & Solution Portfolio - Knowledge Base v1 (1).pdf` indexed in local ChromaDB).\n\n**AVAILABLE TOOLS:**\n1. **knowledge_base_search** — Search SLT-Mobitel's official vector database across all 9 Strategic Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, and Business Solutions). You MUST use this tool to retrieve real products, specifications, and feature lists.\n2. **google_search** — General web search for company information, client industry context, and competitor analysis.\n3. **apify_social_media_search** — Search LinkedIn/Facebook for company details and digital maturity.\n\n**INSTRUCTIONS:**\n1. You MUST execute `knowledge_base_search` FIRST to search the SLT-Mobitel vector database.\n2. Provide 5 to 7 DISTINCT, comprehensive product recommendations retrieved from the catalog.\n3. In the `Category` field, specify the exact official Pillar (e.g., '1. NETWORKING', '2. INTERNET', '3. CYBER SECURITY', '4. CLOUD & IDC', '5. MANAGED SERVICES', '6. ENTERPRISE VOICE', '7. APPLICATIONS / DIGITAL', '8. ENTERPRISE TV', '9. BUSINESS SOLUTIONS').\n4. In `Why Recommended`, provide a RICH, DETAILED, MULTI-SENTENCE explanation containing:\n   - **Specific Business Problem Solved**: Exactly why this client needs this solution.\n   - **Core Technical Features**: 2-3 key technical features extracted from the PDF reference.\n   - **Expected ROI & Value Delivered**: Quantitative benefits (e.g. 40% WAN cost reduction, 99.999% SLA uptime, 24/7 threat monitoring).\n5. Suggest 1-2 Strategic Bundles combining products found in the search with bundle discount details.\n\n**CRITICAL: You MUST return your response as a valid JSON array. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Product\": \"Premium VPN\",\n    \"Category\": \"1. NETWORKING\",\n    \"Why Recommended\": \"Problem Solved: Eliminates latency and connectivity drops across multi-branch financial operations. Key Features: Dedicated IP-MPLS infrastructure with end-to-end encryption, multi-Class of Service (CoS) prioritization for voice/video/data, and proactive 24/7 network performance monitoring. Expected Value: Stringent SLAs guaranteeing 99.99% network availability with strict QoS.\",\n    \"Priority\": \"High\"\n  },\n  {\n    \"Product\": \"Managed Firewall & SOC\",\n    \"Category\": \"3. CYBER SECURITY\",\n    \"Why Recommended\": \"Problem Solved: Shields enterprise network perimeter and sensitive customer data against ransomware and malware exploits. Key Features: Next-Generation Managed Firewall (NGFW), intrusion prevention system (IPS), and 24/7 Security Operations Center (SOC) threat intelligence. Expected Value: Complete regulatory compliance and real-time incident mitigation.\",\n    \"Priority\": \"High\"\n  },\n  {\n    \"Product\": \"Bundle: SLT-Mobitel Digital Enterprise Pack\",\n    \"Category\": \"9. BUSINESS SOLUTIONS\",\n    \"Why Recommended\": \"Combines Premium VPN + Managed Firewall + Enterprise WiFi + Hosted PBX into a single managed SLA package for total digital transformation at a 20% bundle discount.\",\n    \"Priority\": \"Strategic\"\n  }\n]"
         }
       },
-      "id": "d1b2c3d4-0004-0004-0004-000000000002",
+      "id": "a962e248-3d7c-461f-8cd9-2d6cca455eaa",
       "name": "AI Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        520,
-        300
+        288,
+        0
       ]
     },
     {
@@ -40,114 +40,173 @@
         "model": "gpt-4o-mini",
         "options": {}
       },
-      "id": "d1b2c3d4-0004-0004-0004-000000000003",
+      "id": "f6500341-bc35-4843-bd95-5e850b052d3a",
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        400,
-        520
+        160,
+        224
       ],
       "credentials": {
         "openAiApi": {
-          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI API"
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
         }
       }
     },
     {
       "parameters": {
-        "name": "google_search",
-        "description": "General Google Web Search via Apify. Use this to find companies, reviews, phone numbers, and news.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
+        "parametersHeaders": {
+          "values": [
+            {}
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "authentication": "none"
+        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}"
       },
-      "id": "d1b2c3d4-0004-0004-0004-000000000006",
+      "id": "621beda6-d3ed-4adc-94fa-f1a4f5a088de",
       "name": "Apify Google Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        540,
-        520
-      ]
+        304,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FPPxjs7LhSTynH3K",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "apify_social_media_search",
-        "description": "Searches Google via Apify, specifically for LinkedIn and Facebook pages. Include 'site:linkedin.com' or 'site:facebook.com' in your query to understand company size, technical team, and digital maturity.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
+        "parametersHeaders": {
+          "values": [
+            {}
           ]
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "authentication": "none"
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 20\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The Facebook/social media search query string",
+              "type": "string"
+            }
+          ]
+        }
       },
-      "id": "d1b2c3d4-0004-0004-0004-000000000005",
+      "id": "4c82d8e4-5da3-4c45-84f2-7b250d283990",
       "name": "Apify Social Media Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        680,
-        520
-      ]
+        448,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "FPPxjs7LhSTynH3K",
+          "name": "Header Auth account 2"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "knowledge_base_search",
-        "description": "Searches Mobitel's local ChromaDB vector database for B2B product catalog, device specifications, telecom packages, solution guides, and uploaded enterprise documents. You MUST use this tool to find real products from Mobitel's catalog.",
         "method": "POST",
         "url": "http://localhost:5000/api/vector/search",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"query\": \"{{ $fromAI('query', 'Search query string to find products and solutions in local ChromaDB knowledge base') }}\"\n}",
-        "authentication": "none"
+        "jsonBody": "{\n  \"query\": \"{query}\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "Search query string to find products and solutions in local ChromaDB knowledge base",
+              "type": "string"
+            }
+          ]
+        }
       },
-      "onError": "continueRegularOutput",
-      "id": "d1b2c3d4-0004-0004-0004-000000000007",
+      "id": "32245a26-b07e-4ae5-bf6d-a91f037ba511",
       "name": "Knowledge Base Search Tool",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        820,
-        520
-      ]
+        592,
+        224
+      ],
+      "onError": "continueRegularOutput"
     },
     {
       "parameters": {
         "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = $input.first().json.output;\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Product Recommendations\", results: results } }];"
       },
-      "id": "d1b2c3d4-0004-0004-0004-000000000004",
+      "id": "d1ac703c-9e91-4bc1-9972-def7b26e22a8",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        300
+        544,
+        0
       ]
     }
   ],
+  "pinData": {
+    "Webhook": [
+      {
+        "json": {
+          "headers": {
+            "host": "ushani77.app.n8n.cloud",
+            "user-agent": "axios/1.19.0",
+            "content-length": "21",
+            "accept": "application/json, text/plain, */*",
+            "accept-encoding": "gzip, br",
+            "cdn-loop": "cloudflare; loops=1; subreqs=1",
+            "cf-connecting-ip": "2402:4000:23d1:5e5a:e535:4873:8bb8:15db",
+            "cf-ew-via": "15",
+            "cf-ipcountry": "LK",
+            "cf-ray": "a2c7b3224b986357-CMB",
+            "cf-visitor": "{\"scheme\":\"https\"}",
+            "cf-worker": "n8n.cloud",
+            "content-type": "application/json",
+            "x-forwarded-for": "2402:4000:23d1:5e5a:e535:4873:8bb8:15db, 172.68.91.162",
+            "x-forwarded-host": "ushani77.app.n8n.cloud",
+            "x-forwarded-port": "443",
+            "x-forwarded-proto": "https",
+            "x-forwarded-server": "traefik-prod-users-gwc-77-684f686786-62wk8",
+            "x-is-trusted": "yes",
+            "x-real-ip": "2402:4000:23d1:5e5a:e535:4873:8bb8:15db"
+          },
+          "params": {},
+          "query": {},
+          "body": {
+            "prompt": "HNB bank"
+          },
+          "webhookUrl": "https://ushani77.app.n8n.cloud/webhook/product-recommendation",
+          "executionMode": "production"
+        },
+        "pairedItem": {
+          "item": 0
+        }
+      }
+    ]
+  },
   "connections": {
     "Webhook": {
       "main": [
@@ -216,7 +275,17 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "84f56a09-5469-4ed7-883a-405a2960b484",
+  "meta": {
+    "instanceId": "3b0cef0a63d8ea4244b90dffb48623aaf0f308b8f8b573d4e26b7f1d93c0f68c"
+  },
+  "nodeGroups": [],
+  "id": "KUCY3jSvcSfUKiVW",
+  "tags": []
 }
