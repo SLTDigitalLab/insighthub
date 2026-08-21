@@ -89,13 +89,14 @@
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "FPPxjs7LhSTynH3K",
-          "name": "Header Auth account 2"
+          "id": "51tnt1hoAIQQXqOL",
+          "name": "Header Auth account 3"
         }
       }
     },
     {
       "parameters": {
+        "toolDescription": "Search for a target company's LinkedIn employees and identify key decision-makers (executives, directors, managers). Input: the company name as a string.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
@@ -108,11 +109,12 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 20\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1\n}",
         "placeholderDefinitions": {
           "values": [
             {
               "name": "query",
+              "description": "The social media / LinkedIn search query string",
               "type": "string"
             }
           ]
@@ -128,8 +130,8 @@
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "FPPxjs7LhSTynH3K",
-          "name": "Header Auth account 2"
+          "id": "51tnt1hoAIQQXqOL",
+          "name": "Header Auth account 3"
         }
       }
     },
@@ -245,7 +247,7 @@
     "binaryMode": "separate",
     "availableInMCP": false
   },
-  "versionId": "ac883521-4879-4ae2-bec5-5b826635b30e",
+  "versionId": "bcfbee07-0ed4-48ba-927d-5bfe0f88369d",
   "meta": {
     "templateCredsSetupCompleted": true,
     "instanceId": "3b0cef0a63d8ea4244b90dffb48623aaf0f308b8f8b573d4e26b7f1d93c0f68c"

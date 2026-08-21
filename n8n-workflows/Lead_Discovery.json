@@ -8,13 +8,13 @@
         "responseMode": "lastNode",
         "options": {}
       },
-      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "id": "51ef9e71-7304-4fe4-bf25-72ac72fa2882",
       "name": "Webhook",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
-        240,
-        300
+        0,
+        0
       ],
       "webhookId": "lead-discovery"
     },
@@ -23,167 +23,157 @@
         "promptType": "define",
         "text": "={{ $json.body.prompt }}",
         "options": {
-          "maxIterations": 3,
-          "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find business leads STRICTLY AND EXCLUSIVELY extracted from live Apify web search results (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`).\n\n**100% LIVE APIFY SCRAPING DIRECTIVE:**\n1. Call search tools (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`) to query live web sources.\n2. Parse and extract ONLY the real company names, ratings, contact numbers, and website URLs found directly inside the scraped Apify search result snippets.\n3. **DO NOT USE PRELOADED LISTS, MOCK DATA, OR INTERNAL KNOWLEDGE DEFAULTS.** If Apify returns 0 scraped results, output an empty array `[]`.\n4. Populate the JSON array for EVERY scraped company item with these keys:\n   - \"Company Name\": The real business name from the scraped snippet.\n   - \"Industry\": The industry category matching the prompt.\n   - \"Size\": \"Enterprise\" or \"Medium\" or \"SMB\".\n   - \"Location\": The exact Sri Lankan city/address from snippet.\n   - \"Contact Number\": Verified phone number from snippet (or N/A).\n   - \"Customer Rating\": Exact Google/Facebook review rating decimal from snippet (e.g. 4.6, 4.3).\n   - \"Lead Score\": \"High\"\n   - \"LinkedIn URL\": Real LinkedIn URL from search snippet.\n   - \"Website\": Real website domain from search snippet.\n   - \"Reason\": Mobitel B2B sales recommendation based on the company profile.\n5. Output ALL scraped search result entities in a valid JSON array only."
+          "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find business leads STRICTLY AND EXCLUSIVELY extracted from live Apify web search results (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`).\n\n**100% LIVE APIFY SCRAPING DIRECTIVE:**\n\n1. Call search tools (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`) to query live web sources.\n\n2. Parse and extract ONLY the real company names, ratings, contact numbers, and website URLs found directly inside the scraped Apify search result snippets.\n\n3. **DO NOT USE PRELOADED LISTS, MOCK DATA, OR INTERNAL KNOWLEDGE DEFAULTS.** If Apify returns 0 scraped results, output an empty array `[]`.\n\n**FIELD MAPPING FROM APIFY BOOKING & DIRECTORY SEARCH (Google Maps data):**\n\nWhen extracting from the Apify Booking & Directory Search tool results, use this exact mapping:\n- \"Customer Rating\" ← extract from the \"totalScore\" field in the scraped result (e.g. totalScore: 3.1 → Customer Rating: \"3.1\").\n- \"Company Name\" ← extract from the \"title\" field.\n- \"Contact Number\" ← extract from the \"phone\" field.\n- \"Location\" ← combine the \"street\" and \"city\" fields.\n- \"Website\" ← extract from the \"website\" field.\n- Do NOT output \"N/A\" for Customer Rating if a \"totalScore\" value exists anywhere in the scraped data for that company — only use \"N/A\" if totalScore is genuinely missing/null in the raw result.\n\n4. Populate the JSON array for EVERY scraped company item with these keys:\n\n   - \"Company Name\": The real business name from the scraped snippet.\n\n   - \"Industry\": The industry category matching the prompt.\n\n   - \"Size\": \"Enterprise\" or \"Medium\" or \"SMB\".\n\n   - \"Location\": The exact Sri Lankan city/address from snippet.\n\n   - \"Contact Number\": Verified phone number from snippet (or N/A).\n\n   - \"Customer Rating\": The real totalScore value from the scraped Apify Maps data (e.g. 4.6, 3.1), or \"N/A\" only if genuinely absent from the raw data.\n\n   - \"Lead Score\": Leave this as null. Do not calculate or guess this value — it is calculated separately in a later processing step using the real Size and Customer Rating values.\n\n   - \"LinkedIn URL\": Real LinkedIn URL from search snippet.\n\n   - \"Website\": Real website domain from search snippet.\n\n   - \"Reason\": Mobitel B2B sales recommendation based on the company profile.\n\n5. Output ALL scraped search result entities in a valid JSON array only.\n\n6. Include EVERY scraped company in the output regardless of its Lead Score — do not filter out, hide, or exclude any companies. All scraped entities must appear in the final JSON array.",
+          "maxIterations": 3
         }
       },
-      "id": "a1b2c3d4-0001-0001-0001-000000000002",
+      "id": "2188a0f7-b96a-40c1-816e-8f557f9f048c",
       "name": "AI Agent",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        520,
-        300
+        288,
+        0
       ]
     },
     {
       "parameters": {
-        "model": "gpt-4o-mini",
+        "model": "gpt-5.4-mini",
         "options": {}
       },
-      "id": "a1b2c3d4-0001-0001-0001-000000000003",
+      "id": "ac61793b-f971-40f0-9e01-a5d2eb6ed5a2",
       "name": "OpenAI Chat Model",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        400,
-        520
+        32,
+        240
       ],
       "credentials": {
         "openAiApi": {
-          "id": "REPLACE_WITH_YOUR_OPENAI_CREDENTIAL_ID",
-          "name": "OpenAI API"
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
         }
       }
     },
     {
       "parameters": {
-        "name": "google_search",
-        "description": "PRIMARY AND DEFAULT WEB SEARCH TOOL. ALWAYS call this tool FIRST to perform a live Google Search for companies, hotels, hospitals, ratings, reviews, and contact info.",
+        "toolDescription": "Run a general Google web search via Apify to discover business leads. Provide the \"query\" input as a plain Google search string (e.g. \"banks in colombo sri lanka\").",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
-        "placeholderValues": {
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 5,\n  \"resultsPerPage\": 100\n}",
+        "placeholderDefinitions": {
           "values": [
             {
               "name": "query",
-              "description": "The search query string to search on Google",
+              "description": "The Google search query string",
               "type": "string"
             }
           ]
-        },
-        "authentication": "none"
+        }
       },
-      "id": "a1b2c3d4-0001-0001-0001-000000000006",
+      "id": "81a01010-0f01-4c59-9e2b-b07164885128",
       "name": "Apify Google Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        540,
-        520
-      ]
+        304,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "51tnt1hoAIQQXqOL",
+          "name": "Header Auth account 3"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "apify_directory_booking_search",
-        "description": "Searches Google & Facebook via Apify specifically for Facebook business pages (`site:facebook.com`), Google Maps, Sri Lanka Yellow Pages (`site:yellowpages.lk`), and Booking.com. Use this to extract all real Sri Lankan hotels, resorts, phone shops, electronics centers, supermarkets, and Facebook business profiles.",
         "method": "POST",
-        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
-          ]
-        },
+        "url": "https://api.apify.com/v2/acts/compass~google-maps-extractor/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
-        "placeholderValues": {
+        "jsonBody": "{\n  \"searchStringsArray\": [\"{query}\"],\n  \"locationQuery\": \"Sri Lanka\",\n  \"maxCrawledPlacesPerSearch\": 20,\n  \"language\": \"en\"\n}",
+        "placeholderDefinitions": {
           "values": [
             {
               "name": "query",
-              "description": "The search query string to search on Google",
+              "description": "The business directory or booking site search query (e.g. company type and location, such as 'banks in Colombo')",
               "type": "string"
             }
           ]
-        },
-        "authentication": "none"
+        }
       },
-      "id": "a1b2c3d4-0001-0001-0001-000000000007",
+      "id": "80876e5f-c36a-49b7-86aa-af272a78cbe3",
       "name": "Apify Booking & Directory Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        680,
-        520
-      ]
+        448,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "51tnt1hoAIQQXqOL",
+          "name": "Header Auth account 3"
+        }
+      }
     },
     {
       "parameters": {
-        "name": "apify_linkedin_search",
-        "description": "Searches Google via Apify specifically for LinkedIn company pages (`site:linkedin.com/company/`). Extract all matching LinkedIn company profiles.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "Authorization",
-              "value": "Bearer YOUR_APIFY_API_TOKEN"
-            }
-          ]
-        },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
-        "placeholderValues": {
+        "placeholderDefinitions": {
           "values": [
             {
               "name": "query",
-              "description": "The search query string to search on Google",
+              "description": "The LinkedIn search query — company name, industry, or job title/role to search for (e.g. 'Colombo bank executives' or 'IT companies Sri Lanka')",
               "type": "string"
             }
           ]
-        },
-        "authentication": "none"
+        }
       },
-      "id": "a1b2c3d4-0001-0001-0001-000000000004",
+      "id": "10883158-7a13-4dfa-9303-86621c76d159",
       "name": "Apify LinkedIn Search",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        820,
-        520
-      ]
+        592,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "51tnt1hoAIQQXqOL",
+          "name": "Header Auth account 3"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "// Parse AI Agent output into structured JSON for the frontend without any limit\nconst output = String($input.first().json.output || '');\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Lead Discovery\", resultsCount: results.length, results: results } }];"
+        "jsCode": "// Parse AI Agent output into structured JSON for the frontend without any limit\nconst output = String($input.first().json.output || '');\n// Grabs the raw text output from the AI Agent node\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n\n  results = results.map(item => {\n    const size = String(item[\"Size\"] || \"\").trim().toLowerCase();\n    const rating = parseFloat(item[\"Customer Rating\"]);\n    let leadScore = \"Low\";\n\n    if (!isNaN(rating)) {\n      // Rating exists — score using Size + Rating together\n      if (size === \"enterprise\" && rating >= 4.0) {\n        leadScore = \"High\";\n      } else if (\n        size === \"medium\" ||\n        (size === \"enterprise\" && rating < 4.0) ||\n        (rating >= 3.0 && rating < 4.0)\n      ) {\n        leadScore = \"Medium\";\n      } else if (size === \"smb\" || rating < 3.0) {\n        leadScore = \"Low\";\n      }\n    } else {\n      // No rating available (N/A) — fall back to Size-only scoring\n      if (size === \"enterprise\") {\n        leadScore = \"Medium\";\n      } else if (size === \"medium\") {\n        leadScore = \"Medium\";\n      } else {\n        leadScore = \"Low\";\n      }\n    }\n\n    return { ...item, \"Lead Score\": leadScore };\n  });\n\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Lead Discovery\", resultsCount: results.length, results: results } }];"
       },
-      "id": "a1b2c3d4-0001-0001-0001-000000000005",
+      "id": "6bcd2c85-1ba2-481a-a3e5-b51057802337",
       "name": "Format Response",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        780,
-        300
+        544,
+        0
       ]
     }
   ],
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [
@@ -252,7 +242,17 @@
       ]
     }
   },
+  "active": true,
   "settings": {
-    "executionOrder": "v1"
-  }
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "e9d92391-923f-4b68-85d1-076335047817",
+  "meta": {
+    "instanceId": "3b0cef0a63d8ea4244b90dffb48623aaf0f308b8f8b573d4e26b7f1d93c0f68c"
+  },
+  "nodeGroups": [],
+  "id": "NC58qGPR2xBTQlH9",
+  "tags": []
 }
