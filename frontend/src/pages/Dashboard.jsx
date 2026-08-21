@@ -64,7 +64,14 @@ const agents = [
 
 // Star Rating Component (Google Reviews)
 const StarRating = ({ rating }) => {
-  const numRating = parseFloat(rating) || 4.5;
+  const numRating = parseFloat(rating);
+   if (isNaN(numRating)) {
+    return (
+      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.85rem' }}>
+        N/A
+      </span>
+    );
+  }
   const stars = [];
   for (let i = 1; i <= 5; i++) {
     if (i <= Math.floor(numRating)) {
@@ -81,6 +88,53 @@ const StarRating = ({ rating }) => {
       <span style={{ fontWeight: 700, color: '#f59e0b', fontSize: '0.85rem' }}>{numRating.toFixed(1)}</span>
       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontWeight: 500 }}>(Google Review)</span>
     </div>
+  );
+};
+
+// Source badge (Knowledge Base / Review Analysis / Both) — Product Recommendations agent
+const SOURCE_COLORS = {
+  'Knowledge Base': { bg: '#10b98120', text: '#10b981' },
+  'Review Analysis': { bg: '#f59e0b20', text: '#f59e0b' },
+  'Both': { bg: '#3b82f620', text: '#3b82f6' }
+};
+
+const SourceBadge = ({ source }) => {
+  const style = SOURCE_COLORS[source] || SOURCE_COLORS['Knowledge Base'];
+  return (
+    <span style={{
+      padding: '0.2rem 0.65rem',
+      borderRadius: '1rem',
+      fontSize: '0.75rem',
+      fontWeight: 'bold',
+      background: style.bg,
+      color: style.text,
+      whiteSpace: 'nowrap'
+    }}>
+      {source || 'Knowledge Base'}
+    </span>
+  );
+};
+
+// Priority badge — Product Recommendations agent
+const PRIORITY_COLORS = {
+  High: { bg: '#ef444420', text: '#ef4444' },
+  Medium: { bg: '#f59e0b20', text: '#f59e0b' },
+  Low: { bg: '#6b728020', text: '#9ca3af' }
+};
+
+const PriorityBadge = ({ priority }) => {
+  const style = PRIORITY_COLORS[priority] || PRIORITY_COLORS['Low'];
+  return (
+    <span style={{
+      padding: '0.25rem 0.75rem',
+      borderRadius: '1rem',
+      fontSize: '0.8rem',
+      fontWeight: '700',
+      background: style.bg,
+      color: style.text
+    }}>
+      {priority}
+    </span>
   );
 };
 
@@ -674,6 +728,10 @@ const Dashboard = () => {
                             }}>
                               {row[col]}
                             </span>
+                          ) : col === 'Source' ? (
+                            <SourceBadge source={row[col]} />
+                          ) : col === 'Priority' && activeAgent.id === 'product' ? (
+                            <PriorityBadge priority={row[col]} />
                           ) : (
                             renderTextWithLinks(row[col] || '')
                           )}
