@@ -62,7 +62,6 @@ const agents = [
   }
 ];
 
-// Star Rating Component (Google Reviews)
 const StarRating = ({ rating }) => {
   const numRating = parseFloat(rating);
    if (isNaN(numRating)) {
@@ -91,7 +90,6 @@ const StarRating = ({ rating }) => {
   );
 };
 
-// Source badge (Knowledge Base / Review Analysis / Both) — Product Recommendations agent
 const SOURCE_COLORS = {
   'Knowledge Base': { bg: '#10b98120', text: '#10b981' },
   'Review Analysis': { bg: '#f59e0b20', text: '#f59e0b' },
@@ -115,7 +113,6 @@ const SourceBadge = ({ source }) => {
   );
 };
 
-// Priority badge — Product Recommendations agent
 const PRIORITY_COLORS = {
   High: { bg: '#ef444420', text: '#ef4444' },
   Medium: { bg: '#f59e0b20', text: '#f59e0b' },
@@ -138,31 +135,62 @@ const PriorityBadge = ({ priority }) => {
   );
 };
 
-// Helper to make URLs clickable
-const renderFormattedText = (rawText) => {
+const KNOWN_LABELS = [
+  'Problem Solved',
+  'Key Features',
+  'Expected Value',
+  'Why Recommended',
+  'Core Features',
+  'Sales Pitch Question',
+  'Expected ROI & Value'
+];
+
+const renderFormattedText = (rawText, accentColor = '#6366f1') => {
   if (typeof rawText !== 'string') return rawText;
 
-  // Split by newlines or numbered list patterns if multi-item
-  const lines = rawText.split(/(?:\r?\n|(?=\d+\.\s+\*\*))/g).filter(Boolean);
+  const lines = rawText
+    .split(/(?:\r?\n|(?=\d+\.\s+\*\*))/g)
+    .filter(Boolean)
+    .filter(line => /[a-zA-Z0-9]/.test(line.trim())); // drop stray separator-only lines (---, ___, ***, —, •, etc.)
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
       {lines.map((lineText, lineIdx) => {
-        // Helper to convert URLs and bold markdown inside each line
+        const trimmed = lineText.trim();
+        const isNewProduct = /^\d+\.\s+\*\*/.test(trimmed);
+
         const renderLineContent = (str) => {
-          // Parse bold markdown **text**
-          const parts = str.split(/(\*\*[^*]+\*\*)/g);
-          return parts.map((part, pIdx) => {
+          // Detect a leading "Label:" as plain text (no ** needed) and force it bold white
+          const labelMatch = KNOWN_LABELS
+            .map(label => ({ label, re: new RegExp(`^(${label}:)\\s*`) }))
+            .find(({ re }) => re.test(str));
+
+          let prefix = null;
+          let rest = str;
+          if (labelMatch) {
+            const m = str.match(labelMatch.re);
+            prefix = m[1];
+            rest = str.slice(m[0].length);
+          }
+
+          const parts = rest.split(/(\*\*[^*]+\*\*)/g);
+          const renderedRest = parts.map((part, pIdx) => {
             if (part.startsWith('**') && part.endsWith('**')) {
               const boldContent = part.slice(2, -2);
+              const isSubLabel = boldContent.trim().endsWith(':');
               return (
-                <strong key={pIdx} style={{ color: '#6366f1', fontWeight: 700 }}>
+                <strong
+                  key={pIdx}
+                  style={{
+                    color: isSubLabel ? '#ffffff' : accentColor,
+                    fontWeight: 700
+                  }}
+                >
                   {boldContent}
                 </strong>
               );
             }
 
-            // Parse URLs
             const urlRegex = /((?:https?:\/\/|www\.|linkedin\.com|facebook\.com)[^\s]+)/g;
             const urlParts = part.split(urlRegex);
             return urlParts.map((subPart, uIdx) => {
@@ -190,19 +218,59 @@ const renderFormattedText = (rawText) => {
               return subPart;
             });
           });
+
+          return (
+            <>
+              {prefix && <strong style={{ color: '#ffffff', fontWeight: 700 }}>{prefix} </strong>}
+              {renderedRest}
+            </>
+          );
         };
 
         return (
-          <div key={lineIdx} style={{ lineHeight: '1.6' }}>
-            {renderLineContent(lineText.trim())}
-          </div>
+          <React.Fragment key={lineIdx}>
+            {isNewProduct && lineIdx > 0 && (
+              <hr
+                style={{
+                  border: 'none',
+                  borderTop: '1px solid var(--border-color)',
+                  margin: '0.5rem 0'
+                }}
+              />
+            )}
+            <div style={{ lineHeight: '1.6' }}>
+              {renderLineContent(trimmed)}
+            </div>
+          </React.Fragment>
         );
       })}
     </div>
   );
 };
 
-const renderTextWithLinks = (text) => renderFormattedText(text);
+const renderTextWithLinks = (text, accentColor) => renderFormattedText(text, accentColor);
+
+const FAILURE_PHRASES = [
+  'no verified',
+  'not found via available search',
+  'usage-limit error',
+  'search tool calls failed',
+  'could not be produced',
+  'could not be compiled',
+  'could not be identified'
+];
+
+const isLikelyFailedResult = (resultsArray) => {
+  if (!resultsArray || resultsArray.length === 0) return false;
+  const textFields = resultsArray.map(row => {
+    const values = Object.values(row).filter(v => typeof v === 'string');
+    return values.join(' ').toLowerCase();
+  });
+  const failedCount = textFields.filter(text =>
+    FAILURE_PHRASES.some(phrase => text.includes(phrase))
+  ).length;
+  return failedCount >= Math.ceil(resultsArray.length / 2);
+};
 
 const Dashboard = () => {
   const [activeAgent, setActiveAgent] = useState(agents[0]);
@@ -211,8 +279,7 @@ const Dashboard = () => {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [emailSending, setEmailSending] = useState(false);
-  
-  // Knowledge Base State
+
   const [showKBModal, setShowKBModal] = useState(false);
   const [kbDocuments, setKbDocuments] = useState([]);
   const [loadingDocs, setLoadingDocs] = useState(false);
@@ -302,7 +369,7 @@ const Dashboard = () => {
   };
 
   const handleSearch = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     if (!prompt) return;
 
     setLoading(true);
@@ -373,7 +440,6 @@ const Dashboard = () => {
   };
 
   const handleCompanyClick = (row) => {
-    // Store the full company data in localStorage for the detail page
     localStorage.setItem('selectedBusiness', JSON.stringify(row));
     const companyName = encodeURIComponent(row['Company Name']);
     window.open(`/business/${companyName}`, '_blank');
@@ -422,15 +488,14 @@ const Dashboard = () => {
     doc.save(`Mobitel_${activeAgent.id}_report.pdf`);
   };
 
-  // Check if current results are lead discovery (have Company Name column)
   const isLeadResults = results && results.length > 0 && results[0]['Company Name'];
 
-  // For lead results, define which columns to display in the compact table
   const leadDisplayColumns = ['Company Name', 'Industry', 'Size', 'Location', 'Contact Number', 'Customer Rating', 'Lead Score'];
+
+  const showRetryBanner = results && results.length > 0 && !loading && isLikelyFailedResult(results);
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
-      {/* Toast notification */}
       {toast && (
         <div className={`toast ${toast.type}`}>
           <CheckCircle size={18} />
@@ -438,7 +503,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Sidebar */}
       <div style={{
         width: '300px',
         background: 'var(--card-bg)',
@@ -447,7 +511,6 @@ const Dashboard = () => {
         flexDirection: 'column',
         flexShrink: 0
       }}>
-        {/* Logo */}
         <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
           <h2 style={{ fontSize: '1.35rem', fontWeight: 'bold' }}>
             <span style={{ background: 'linear-gradient(135deg, #3b82f6, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Insight</span>Hub
@@ -455,7 +518,6 @@ const Dashboard = () => {
           <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Sri Lanka Telecom Mobitel</p>
         </div>
 
-        {/* Agent Navigation */}
         <div style={{ padding: '0.75rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0.5rem 0.75rem' }}>AI Agents</p>
           {agents.map(agent => {
@@ -488,7 +550,6 @@ const Dashboard = () => {
           })}
         </div>
 
-        {/* User Info + Mode Toggle + Logout */}
         <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
           {userEmail && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.25rem 0' }}>
@@ -512,9 +573,7 @@ const Dashboard = () => {
         </div>
       </div>
 
-      {/* Main Content */}
       <div style={{ flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
-        {/* Header */}
         <div className="animate-fade-in" key={activeAgent.id} style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
@@ -529,7 +588,7 @@ const Dashboard = () => {
             </div>
             <p style={{ color: 'var(--text-muted)', marginLeft: '3.25rem' }}>{activeAgent.desc}</p>
           </div>
-          
+
           <button
             onClick={() => setShowKBModal(true)}
             style={{
@@ -544,7 +603,6 @@ const Dashboard = () => {
           </button>
         </div>
 
-        {/* Search Area */}
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <Search size={20} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
@@ -578,7 +636,6 @@ const Dashboard = () => {
           </button>
         </form>
 
-        {/* Error State */}
         {error && (
           <div className="animate-fade-in" style={{
             background: '#dc262615', border: '1px solid #dc262650', borderRadius: '0.75rem',
@@ -589,7 +646,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Loading State */}
         {loading && (
           <div style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '1rem'
@@ -602,7 +658,32 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Results Table */}
+        {showRetryBanner && (
+          <div className="animate-fade-in" style={{
+            background: '#f59e0b15', border: '1px solid #f59e0b50', borderRadius: '0.75rem',
+            padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            gap: '1rem', marginBottom: '1rem', flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <AlertCircle size={20} color="#f59e0b" />
+              <p style={{ color: '#fcd34d', fontSize: '0.9rem' }}>
+                This search mostly returned no results — this can happen when search tools hit a temporary limit. Please try searching again.
+              </p>
+            </div>
+            <button
+              onClick={handleSearch}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                background: '#f59e0b', color: 'white',
+                padding: '0.5rem 1.25rem', borderRadius: '0.5rem', fontSize: '0.85rem', fontWeight: 'bold',
+                border: 'none', cursor: 'pointer', whiteSpace: 'nowrap'
+              }}
+            >
+              <Loader2 size={16} /> Try Again
+            </button>
+          </div>
+        )}
+
         {results && results.length > 0 && !loading && (
           <div className="animate-fade-in" style={{
             background: 'var(--card-bg)',
@@ -733,7 +814,7 @@ const Dashboard = () => {
                           ) : col === 'Priority' && activeAgent.id === 'product' ? (
                             <PriorityBadge priority={row[col]} />
                           ) : (
-                            renderTextWithLinks(row[col] || '')
+                            renderTextWithLinks(row[col] || '', activeAgent.color)
                           )}
                         </td>
                       ))}
@@ -755,7 +836,6 @@ const Dashboard = () => {
           </div>
         )}
 
-        {/* Empty State */}
         {(!results || results.length === 0) && !loading && !error && (
           <div style={{
             flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -766,7 +846,7 @@ const Dashboard = () => {
               {results && results.length === 0 ? `No scraped leads returned for "${prompt}"` : 'Enter a prompt above to get started'}
             </p>
             <p style={{ fontSize: '0.88rem', maxWidth: '480px', textAlign: 'center', lineHeight: 1.5 }}>
-              {results && results.length === 0 
+              {results && results.length === 0
                 ? "The live n8n AI Agent finished its execution on n8n Cloud but scraped 0 items for this prompt. Try refining your query (e.g. 'private hospitals sri lanka' or 'hotels in kandy')."
                 : "Connected to live n8n AI Agent gateway & local vector store."}
             </p>
@@ -774,7 +854,6 @@ const Dashboard = () => {
         )}
       </div>
 
-      {/* Local Knowledge Base & Vector DB Modal */}
       {showKBModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -788,7 +867,6 @@ const Dashboard = () => {
             display: 'flex', flexDirection: 'column', overflow: 'hidden',
             boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
           }}>
-            {/* Modal Header */}
             <div style={{
               padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
@@ -811,10 +889,8 @@ const Dashboard = () => {
               </button>
             </div>
 
-            {/* Modal Body */}
             <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-              
-              {/* File Upload Section */}
+
               <div style={{
                 border: '2px dashed var(--border-color)', borderRadius: '0.75rem',
                 padding: '1.5rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)'
@@ -865,7 +941,6 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* Vector RAG Search Test */}
               <div style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.75rem', padding: '1rem' }}>
                 <h4 style={{ fontSize: '0.9rem', fontWeight: '600', color: '#3b82f6', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                   <Layers size={16} /> Test Vector RAG Search (ChromaDB)
@@ -903,7 +978,6 @@ const Dashboard = () => {
                 )}
               </div>
 
-              {/* Indexed Documents List */}
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>Indexed Knowledge Base Documents ({kbDocuments.length})</h4>
@@ -968,7 +1042,6 @@ const Dashboard = () => {
 
             </div>
 
-            {/* Modal Footer */}
             <div style={{ padding: '1rem 1.5rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end', background: 'rgba(255,255,255,0.02)' }}>
               <button
                 onClick={() => setShowKBModal(false)}
