@@ -58,17 +58,17 @@ const Login = () => {
             display: 'inline-flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
-            padding: '0.75rem 1.25rem',
-            borderRadius: '1rem', 
-            background: 'rgba(255, 255, 255, 0.05)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            boxShadow: '0 10px 30px rgba(0, 102, 255, 0.15)',
+            padding: '1rem 1.5rem',
+            borderRadius: '1.25rem', 
+            background: '#ffffff',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 12px 35px rgba(0, 102, 255, 0.25)',
             marginBottom: '1rem'
           }}>
             <img 
               src="/insighthub-logo.png" 
               alt="InsightHub Logo" 
-              style={{ maxHeight: '65px', width: 'auto', objectFit: 'contain' }} 
+              style={{ maxHeight: '90px', maxWidth: '260px', width: 'auto', objectFit: 'contain' }} 
             />
           </div>
           <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', fontSize: '0.85rem', fontWeight: 500 }}>

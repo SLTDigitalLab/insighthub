@@ -513,22 +513,21 @@ const Dashboard = () => {
         boxShadow: '4px 0 20px rgba(0, 0, 0, 0.04)',
         zIndex: 10
       }}>
-        <div style={{ padding: '1.5rem 1.5rem 1.25rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: '#ffffff' }}>
+        <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: '#ffffff' }}>
           <div style={{
             width: '100%',
-            padding: '0.5rem 0.75rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            marginBottom: '0.25rem'
+            padding: '0.25rem 0'
           }}>
             <img 
               src="/insighthub-logo.png" 
               alt="InsightHub Logo" 
-              style={{ maxHeight: '68px', width: 'auto', objectFit: 'contain' }} 
+              style={{ maxHeight: '100px', maxWidth: '250px', width: '100%', height: 'auto', objectFit: 'contain' }} 
             />
           </div>
-          <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.03em' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', marginTop: '0.25rem' }}>
             Sri Lanka Telecom Mobitel
           </p>
         </div>
