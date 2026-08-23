@@ -505,38 +505,36 @@ const Dashboard = () => {
 
       <div style={{
         width: '300px',
-        background: 'var(--card-bg)',
-        borderRight: '1px solid var(--border-color)',
+        background: '#ffffff',
+        borderRight: '1px solid #e2e8f0',
         display: 'flex',
         flexDirection: 'column',
-        flexShrink: 0
+        flexShrink: 0,
+        boxShadow: '4px 0 20px rgba(0, 0, 0, 0.04)',
+        zIndex: 10
       }}>
-        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+        <div style={{ padding: '1.5rem 1.5rem 1.25rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: '#ffffff' }}>
           <div style={{
             width: '100%',
-            padding: '0.6rem 0.8rem',
-            background: 'rgba(255, 255, 255, 0.04)',
-            borderRadius: '0.85rem',
-            border: '1px solid rgba(255, 255, 255, 0.08)',
-            boxShadow: '0 4px 20px rgba(0, 102, 255, 0.1)',
-            marginBottom: '0.5rem',
+            padding: '0.5rem 0.75rem',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center'
+            justifyContent: 'center',
+            marginBottom: '0.25rem'
           }}>
             <img 
               src="/insighthub-logo.png" 
               alt="InsightHub Logo" 
-              style={{ maxHeight: '60px', width: 'auto', objectFit: 'contain' }} 
+              style={{ maxHeight: '68px', width: 'auto', objectFit: 'contain' }} 
             />
           </div>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em' }}>
+          <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.03em' }}>
             Sri Lanka Telecom Mobitel
           </p>
         </div>
 
-        <div style={{ padding: '0.75rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0.5rem 0.75rem' }}>AI Agents</p>
+        <div style={{ padding: '1rem 0.75rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <p style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0.25rem 0.75rem 0.5rem' }}>AI Agents</p>
           {agents.map(agent => {
             const Icon = agent.icon;
             const isActive = activeAgent.id === agent.id;
@@ -550,39 +548,41 @@ const Dashboard = () => {
                   gap: '0.75rem',
                   padding: '0.85rem 1rem',
                   background: isActive ? `${agent.color}15` : 'transparent',
-                  color: isActive ? agent.color : 'var(--text-main)',
+                  color: isActive ? agent.color : '#334155',
                   borderLeft: isActive ? `3px solid ${agent.color}` : '3px solid transparent',
-                  borderRadius: '0 0.5rem 0.5rem 0',
+                  borderRadius: '0 0.6rem 0.6rem 0',
                   textAlign: 'left',
                   transition: 'all 0.2s',
                   width: '100%',
-                  fontSize: '0.9rem'
+                  fontSize: '0.9rem',
+                  fontWeight: isActive ? '700' : '500'
                 }}
               >
-                <Icon size={18} />
-                <span style={{ fontWeight: isActive ? '600' : 'normal', flex: 1 }}>{agent.name}</span>
-                {isActive && <ChevronRight size={14} />}
+                <Icon size={18} color={isActive ? agent.color : '#64748b'} />
+                <span style={{ flex: 1 }}>{agent.name}</span>
+                {isActive && <ChevronRight size={14} color={agent.color} />}
               </button>
             );
           })}
         </div>
 
-        <div style={{ padding: '1rem', borderTop: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#fafafa' }}>
           {userEmail && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: 'var(--text-muted)', padding: '0.25rem 0' }}>
-              <Mail size={14} />
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{userEmail}</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748b', padding: '0.25rem 0' }}>
+              <Mail size={14} color="#64748b" />
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{userEmail}</span>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#10b981', padding: '0.25rem 0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#059669', padding: '0.25rem 0.5rem', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px solid #a7f3d0' }}>
             <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }}></span>
-            <span style={{ fontWeight: '500' }}>Live n8n Agent connected</span>
+            <span style={{ fontWeight: '600' }}>Live n8n Agent connected</span>
           </div>
           <button
             onClick={handleLogout}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.5rem',
-              color: '#ef4444', background: 'transparent', width: '100%', padding: '0.5rem', fontSize: '0.9rem'
+              color: '#ef4444', background: 'transparent', width: '100%', padding: '0.5rem', fontSize: '0.9rem', fontWeight: 600,
+              borderRadius: '0.5rem', transition: 'background 0.2s'
             }}
           >
             <LogOut size={18} /> Logout
