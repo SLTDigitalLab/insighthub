@@ -58,16 +58,22 @@ const Login = () => {
             display: 'inline-flex', 
             alignItems: 'center', 
             justifyContent: 'center', 
-            width: '64px', 
-            height: '64px', 
-            borderRadius: '50%', 
-            background: 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)',
+            padding: '0.75rem 1.25rem',
+            borderRadius: '1rem', 
+            background: 'rgba(255, 255, 255, 0.05)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 10px 30px rgba(0, 102, 255, 0.15)',
             marginBottom: '1rem'
           }}>
-            <Shield size={32} color="white" />
+            <img 
+              src="/insighthub-logo.png" 
+              alt="InsightHub Logo" 
+              style={{ maxHeight: '65px', width: 'auto', objectFit: 'contain' }} 
+            />
           </div>
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>InsightHub</h1>
-          <p style={{ color: 'var(--text-muted)', marginTop: '0.5rem' }}>AI-Powered Sales Intelligence</p>
+          <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', fontSize: '0.85rem', fontWeight: 500 }}>
+            Where Intelligence Meets Sales
+          </p>
         </div>
 
         <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>

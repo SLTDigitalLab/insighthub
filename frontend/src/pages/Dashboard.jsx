@@ -511,11 +511,28 @@ const Dashboard = () => {
         flexDirection: 'column',
         flexShrink: 0
       }}>
-        <div style={{ padding: '1.5rem', borderBottom: '1px solid var(--border-color)' }}>
-          <h2 style={{ fontSize: '1.35rem', fontWeight: 'bold' }}>
-            <span style={{ background: 'linear-gradient(135deg, #3b82f6, #10b981)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Insight</span>Hub
-          </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem', marginTop: '0.25rem' }}>Sri Lanka Telecom Mobitel</p>
+        <div style={{ padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center' }}>
+          <div style={{
+            width: '100%',
+            padding: '0.6rem 0.8rem',
+            background: 'rgba(255, 255, 255, 0.04)',
+            borderRadius: '0.85rem',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            boxShadow: '0 4px 20px rgba(0, 102, 255, 0.1)',
+            marginBottom: '0.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            <img 
+              src="/insighthub-logo.png" 
+              alt="InsightHub Logo" 
+              style={{ maxHeight: '60px', width: 'auto', objectFit: 'contain' }} 
+            />
+          </div>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em' }}>
+            Sri Lanka Telecom Mobitel
+          </p>
         </div>
 
         <div style={{ padding: '0.75rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
@@ -593,10 +610,10 @@ const Dashboard = () => {
             onClick={() => setShowKBModal(true)}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.5rem',
-              background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)', color: 'white',
-              padding: '0.65rem 1.25rem', borderRadius: '0.65rem', fontSize: '0.85rem', fontWeight: 'bold',
-              boxShadow: '0 4px 12px rgba(59, 130, 246, 0.3)',
-              border: 'none', cursor: 'pointer'
+              background: 'linear-gradient(135deg, #0066FF 0%, #10b981 100%)', color: 'white',
+              padding: '0.75rem 1.4rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 'bold',
+              boxShadow: '0 4px 18px rgba(0, 102, 255, 0.35)',
+              border: 'none', cursor: 'pointer', transition: 'all 0.2s'
             }}
           >
             <Database size={16} /> Knowledge Base & Vector DB
@@ -611,17 +628,17 @@ const Dashboard = () => {
               placeholder={activeAgent.placeholder}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              style={{ width: '100%', paddingLeft: '3rem', fontSize: '1rem', height: '52px' }}
+              style={{ width: '100%', paddingLeft: '3rem', fontSize: '1rem', height: '52px', border: '1px solid rgba(255, 255, 255, 0.12)' }}
             />
           </div>
           <button
             type="submit"
             disabled={loading || !prompt}
             style={{
-              background: loading ? 'var(--border-color)' : activeAgent.color,
+              background: loading ? 'var(--border-color)' : (activeAgent.id === 'lead' ? 'linear-gradient(135deg, #0066FF, #0284c7)' : activeAgent.color),
               color: 'white',
               padding: '0 2rem',
-              borderRadius: '0.5rem',
+              borderRadius: '0.6rem',
               fontWeight: 'bold',
               display: 'flex',
               alignItems: 'center',
@@ -629,7 +646,8 @@ const Dashboard = () => {
               opacity: (!prompt || loading) ? 0.6 : 1,
               transition: 'all 0.2s',
               height: '52px',
-              whiteSpace: 'nowrap'
+              whiteSpace: 'nowrap',
+              boxShadow: (!prompt || loading) ? 'none' : '0 4px 15px rgba(0, 102, 255, 0.3)'
             }}
           >
             {loading ? <><Loader2 size={18} className="spin" /> Processing...</> : <><Search size={18} /> Search</>}
