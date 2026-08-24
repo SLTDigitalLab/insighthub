@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: insighthub-backend
+    restart: always
+    environment:
+      - PORT=5000
+      - N8N_WEBHOOK_BASE=https://sltrnddigitallab.app.n8n.cloud/webhook
+      - CHROMA_URL=http://chromadb:8000
+    ports:
+      - "5000:5000"
+    volumes:
+      - backend_data:/app/backend/data
+      - backend_uploads:/app/backend/uploads
+    networks:
+      - insighthub-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: insighthub-frontend
+    restart: always
+    ports:
+      - "80:80"
+    depends_on:
+      - backend
+    networks:
+      - insighthub-network
+
+networks:
+  insighthub-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+  backend_uploads:
