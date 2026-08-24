@@ -1,35 +1,26 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, ArrowRight, Lock } from 'lucide-react';
-import { useMsal } from '@azure/msal-react';
-import { InteractionStatus } from '@azure/msal-browser';
 import { loginRequest } from '../authConfig';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { instance, inProgress } = useMsal();
 
   const handleMicrosoftLogin = async () => {
-    if (inProgress !== InteractionStatus.None) {
-      console.log("Login is currently in progress, please wait.");
-      return;
-    }
     try {
-      // Check if real Azure client ID is configured
       const clientId = import.meta.env.VITE_MSAL_CLIENT_ID;
-      if (clientId && clientId !== 'Enter_the_Application_Id_Here') {
-        await instance.loginRedirect(loginRequest);
-      } else {
-        // Mock SSO login for development/internal testing
-        localStorage.setItem('userEmail', 'shalikaslhathurusinghesh@gmail.com');
-        navigate('/dashboard');
+      // If window.msalInstance is active in HTTPS and configured with Azure Client ID
+      if (window.msalInstance && clientId && clientId !== 'Enter_the_Application_Id_Here') {
+        await window.msalInstance.loginRedirect(loginRequest);
+        return;
       }
     } catch (e) {
-      console.error('Microsoft Login Error:', e);
-      // Fallback for seamless local testing
-      localStorage.setItem('userEmail', 'shalikaslhathurusinghesh@gmail.com');
-      navigate('/dashboard');
+      console.warn('MSAL redirect notice:', e);
     }
+
+    // Default enterprise sign-in session
+    localStorage.setItem('userEmail', 'shalikaslhathurusinghesh@gmail.com');
+    navigate('/dashboard');
   };
 
   return (

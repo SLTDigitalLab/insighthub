@@ -8,28 +8,47 @@ import { PublicClientApplication } from '@azure/msal-browser';
 import { MsalProvider } from '@azure/msal-react';
 import { msalConfig } from './authConfig';
 
-const msalInstance = new PublicClientApplication(msalConfig);
+const renderApp = (instance) => {
+  const rootElement = document.getElementById('root');
+  if (!rootElement) return;
 
-// Initialize MSAL and then render the app
-msalInstance.initialize().then(() => {
-  // Handle redirect response but don't block the app from rendering if it fails
-  msalInstance.handleRedirectPromise().then((response) => {
-    if (response && response.account) {
-      // If we just returned from a redirect login, save the user and we can rely on Protected Routes or manual redirect
-      localStorage.setItem('userEmail', response.account.username);
-      window.location.href = '/dashboard';
-    }
-  }).catch(e => {
-    console.error("MSAL Redirect Error:", e);
-  });
-
-  createRoot(document.getElementById('root')).render(
-    <StrictMode>
-      <MsalProvider instance={msalInstance}>
+  if (instance) {
+    createRoot(rootElement).render(
+      <StrictMode>
+        <MsalProvider instance={instance}>
+          <App />
+        </MsalProvider>
+      </StrictMode>
+    );
+  } else {
+    createRoot(rootElement).render(
+      <StrictMode>
         <App />
-      </MsalProvider>
-    </StrictMode>,
-  )
-}).catch(e => {
-  console.error("MSAL Initialization failed", e);
-});
+      </StrictMode>
+    );
+  }
+};
+
+try {
+  // Try initializing MSAL (requires HTTPS or localhost in modern browsers)
+  const msalInstance = new PublicClientApplication(msalConfig);
+  
+  msalInstance.initialize().then(() => {
+    msalInstance.handleRedirectPromise().then((response) => {
+      if (response && response.account) {
+        localStorage.setItem('userEmail', response.account.username);
+        window.location.href = '/dashboard';
+      }
+    }).catch(e => {
+      console.warn("MSAL Redirect Warning:", e);
+    });
+
+    renderApp(msalInstance);
+  }).catch(e => {
+    console.warn("MSAL initialize failed (falling back to direct auth):", e);
+    renderApp(null);
+  });
+} catch (e) {
+  console.warn("MSAL constructor error (non-HTTPS context, falling back):", e);
+  renderApp(null);
+}
