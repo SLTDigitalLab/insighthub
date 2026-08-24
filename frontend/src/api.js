@@ -105,3 +105,13 @@ export const fetchHelpImproveService = async (promptText) => {
   return response.data;
 };
 
+/**
+ * Fetches newly registered businesses from Sunday Observer registry and matches with Mobitel B2B solutions
+ */
+export const fetchFindNewBusinesses = async (promptText) => {
+  const response = await axios.post(BACKEND_ENDPOINTS.findNewBusinesses, {
+    prompt: promptText
+  }, { timeout: 240000 });
+  return response.data;
+};
+

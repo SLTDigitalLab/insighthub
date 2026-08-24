@@ -36,11 +36,11 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(pdf|txt|doc|docx)$/i)) {
+    const allowedTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv'];
+    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(pdf|txt|doc|docx|xlsx|xls|csv)$/i)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only PDF, TXT, and Word documents are allowed.'));
+      cb(new Error('Invalid file type. Allowed: PDF, TXT, Word, Excel (.xlsx/.xls), and CSV files.'));
     }
   }
 });
@@ -194,7 +194,66 @@ app.delete('/api/documents/:id', async (req, res) => {
   }
 });
 
-// Perform similarity search on local ChromaDB store
+// 6. Find New Businesses (Sunday Observer / Daily Mirror Registry + Mobitel Solution Knowledge Base)
+app.post('/api/find-new-businesses', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
+    }
+
+    console.log(`[Find New Businesses] Processing query: "${prompt}"`);
+
+    // 1. Retrieve relevant registry chunks and Mobitel catalog chunks from local vector store
+    let registryChunks = [];
+    let catalogChunks = [];
+    try {
+      const rawResults = await chromaService.queryVectorStore(prompt, 8);
+      if (rawResults && rawResults.documents && rawResults.documents[0]) {
+        rawResults.documents[0].forEach((docText, index) => {
+          const metadata = (rawResults.metadatas && rawResults.metadatas[0]) ? rawResults.metadatas[0][index] : {};
+          const fileName = metadata.fileName || '';
+          if (fileName.includes('Mobitel') || fileName.includes('Catalog') || fileName.includes('Portfolio')) {
+            catalogChunks.push({ text: docText, fileName: fileName });
+          } else {
+            registryChunks.push({ text: docText, fileName: fileName });
+          }
+        });
+      }
+    } catch (chromaErr) {
+      console.warn(`[Find New Businesses Warning] Local Vector search skipped: ${chromaErr.message}`);
+    }
+
+    // 2. Build rich prompt: If user uploaded registry documents exist, pass them. Otherwise, instruct agent to search live web.
+    let finalPrompt = '';
+    if (registryChunks.length > 0) {
+      finalPrompt = `User Request: ${prompt}\n\n=== UPLOADED SUNDAY OBSERVER / DAILY MIRROR REGISTRY DATA ===\n` +
+        registryChunks.map((c, i) => `[Source: ${c.fileName}]\n${c.text}`).join('\n\n') +
+        `\n\nExtract all newly registered companies from the registry text above, verify details with Google search if needed, and recommend tailored SLTMobitel B2B products for each company. Return a clean JSON array.`;
+    } else {
+      finalPrompt = `Find real operating and newly registered business entities matching the query: "${prompt}". Actively use Google Search via Apify to discover companies in Sri Lanka (e.g. from directories, gazettes, or registry records), extract their company name, location, contact number, and match each with tailored SLTMobitel B2B products. Return a clean JSON array.`;
+    }
+
+    console.log(`[Find New Businesses] Forwarding prompt to live n8n Cloud Agent (attached ${registryChunks.length} registry chunks)`);
+    const n8nResults = await queryN8nWebhook('find-new-businesses', finalPrompt);
+
+    return res.json({
+      success: true,
+      agent: "Find New Businesses (Sunday Observer Registry)",
+      resultsCount: n8nResults ? n8nResults.length : 0,
+      results: n8nResults || []
+    });
+  } catch (err) {
+    console.error('[Find New Businesses Proxy Error]', err.message);
+    const errText = err.response?.data?.error || err.message || '';
+    return res.status(500).json({
+      success: false,
+      error: `Live n8n Webhook Error: ${errText}`
+    });
+  }
+});
+
+// Endpoint for n8n to sync and index documents to local ChromaDB store
 app.post('/api/vector/search', async (req, res) => {
   try {
     const { query, nResults = 5 } = req.body;

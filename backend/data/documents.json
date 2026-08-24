@@ -1,1 +1,35 @@
-[]
+[
+  {
+    "id": "9d82907a-14c6-4855-9679-bee0cffaaa8c",
+    "name": "incorporated_companies_march_2026 (1).csv",
+    "size": 15034,
+    "mimeType": "text/csv",
+    "filePath": "F:\\Mobitel\\Projects\\Project 03 Lead Generation Agent\\backend\\uploads\\1787596777734-216418373-incorporated_companies_march_2026__1_.csv",
+    "fileNameOnDisk": "1787596777734-216418373-incorporated_companies_march_2026__1_.csv",
+    "chunkCount": 28,
+    "status": "indexed_local_vector_store",
+    "uploadedAt": "2026-08-24T18:39:38.420Z"
+  },
+  {
+    "id": "f58f1c50-fe22-4490-b3fe-b2a5bc98d9de",
+    "name": "Incorporated_Companies_March_2026.csv",
+    "size": 9852,
+    "mimeType": "text/csv",
+    "filePath": "F:\\Mobitel\\Projects\\Project 03 Lead Generation Agent\\backend\\uploads\\1787593132687-3110789-Incorporated_Companies_March_2026.csv",
+    "fileNameOnDisk": "1787593132687-3110789-Incorporated_Companies_March_2026.csv",
+    "chunkCount": 18,
+    "status": "indexed_local_vector_store",
+    "uploadedAt": "2026-08-24T17:38:53.543Z"
+  },
+  {
+    "id": "6f946d88-ad37-4233-9a4b-f3165c925a23",
+    "name": "Incorporated_Companies_Notice_March_2026.pdf",
+    "size": 33824224,
+    "mimeType": "application/pdf",
+    "filePath": "F:\\Mobitel\\Projects\\Project 03 Lead Generation Agent\\backend\\uploads\\1787587979300-818423335-Incorporated_Companies_Notice_March_2026.pdf",
+    "fileNameOnDisk": "1787587979300-818423335-Incorporated_Companies_Notice_March_2026.pdf",
+    "chunkCount": 0,
+    "status": "empty",
+    "uploadedAt": "2026-08-24T16:13:03.723Z"
+  }
+]

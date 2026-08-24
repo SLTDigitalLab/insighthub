@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers } from 'lucide-react';
+import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -14,6 +14,7 @@ import {
   fetchProductRecommendations,
   fetchMeetingPreparation,
   fetchLeadDiscovery,
+  fetchFindNewBusinesses,
   fetchCustomerResearch,
   fetchHelpImproveService
 } from '../api';
@@ -26,7 +27,15 @@ const agents = [
     icon: Users,
     desc: 'Find newly registered businesses and discover companies by industry, location, and size.',
     placeholder: 'e.g. "Find tech startups in Colombo" or "Banking companies in Sri Lanka"',
-    color: '#3b82f6'
+    color: '#0066FF'
+  },
+  {
+    id: 'newBusinesses',
+    name: 'Find New Businesses',
+    icon: Sparkles,
+    desc: 'Discover newly registered companies from Sunday Observer monthly lists and match with SLTMobitel B2B solutions.',
+    placeholder: 'e.g. "Find newly registered logistics companies in Colombo" or "List new businesses registered this month"',
+    color: '#06b6d4'
   },
   {
     id: 'research',
@@ -383,6 +392,8 @@ const Dashboard = () => {
 
       if (activeAgent.id === 'lead') {
         responseData = await fetchLeadDiscovery(prompt);
+      } else if (activeAgent.id === 'newBusinesses') {
+        responseData = await fetchFindNewBusinesses(prompt);
       } else if (activeAgent.id === 'research') {
         responseData = await fetchCustomerResearch(prompt);
       } else if (activeAgent.id === 'product') {
@@ -404,7 +415,7 @@ const Dashboard = () => {
       console.error('[Dashboard Search Error]', err);
       const rawError = err.response?.data?.error || err.response?.data?.message || err.message || '';
       if (rawError.includes('524') || err.response?.status === 524) {
-        setError("n8n Cloud Webhook Timeout (524): n8n Cloud is running deep Apify web scrapers (>2.5 min process). The workflow execution is running in your n8n Cloud instance. Please wait a moment and click Search again to view the finished leads.");
+        setError("n8n Cloud Webhook Timeout (524): n8n Cloud is running deep scrapers & knowledge base queries. The workflow is processing. Please wait a moment and click Search again.");
       } else {
         setError(
           rawError || `Failed to connect to live n8n ${activeAgent.name} Agent.`
@@ -478,7 +489,7 @@ const Dashboard = () => {
       headStyles: { fillColor: [59, 130, 246], textColor: 255 },
       alternateRowStyles: { fillColor: [245, 247, 250] },
       columnStyles: tableColumn.reduce((acc, col, i) => {
-        if (['Details', 'Content', 'Why Recommended', 'Reason', 'Insights', 'Response', 'Key Decision Makers'].includes(col)) {
+        if (['Details', 'Content', 'Why Recommended', 'Reason', 'Insights', 'Response', 'Key Decision Makers', 'Recommended Mobitel Products'].includes(col)) {
           acc[i] = { cellWidth: 'auto' };
         }
         return acc;
@@ -488,11 +499,15 @@ const Dashboard = () => {
     doc.save(`Mobitel_${activeAgent.id}_report.pdf`);
   };
 
-  const isLeadResults = results && results.length > 0 && results[0]['Company Name'];
+  const isLeadResults = Boolean(results && Array.isArray(results) && results.length > 0 && results[0] && results[0]['Company Name']);
 
-  const leadDisplayColumns = ['Company Name', 'Industry', 'Size', 'Location', 'Contact Number', 'Customer Rating', 'Lead Score'];
+  const leadDisplayColumns = (isLeadResults && results[0] && (results[0]['Registration Details'] || results[0]['Recommended Mobitel Products']))
+    ? ['Company Name', 'Registration Details', 'Industry', 'Location', 'Recommended Mobitel Products', 'Lead Score'].filter(col => results && results[0] && results[0][col] !== undefined)
+    : (isLeadResults && results[0])
+      ? ['Company Name', 'Industry', 'Size', 'Location', 'Contact Number', 'Customer Rating', 'Lead Score'].filter(col => results && results[0] && results[0][col] !== undefined)
+      : ['Company Name', 'Industry', 'Size', 'Location', 'Contact Number', 'Customer Rating', 'Lead Score'];
 
-  const showRetryBanner = results && results.length > 0 && !loading && isLikelyFailedResult(results);
+  const showRetryBanner = Boolean(results && Array.isArray(results) && results.length > 0 && !loading && isLikelyFailedResult(results));
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
@@ -528,11 +543,11 @@ const Dashboard = () => {
             />
           </div>
           <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', marginTop: '0.25rem' }}>
-            Sri Lanka Telecom Mobitel
+            SLT Mobitel
           </p>
         </div>
 
-        <div style={{ padding: '1rem 0.75rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+        <div style={{ padding: '1rem 0.75rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
           <p style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0.25rem 0.75rem 0.5rem' }}>AI Agents</p>
           {agents.map(agent => {
             const Icon = agent.icon;
@@ -545,21 +560,29 @@ const Dashboard = () => {
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.75rem',
-                  padding: '0.85rem 1rem',
-                  background: isActive ? `${agent.color}15` : 'transparent',
-                  color: isActive ? agent.color : '#334155',
-                  borderLeft: isActive ? `3px solid ${agent.color}` : '3px solid transparent',
-                  borderRadius: '0 0.6rem 0.6rem 0',
+                  padding: '0.75rem 1rem',
+                  background: isActive ? 'linear-gradient(135deg, rgb(0, 102, 255) 0%, rgb(16, 185, 129) 100%)' : 'transparent',
+                  color: isActive ? '#ffffff' : '#334155',
+                  border: 'none',
+                  borderRadius: '0.75rem',
                   textAlign: 'left',
-                  transition: 'all 0.2s',
+                  transition: 'all 0.2s ease',
                   width: '100%',
-                  fontSize: '0.9rem',
-                  fontWeight: isActive ? '700' : '500'
+                  fontSize: '0.88rem',
+                  fontWeight: isActive ? '700' : '600',
+                  boxShadow: isActive ? '0 4px 18px rgba(0, 102, 255, 0.35)' : 'none',
+                  cursor: 'pointer'
+                }}
+                onMouseOver={(e) => {
+                  if (!isActive) e.currentTarget.style.background = '#f1f5f9';
+                }}
+                onMouseOut={(e) => {
+                  if (!isActive) e.currentTarget.style.background = 'transparent';
                 }}
               >
-                <Icon size={18} color={isActive ? agent.color : '#64748b'} />
+                <Icon size={18} color={isActive ? '#ffffff' : '#64748b'} />
                 <span style={{ flex: 1 }}>{agent.name}</span>
-                {isActive && <ChevronRight size={14} color={agent.color} />}
+                {isActive && <ChevronRight size={16} color="#ffffff" />}
               </button>
             );
           })}
@@ -572,17 +595,15 @@ const Dashboard = () => {
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{userEmail}</span>
             </div>
           )}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#059669', padding: '0.25rem 0.5rem', background: '#ecfdf5', borderRadius: '0.5rem', border: '1px solid #a7f3d0' }}>
-            <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }}></span>
-            <span style={{ fontWeight: '600' }}>Live n8n Agent connected</span>
-          </div>
           <button
             onClick={handleLogout}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.5rem',
               color: '#ef4444', background: 'transparent', width: '100%', padding: '0.5rem', fontSize: '0.9rem', fontWeight: 600,
-              borderRadius: '0.5rem', transition: 'background 0.2s'
+              borderRadius: '0.5rem', transition: 'background 0.2s', border: 'none', cursor: 'pointer'
             }}
+            onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'}
+            onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
           >
             <LogOut size={18} /> Logout
           </button>
@@ -594,13 +615,14 @@ const Dashboard = () => {
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
               <div style={{
-                width: '40px', height: '40px', borderRadius: '0.75rem',
-                background: `${activeAgent.color}20`,
-                display: 'flex', alignItems: 'center', justifyContent: 'center'
+                width: '42px', height: '42px', borderRadius: '0.75rem',
+                background: 'linear-gradient(135deg, rgb(0, 102, 255) 0%, rgb(16, 185, 129) 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                boxShadow: '0 4px 15px rgba(0, 102, 255, 0.25)'
               }}>
-                <activeAgent.icon size={22} color={activeAgent.color} />
+                <activeAgent.icon size={22} color="#ffffff" />
               </div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold' }}>{activeAgent.name}</h1>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#0f172a' }}>{activeAgent.name}</h1>
             </div>
             <p style={{ color: 'var(--text-muted)', marginLeft: '3.25rem' }}>{activeAgent.desc}</p>
           </div>
@@ -619,34 +641,90 @@ const Dashboard = () => {
           </button>
         </div>
 
+        {activeAgent.id === 'newBusinesses' && (
+          <div className="animate-fade-in" style={{
+            maxWidth: '680px',
+            background: '#ffffff',
+            border: '1px solid #e2e8f0',
+            borderLeft: '4px solid #0066FF',
+            borderRadius: '0.85rem',
+            padding: '0.75rem 1.15rem',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            boxShadow: '0 2px 12px rgba(0, 102, 255, 0.05)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+              <div style={{
+                width: '32px',
+                height: '32px',
+                borderRadius: '0.6rem',
+                background: 'linear-gradient(135deg, rgba(0, 102, 255, 0.12) 0%, rgba(16, 185, 129, 0.12) 100%)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0
+              }}>
+                <Sparkles size={16} color="#0066FF" />
+              </div>
+              <div>
+                <p style={{ fontWeight: '700', fontSize: '0.84rem', color: '#0f172a' }}>
+                  Sunday Observer Registry Matcher
+                </p>
+                <p style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '0.1rem' }}>
+                  Upload monthly company lists (PDF/Excel) to discover leads & match Mobitel products.
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setShowKBModal(true)}
+              className="btn-brand-gradient"
+              style={{
+                padding: '0.45rem 0.95rem',
+                fontSize: '0.78rem',
+                borderRadius: '0.6rem',
+                whiteSpace: 'nowrap',
+                boxShadow: '0 2px 10px rgba(0, 102, 255, 0.25)',
+                flexShrink: 0
+              }}
+            >
+              <UploadCloud size={14} /> Upload Registry
+            </button>
+          </div>
+        )}
+
         <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
           <div style={{ position: 'relative', flex: 1 }}>
-            <Search size={20} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+            <Search size={20} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input
               type="text"
               placeholder={activeAgent.placeholder}
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
-              style={{ width: '100%', paddingLeft: '3rem', fontSize: '1rem', height: '52px', border: '1px solid rgba(255, 255, 255, 0.12)' }}
+              style={{
+                width: '100%',
+                paddingLeft: '3rem',
+                fontSize: '0.95rem',
+                height: '52px',
+                background: '#ffffff',
+                color: '#0f172a',
+                border: '1px solid #cbd5e1',
+                borderRadius: '0.75rem',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.03)'
+              }}
             />
           </div>
           <button
             type="submit"
             disabled={loading || !prompt}
+            className="btn-brand-gradient"
             style={{
-              background: loading ? 'var(--border-color)' : (activeAgent.id === 'lead' ? 'linear-gradient(135deg, #0066FF, #0284c7)' : activeAgent.color),
-              color: 'white',
-              padding: '0 2rem',
-              borderRadius: '0.6rem',
-              fontWeight: 'bold',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.5rem',
-              opacity: (!prompt || loading) ? 0.6 : 1,
-              transition: 'all 0.2s',
               height: '52px',
-              whiteSpace: 'nowrap',
-              boxShadow: (!prompt || loading) ? 'none' : '0 4px 15px rgba(0, 102, 255, 0.3)'
+              padding: '0 2rem',
+              fontSize: '0.95rem',
+              whiteSpace: 'nowrap'
             }}
           >
             {loading ? <><Loader2 size={18} className="spin" /> Processing...</> : <><Search size={18} /> Search</>}
@@ -703,16 +781,17 @@ const Dashboard = () => {
 
         {results && results.length > 0 && !loading && (
           <div className="animate-fade-in" style={{
-            background: 'var(--card-bg)',
+            background: '#ffffff',
             borderRadius: '1rem',
             padding: '1.5rem',
-            border: '1px solid var(--border-color)',
+            border: '1px solid #e2e8f0',
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.04)',
             flex: 1,
             overflow: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 'bold' }}>
-                Results <span style={{ color: 'var(--text-muted)', fontWeight: 'normal', fontSize: '0.85rem' }}>({results.length} items)</span>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a' }}>
+                Results <span style={{ color: '#64748b', fontWeight: 'normal', fontSize: '0.85rem' }}>({results.length} items)</span>
               </h3>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
@@ -763,7 +842,7 @@ const Dashboard = () => {
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
-                  <tr style={{ borderBottom: `2px solid ${activeAgent.color}40` }}>
+                  <tr style={{ background: '#f8fafc', borderBottom: `2px solid #e2e8f0` }}>
                     {(isLeadResults ? leadDisplayColumns : Object.keys(results[0])).map(key => (
                       <th key={key} style={{
                         padding: '0.85rem 0.75rem',
@@ -794,11 +873,11 @@ const Dashboard = () => {
                       key={i}
                       className={isLeadResults ? 'clickable-row' : ''}
                       style={{
-                        borderBottom: '1px solid var(--border-color)',
+                        borderBottom: '1px solid #f1f5f9',
                         transition: 'background 0.15s'
                       }}
                       onClick={isLeadResults ? () => handleCompanyClick(row) : undefined}
-                      onMouseOver={(e) => { if (!isLeadResults) e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                      onMouseOver={(e) => { if (!isLeadResults) e.currentTarget.style.background = '#f8fafc'; }}
                       onMouseOut={(e) => { if (!isLeadResults) e.currentTarget.style.background = 'transparent'; }}
                     >
                       {(isLeadResults ? leadDisplayColumns : Object.keys(row)).map((col, j) => (
@@ -806,7 +885,8 @@ const Dashboard = () => {
                           padding: '0.85rem 0.75rem',
                           fontSize: '0.9rem',
                           lineHeight: '1.5',
-                          maxWidth: '400px'
+                          maxWidth: '400px',
+                          color: '#334155'
                         }}>
                           {col === 'Customer Rating' ? (
                             <StarRating rating={row[col]} />
@@ -817,12 +897,13 @@ const Dashboard = () => {
                             </span>
                           ) : col === 'Lead Score' ? (
                             <span style={{
-                              padding: '0.25rem 0.75rem',
+                              padding: '0.3rem 0.85rem',
                               borderRadius: '1rem',
                               fontSize: '0.8rem',
                               fontWeight: '700',
-                              background: row[col] === 'High' ? '#10b98120' : row[col] === 'Medium' ? '#f59e0b20' : '#ef444420',
-                              color: row[col] === 'High' ? '#10b981' : row[col] === 'Medium' ? '#f59e0b' : '#ef4444'
+                              background: (row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b98120' : (row[col] && row[col].includes('Medium')) ? '#f59e0b20' : '#06b6d420',
+                              color: (row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b981' : (row[col] && row[col].includes('Medium')) ? '#f59e0b' : '#06b6d4',
+                              border: `1px solid ${(row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b98140' : '#06b6d440'}`
                             }}>
                               {row[col]}
                             </span>
@@ -874,33 +955,33 @@ const Dashboard = () => {
       {showKBModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-          background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
+          background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           zIndex: 1000, padding: '1.5rem'
         }}>
           <div style={{
-            background: 'var(--card-bg)', border: '1px solid var(--border-color)',
+            background: '#ffffff', border: '1px solid #e2e8f0',
             borderRadius: '1rem', width: '100%', maxWidth: '850px', maxHeight: '90vh',
             display: 'flex', flexDirection: 'column', overflow: 'hidden',
-            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
           }}>
             <div style={{
-              padding: '1.25rem 1.5rem', borderBottom: '1px solid var(--border-color)',
+              padding: '1.25rem 1.5rem', borderBottom: '1px solid #e2e8f0',
               display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-              background: 'rgba(255,255,255,0.02)'
+              background: '#f8fafc'
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                <Database size={22} color="#3b82f6" />
+                <Database size={22} color="#0066FF" />
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Local Knowledge Base & Vector Store</h3>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#0f172a' }}>Local Knowledge Base & Vector Store</h3>
+                  <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
                     Local storage & ChromaDB vector database index for n8n RAG workflows
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setShowKBModal(false)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem' }}
+                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '0.25rem' }}
               >
                 <X size={20} />
               </button>
@@ -909,29 +990,31 @@ const Dashboard = () => {
             <div style={{ padding: '1.5rem', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
               <div style={{
-                border: '2px dashed var(--border-color)', borderRadius: '0.75rem',
-                padding: '1.5rem', textAlign: 'center', background: 'rgba(255,255,255,0.01)'
+                border: '2px dashed #cbd5e1', borderRadius: '0.75rem',
+                padding: '1.5rem', textAlign: 'center', background: '#f8fafc'
               }}>
-                <UploadCloud size={36} style={{ color: '#3b82f6', marginBottom: '0.5rem', opacity: 0.8 }} />
-                <h4 style={{ fontSize: '1rem', fontWeight: '600', marginBottom: '0.25rem' }}>Upload Document to Local Vector Store</h4>
-                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                  Supports PDF, TXT, DOCX, CSV. Extracted text will be chunked and indexed automatically.
+                <UploadCloud size={36} style={{ color: '#0066FF', marginBottom: '0.5rem', opacity: 0.8 }} />
+                <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#0f172a', marginBottom: '0.25rem' }}>Upload Document to Local Vector Store</h4>
+                <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
+                  Supports PDF, Excel (.xlsx/.xls), CSV, Word (.docx), and TXT. Extracted text will be chunked and indexed automatically.
                 </p>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
                   <input
                     type="file"
                     id="kb-file-input"
-                    accept=".pdf,.txt,.docx,.csv,.json"
+                    accept=".pdf,.txt,.docx,.csv,.json,.xlsx,.xls"
                     onChange={(e) => setSelectedFile(e.target.files[0])}
                     style={{ display: 'none' }}
                   />
                   <label
                     htmlFor="kb-file-input"
                     style={{
-                      padding: '0.6rem 1.25rem', background: 'var(--border-color)',
+                      padding: '0.6rem 1.25rem', background: '#ffffff',
+                      border: '1px solid #cbd5e1',
                       borderRadius: '0.5rem', fontSize: '0.85rem', cursor: 'pointer',
-                      fontWeight: '500', color: 'var(--text-main)'
+                      fontWeight: '500', color: '#0f172a',
+                      boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
                     }}
                   >
                     {selectedFile ? selectedFile.name : 'Choose Local File'}
@@ -940,11 +1023,12 @@ const Dashboard = () => {
                   <button
                     onClick={handleFileUpload}
                     disabled={!selectedFile || uploading}
+                    className="btn-brand-gradient"
                     style={{
-                      padding: '0.6rem 1.25rem', background: selectedFile && !uploading ? '#3b82f6' : 'var(--border-color)',
-                      color: 'white', border: 'none', borderRadius: '0.5rem', fontSize: '0.85rem',
-                      fontWeight: '600', cursor: selectedFile && !uploading ? 'pointer' : 'not-allowed',
-                      opacity: selectedFile && !uploading ? 1 : 0.6
+                      padding: '0.6rem 1.25rem',
+                      fontSize: '0.85rem',
+                      opacity: selectedFile && !uploading ? 1 : 0.5,
+                      cursor: selectedFile && !uploading ? 'pointer' : 'not-allowed'
                     }}
                   >
                     {uploading ? <><Loader2 size={16} className="spin" /> Indexing...</> : 'Upload & Vectorize'}
@@ -952,8 +1036,8 @@ const Dashboard = () => {
                 </div>
 
                 {uploading && (
-                  <div style={{ marginTop: '1rem', width: '100%', background: 'var(--border-color)', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${uploadProgress}%`, background: '#3b82f6', height: '100%', transition: 'width 0.3s' }} />
+                  <div style={{ marginTop: '1rem', width: '100%', background: '#e2e8f0', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                    <div style={{ width: `${uploadProgress}%`, background: '#0066FF', height: '100%', transition: 'width 0.3s' }} />
                   </div>
                 )}
               </div>

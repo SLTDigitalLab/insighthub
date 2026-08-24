@@ -1,3 +1,5 @@
+const fs = require('fs');
+const path = require('path');
 const { ChromaClient } = require('chromadb');
 
 const CHROMA_URL = process.env.CHROMA_URL || 'http://localhost:8000';
@@ -49,6 +51,40 @@ const DEFAULT_MOBITEL_CATALOG = [
   }
 ];
 
+const LOCAL_STORE_FILE = path.join(__dirname, '..', 'data', 'vector_store.json');
+
+// Helper to save and load local vector store
+function loadLocalStore() {
+  try {
+    if (fs.existsSync(LOCAL_STORE_FILE)) {
+      return JSON.parse(fs.readFileSync(LOCAL_STORE_FILE, 'utf8'));
+    }
+  } catch (err) {
+    console.warn('[Local Store Load Warning]', err.message);
+  }
+  return [];
+}
+
+function saveLocalStore(items) {
+  try {
+    const dataDir = path.join(__dirname, '..', 'data');
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    fs.writeFileSync(LOCAL_STORE_FILE, JSON.stringify(items, null, 2), 'utf8');
+  } catch (err) {
+    console.warn('[Local Store Save Warning]', err.message);
+  }
+}
+
+let localStore = loadLocalStore();
+if (localStore.length === 0) {
+  localStore = DEFAULT_MOBITEL_CATALOG.map(item => ({
+    id: item.id,
+    text: item.text,
+    metadata: item.metadata
+  }));
+  saveLocalStore(localStore);
+}
+
 class LocalFastEmbeddingFunction {
   async generate(texts) {
     return texts.map(text => {
@@ -87,7 +123,6 @@ async function getCollection() {
     
     return collection;
   } catch (err) {
-    console.warn(`[ChromaDB Warning] Could not connect to Chroma server at ${CHROMA_URL}: ${err.message}`);
     return null;
   }
 }
@@ -113,12 +148,11 @@ async function seedMobitelCatalog(coll) {
 }
 
 /**
- * Indexes document chunks into ChromaDB
+ * Indexes document chunks into ChromaDB & Local Vector Store
  */
 async function indexChunks(docId, fileName, chunks) {
   if (!chunks || chunks.length === 0) return { indexed: 0, status: 'empty' };
 
-  const coll = await getCollection();
   const ids = chunks.map((_, i) => `${docId}_chunk_${i}`);
   const metadatas = chunks.map((_, i) => ({
     docId: docId,
@@ -128,6 +162,19 @@ async function indexChunks(docId, fileName, chunks) {
     timestamp: new Date().toISOString()
   }));
 
+  // 1. Index into local JSON store
+  chunks.forEach((chunkText, i) => {
+    localStore.push({
+      id: ids[i],
+      text: chunkText,
+      metadata: metadatas[i]
+    });
+  });
+  saveLocalStore(localStore);
+  console.log(`[Local Vector Store] Indexed ${chunks.length} chunks for "${fileName}" (total entries: ${localStore.length})`);
+
+  // 2. Index into ChromaDB if available
+  const coll = await getCollection();
   if (coll) {
     try {
       await coll.upsert({
@@ -139,34 +186,77 @@ async function indexChunks(docId, fileName, chunks) {
       return { indexed: chunks.length, status: 'indexed_chroma' };
     } catch (err) {
       console.error(`[ChromaDB Error] Indexing failed: ${err.message}`);
-      return { indexed: chunks.length, status: 'indexing_warning', error: err.message };
+      return { indexed: chunks.length, status: 'indexed_local_only', error: err.message };
     }
   }
 
-  return { indexed: chunks.length, status: 'stored_locally' };
+  return { indexed: chunks.length, status: 'indexed_local_vector_store' };
 }
 
 /**
- * Queries ChromaDB vector store
+ * Calculates cosine similarity between two normalized vectors
+ */
+function cosineSimilarity(vecA, vecB) {
+  let dotProduct = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dotProduct += vecA[i] * vecB[i];
+  }
+  return dotProduct;
+}
+
+/**
+ * Queries ChromaDB vector store or local vector cosine similarity index
  */
 async function queryVectorStore(queryText, nResults = 5) {
+  // 1. Try ChromaDB first
   const coll = await getCollection();
-  if (!coll) {
-    throw new Error('ChromaDB collection is not available. Please start Chroma server at ' + CHROMA_URL);
+  if (coll) {
+    try {
+      const results = await coll.query({
+        queryTexts: [queryText],
+        nResults: nResults
+      });
+      if (results && results.documents && results.documents[0] && results.documents[0].length > 0) {
+        return results;
+      }
+    } catch (chromaErr) {
+      console.warn(`[ChromaDB Query Warning] ${chromaErr.message}. Using local vector fallback.`);
+    }
   }
 
-  const results = await coll.query({
-    queryTexts: [queryText],
-    nResults: nResults
-  });
+  // 2. Robust Local Vector Cosine Similarity Search Fallback
+  if (localStore.length === 0) {
+    return { documents: [[]], metadatas: [[]], distances: [[]] };
+  }
 
-  return results;
+  const queryEmbeddings = await embeddingFunction.generate([queryText]);
+  const queryVec = queryEmbeddings[0];
+
+  const docEmbeddings = await embeddingFunction.generate(localStore.map(item => item.text));
+
+  const scored = localStore.map((item, index) => ({
+    item: item,
+    score: cosineSimilarity(queryVec, docEmbeddings[index])
+  }));
+
+  // Sort by highest cosine similarity
+  scored.sort((a, b) => b.score - a.score);
+  const topMatches = scored.slice(0, nResults);
+
+  return {
+    documents: [topMatches.map(m => m.item.text)],
+    metadatas: [topMatches.map(m => m.item.metadata || {})],
+    distances: [topMatches.map(m => 1 - m.score)]
+  };
 }
 
 /**
- * Deletes document chunks from ChromaDB
+ * Deletes document chunks from ChromaDB & Local Vector Store
  */
 async function deleteDocVectors(docId) {
+  localStore = localStore.filter(item => item.metadata && item.metadata.docId !== docId);
+  saveLocalStore(localStore);
+
   const coll = await getCollection();
   if (coll) {
     try {

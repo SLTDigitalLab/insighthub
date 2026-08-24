@@ -3,3 +3,5 @@ dist/
 build/
 .env
 .DS_Store
+backend/uploads/
+backend/data/vector_store.json

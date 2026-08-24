@@ -1,0 +1,150 @@
+{
+  "name": "Find New Businesses (Sunday Observer & Mobitel Matcher)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "find-new-businesses",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "58e1dcba-2d01-4475-b6d8-745a19cb0001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        280
+      ],
+      "webhookId": "find-new-businesses"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Webhook').first().json.body.prompt || $json.body.prompt }}",
+        "options": {
+          "maxIterations": 2,
+          "systemMessage": "You are the 'Find New Businesses' Sales Intelligence AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\n**EXECUTION DIRECTIVE (HYBRID INTELLIGENCE):**\n1. Check the prompt for uploaded Sunday Observer, Daily Mirror, or Gazette business registration data.\n   - IF uploaded registry text is present in the prompt: Extract all newly registered companies directly from that text.\n   - IF NO uploaded registry text is in the prompt: Actively call the `google_search` tool to search for real operating companies and businesses in Sri Lanka matching the user's category/location query (e.g. \"logistics companies in Colombo\", \"hotels in Kandy\", \"textile companies Sri Lanka\").\n2. For EVERY discovered or scraped company:\n   - Match them with tailored SLTMobitel Enterprise B2B Solutions from your extensive knowledge of Mobitel's B2B portfolio (e.g. SLTMobitel Enterprise Cloud PBX / Hosted PABX, Retail POS 4G/5G, SD-WAN Multi-Branch, Managed Wi-Fi, Bulk SMS Gateway API, Fleet Tracking Telematics, Hosted Firewall + 24/7 SOC, Tier-III Cloud Backup & DRaaS).\n   - Write a compelling pitch justification for why that business needs these Mobitel solutions.\n\n**JSON SCHEMA PER COMPANY:**\n- \"Company Name\": Official registered company name.\n- \"Registration Details\": Registration Number and Date/Source if available, or \"Web / Directory Discovery\".\n- \"Industry\": Specific industry sector (e.g. \"Textiles & Garments\", \"Information Technology\", \"Logistics\", \"Hospitality\", \"Retail\").\n- \"Location\": Registered city / district in Sri Lanka.\n- \"Key Decision Makers\": Business proprietors, directors, or key executives (or \"Proprietor\").\n- \"Contact Number\": Phone number from registry or Google (or \"Pending Verification\").\n- \"Customer Rating\": 4.5\n- \"Lead Score\": \"Hot Prospect (Newly Registered)\"\n- \"Recommended Mobitel Products\": 2-3 specific SLTMobitel B2B solutions tailored to their industry.\n- \"Reason\": Strategic sales pitch explaining why this newly registered business requires these SLTMobitel services to launch and scale.\n- \"Website\": Official website URL (or \"N/A\").\n\n**CRITICAL:** Return your final response ONLY as a valid JSON array. No conversational text before or after the JSON."
+        }
+      },
+      "id": "58e1dcba-2d01-4475-b6d8-745a19cb0002",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        280
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o-mini",
+        "options": {}
+      },
+      "id": "58e1dcba-2d01-4475-b6d8-745a19cb0003",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        360,
+        500
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Run a general Google web search via Apify to discover business leads, company contact numbers, websites, and verified addresses. Provide the \"query\" input as a plain Google search string (e.g. \"banks in colombo sri lanka\").",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items?token=YOUR_APIFY_API_TOKEN",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The search query string for Google search",
+              "type": "string"
+            }
+          ]
+        },
+        "authentication": "none"
+      },
+      "id": "58e1dcba-2d01-4475-b6d8-745a19cb0004",
+      "name": "Apify Google Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        500
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = String($input.first().json.output || '');\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Find New Businesses\", resultsCount: results.length, results: results } }];"
+      },
+      "id": "58e1dcba-2d01-4475-b6d8-745a19cb0005",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        280
+      ]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Google Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -7,6 +7,7 @@ export const LOCAL_BACKEND_URL = '/api';
 
 export const WEBHOOK_URLS = {
   lead:                  `${N8N_BASE_URL}/lead-discovery`,
+  newBusinesses:         `${N8N_BASE_URL}/find-new-businesses`,
   research:              `${N8N_BASE_URL}/customer-research`,
   meeting:               `${N8N_BASE_URL}/meeting-prep`,
   product:               `${N8N_BASE_URL}/product-recommendation`,
@@ -22,6 +23,7 @@ export const BACKEND_ENDPOINTS = {
   recommendations:    `${LOCAL_BACKEND_URL}/recommendations`,
   meetingPrep:        `${LOCAL_BACKEND_URL}/meeting-prep`,
   leadDiscovery:      `${LOCAL_BACKEND_URL}/lead-discovery`,
+  findNewBusinesses:  `${LOCAL_BACKEND_URL}/find-new-businesses`,
   customerResearch:   `${LOCAL_BACKEND_URL}/customer-research`,
   helpImproveService: `${LOCAL_BACKEND_URL}/help-improve-service`,
   health:             `${LOCAL_BACKEND_URL}/health`,
