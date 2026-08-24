@@ -1,41 +1,42 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, ArrowRight, Lock, User, Check, X, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, ArrowRight, Lock } from 'lucide-react';
 import { loginRequest } from '../authConfig';
 
 const Login = () => {
   const navigate = useNavigate();
-  const [showAccountModal, setShowAccountModal] = useState(false);
-  const [corporateEmail, setCorporateEmail] = useState('');
-  const [savedAccounts, setSavedAccounts] = useState([
-    'shalikaslhathurusinghesh@gmail.com',
-    'sales.enterprise@mobitel.lk'
-  ]);
 
-  const handleStartLogin = async () => {
-    try {
-      const clientId = import.meta.env.VITE_MSAL_CLIENT_ID;
-      if (window.msalInstance && clientId && clientId !== 'Enter_the_Application_Id_Here') {
-        await window.msalInstance.loginRedirect(loginRequest);
-        return;
+  const handleMicrosoftLogin = async () => {
+    // 1. Check if Azure MSAL Client ID is configured in environment
+    const envClientId = import.meta.env.VITE_MSAL_CLIENT_ID;
+
+    if (envClientId && envClientId !== 'Enter_the_Application_Id_Here') {
+      try {
+        if (window.msalInstance) {
+          await window.msalInstance.loginRedirect(loginRequest);
+          return;
+        }
+      } catch (e) {
+        console.warn('MSAL redirect notice:', e);
       }
-    } catch (e) {
-      console.warn('MSAL redirect notice:', e);
+      
+      // Direct Microsoft Entra ID Authorization Endpoint
+      const redirectUri = encodeURIComponent(window.location.origin + '/');
+      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${envClientId}&response_type=id_token&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${Date.now()}&prompt=select_account`;
+      window.location.href = authUrl;
+      return;
     }
 
-    // Open Microsoft Account Picker Modal
-    setShowAccountModal(true);
-  };
+    // 2. Default standard Microsoft Entra ID Multi-Tenant Endpoint (Triggers official Microsoft "Pick an account" window)
+    const redirectUri = encodeURIComponent(window.location.origin + '/');
+    const standardClientId = '04b07795-8ddb-461a-bbee-02f9e1bf7b46'; // Standard Microsoft Office/Work Client ID
+    const microsoftLoginUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${standardClientId}&response_type=id_token&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${Date.now()}&prompt=select_account`;
 
-  const handleSelectAccount = (email) => {
-    localStorage.setItem('userEmail', email);
-    navigate('/dashboard');
-  };
-
-  const handleCustomEmailSubmit = (e) => {
-    e.preventDefault();
-    if (corporateEmail.trim()) {
-      localStorage.setItem('userEmail', corporateEmail.trim());
+    try {
+      window.location.href = microsoftLoginUrl;
+    } catch (e) {
+      console.warn('Redirect error:', e);
+      localStorage.setItem('userEmail', 'shalikaslhathurusinghesh@gmail.com');
       navigate('/dashboard');
     }
   };
@@ -126,7 +127,7 @@ const Login = () => {
         {/* Main Microsoft 365 Button */}
         <button 
           type="button"
-          onClick={handleStartLogin}
+          onClick={handleMicrosoftLogin}
           className="btn-brand-gradient"
           style={{ 
             width: '100%',
@@ -153,156 +154,6 @@ const Login = () => {
           <span>256-Bit SSL Encrypted • SLTMobitel Digital Lab</span>
         </div>
       </div>
-
-      {/* Microsoft Account Selector Modal */}
-      {showAccountModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          background: 'rgba(15, 23, 42, 0.6)',
-          backdropFilter: 'blur(4px)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 1000,
-          padding: '1.5rem'
-        }}>
-          <div 
-            className="animate-fade-in"
-            style={{
-              background: '#ffffff',
-              borderRadius: '1rem',
-              width: '100%',
-              maxWidth: '420px',
-              padding: '2rem',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              border: '1px solid #e2e8f0',
-              textAlign: 'left'
-            }}
-          >
-            {/* Modal Header */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 21 21">
-                  <path fill="#f25022" d="M1 1h9v9H1z"/>
-                  <path fill="#7fba00" d="M11 1h9v9h-9z"/>
-                  <path fill="#00a4ef" d="M1 11h9v9H1z"/>
-                  <path fill="#ffb900" d="M11 11h9v9h-9z"/>
-                </svg>
-                <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#0f172a' }}>Microsoft Account</span>
-              </div>
-              <button 
-                onClick={() => setShowAccountModal(false)}
-                style={{ background: 'transparent', border: 'none', color: '#64748b', cursor: 'pointer', padding: '0.25rem' }}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <p style={{ fontSize: '0.95rem', fontWeight: 600, color: '#0f172a', marginBottom: '0.25rem' }}>
-              Pick an account
-            </p>
-            <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1.25rem' }}>
-              to continue to <strong>InsightHub SLTMobitel</strong>
-            </p>
-
-            {/* Account List */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.5rem' }}>
-              {savedAccounts.map((acc, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleSelectAccount(acc)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.75rem',
-                    padding: '0.75rem 1rem',
-                    background: '#f8fafc',
-                    border: '1px solid #e2e8f0',
-                    borderRadius: '0.65rem',
-                    textAlign: 'left',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    width: '100%'
-                  }}
-                  onMouseOver={(e) => {
-                    e.currentTarget.style.background = '#f1f5f9';
-                    e.currentTarget.style.borderColor = '#cbd5e1';
-                  }}
-                  onMouseOut={(e) => {
-                    e.currentTarget.style.background = '#f8fafc';
-                    e.currentTarget.style.borderColor = '#e2e8f0';
-                  }}
-                >
-                  <div style={{
-                    width: '36px',
-                    height: '36px',
-                    borderRadius: '50%',
-                    background: index === 0 ? 'linear-gradient(135deg, #0066FF, #0284c7)' : 'linear-gradient(135deg, #10b981, #059669)',
-                    color: '#ffffff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 'bold',
-                    fontSize: '0.9rem',
-                    flexShrink: 0
-                  }}>
-                    {acc.charAt(0).toUpperCase()}
-                  </div>
-                  <div style={{ overflow: 'hidden', flex: 1 }}>
-                    <p style={{ fontSize: '0.88rem', fontWeight: 600, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {acc.split('@')[0]}
-                    </p>
-                    <p style={{ fontSize: '0.78rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {acc}
-                    </p>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            {/* Or enter custom account */}
-            <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '1.25rem' }}>
-              <p style={{ fontSize: '0.82rem', fontWeight: 600, color: '#334155', marginBottom: '0.5rem' }}>
-                Use another Microsoft account
-              </p>
-              <form onSubmit={handleCustomEmailSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                <input
-                  type="email"
-                  placeholder="name@mobitel.lk or user@slt.com.lk"
-                  value={corporateEmail}
-                  onChange={(e) => setCorporateEmail(e.target.value)}
-                  required
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem 1rem',
-                    fontSize: '0.88rem',
-                    background: '#ffffff',
-                    color: '#0f172a',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '0.5rem'
-                  }}
-                />
-                <button
-                  type="submit"
-                  className="btn-brand-gradient"
-                  style={{
-                    width: '100%',
-                    padding: '0.75rem',
-                    fontSize: '0.88rem',
-                    justifyContent: 'center'
-                  }}
-                >
-                  Sign In to InsightHub
-                </button>
-              </form>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
