@@ -8,8 +8,7 @@ import {
 import axios from 'axios';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { WEBHOOK_URLS } from '../config';
-import { fetchProductRecommendations } from '../api';
+import { fetchProductRecommendations, fetchMeetingPreparation, fetchCustomerResearch } from '../api';
 
 // Star Rating Component
 
@@ -190,76 +189,39 @@ const BusinessDetail = () => {
   const handleGenerate = async (type) => {
     const setLoading = type === 'research' ? setLoadingResearch : type === 'meeting' ? setLoadingMeeting : setLoadingProduct;
     const setResultsFn = type === 'research' ? setResearchResults : type === 'meeting' ? setMeetingResults : setProductResults;
-    const webhookKey = type === 'research' ? 'research' : type === 'meeting' ? 'meeting' : 'product';
 
     setLoading(true);
 
     try {
-      const promptText = type === 'research'
-        ? `Research the company "${decodedName}" thoroughly. Find all employees, key decision makers, social media profiles.`
-        : type === 'meeting'
-        ? `Prepare me for a meeting with "${decodedName}". Include key people to meet from LinkedIn.`
-        : `Recommend Mobitel products for "${decodedName}" based on their industry and size: ${business?.Industry || 'Unknown'}, ${business?.Size || 'Unknown'}.`;
+      const promptText = decodedName;
+      let responseData = null;
 
-      if (type === 'product') {
-        try {
-          const response = await axios.post(
-            WEBHOOK_URLS['product'],
-            { prompt: promptText },
-            { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
-          );
-          const data = response.data;
-          let parsed = null;
-          if (data.results && Array.isArray(data.results) && data.results.length > 0) parsed = data.results;
-          else if (Array.isArray(data) && data.length > 0) parsed = data;
-          else if (typeof data === 'object' && data.output) {
-            const jsonMatch = data.output.match(/\[[\s\S]*\]/);
-            if (jsonMatch) parsed = JSON.parse(jsonMatch[0]);
-          }
-
-          if (parsed && parsed.length > 0) {
-            setResultsFn(parsed);
-            return;
-          }
-        } catch (n8nErr) {
-          console.warn('[BusinessDetail Product] n8n unavailable. Falling back to local ChromaDB RAG API:', n8nErr.message);
-        }
-
-        const ragRes = await fetchProductRecommendations(promptText);
-        if (ragRes && ragRes.results && ragRes.results.length > 0) {
-          setResultsFn(ragRes.results);
-          return;
-        }
+      if (type === 'research') {
+        responseData = await fetchCustomerResearch(promptText);
+      } else if (type === 'meeting') {
+        responseData = await fetchMeetingPreparation(promptText);
+      } else if (type === 'product') {
+        responseData = await fetchProductRecommendations(promptText);
       }
 
-      const response = await axios.post(
-        WEBHOOK_URLS[webhookKey],
-        { prompt: promptText },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 120000 }
-      );
-
-      const data = response.data;
-      if (data.results && Array.isArray(data.results)) {
-        setResultsFn(data.results);
-      } else if (Array.isArray(data)) {
-        setResultsFn(data);
-      } else if (typeof data === 'object' && data.output) {
+      if (responseData && responseData.results && Array.isArray(responseData.results)) {
+        setResultsFn(responseData.results);
+      } else if (Array.isArray(responseData)) {
+        setResultsFn(responseData);
+      } else if (typeof responseData === 'object' && responseData.output) {
         try {
-          const jsonMatch = data.output.match(/\[[\s\S]*\]/);
-          if (jsonMatch) {
-            setResultsFn(JSON.parse(jsonMatch[0]));
-          } else {
-            setResultsFn([{ 'Response': data.output }]);
-          }
+          const jsonMatch = responseData.output.match(/\[[\s\S]*\]/);
+          if (jsonMatch) setResultsFn(JSON.parse(jsonMatch[0]));
+          else setResultsFn([{ 'Response': responseData.output }]);
         } catch {
-          setResultsFn([{ 'Response': data.output }]);
+          setResultsFn([{ 'Response': responseData.output }]);
         }
       } else {
-        setResultsFn([{ 'Response': JSON.stringify(data) }]);
+        setResultsFn([]);
       }
     } catch (err) {
       console.error(`Error generating ${type}:`, err);
-      showToast(`Failed to generate ${type} results.`, 'error');
+      showToast(`Failed to generate ${type} results: ${err.response?.data?.error || err.message}`, 'error');
     } finally {
       setLoading(false);
     }
