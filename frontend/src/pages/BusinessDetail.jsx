@@ -35,42 +35,124 @@ const StarRating = ({ rating }) => {
   );
 };
 
-// Helper to make URLs clickable
-const renderTextWithLinks = (text) => {
-  if (typeof text !== 'string') return text;
-  
-  const urlRegex = /((?:https?:\/\/|www\.|linkedin\.com|facebook\.com)[^\s]+)/g;
-  const parts = text.split(urlRegex);
-  
-  return parts.map((part, i) => {
-    if (part.match(urlRegex)) {
-      let href = part;
-      let suffix = '';
-      
-      if (href.endsWith(')') && !href.includes('(')) {
-        suffix = ')';
-        href = href.slice(0, -1);
-      } else if (href.endsWith('.') || href.endsWith(',')) {
-        suffix = href.slice(-1);
-        href = href.slice(0, -1);
-      }
-      
-      let displayHref = href;
-      if (!href.startsWith('http')) {
-        href = 'https://' + href;
-      }
-      
-      return (
-        <React.Fragment key={i}>
-          <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>
-            {displayHref}
-          </a>
-          {suffix}
-        </React.Fragment>
-      );
-    }
-    return part;
-  });
+const KNOWN_LABELS = [
+  'Problem Solved',
+  'Key Features from Knowledge Base',
+  'Key Features',
+  'Expected Value',
+  'Why Recommended',
+  'Core Features',
+  'Sales Pitch Question',
+  'Expected ROI & Value',
+  'Potential Pain Points',
+  'Current Technology',
+  'Recent Developments',
+  'Social Media Presence'
+];
+
+// Rich text formatter for meeting prep, customer research, and product recommendations
+const renderFormattedText = (rawText, accentColor = '#0066FF') => {
+  if (typeof rawText !== 'string') return rawText;
+
+  // Split on double line breaks, single line breaks, or inline bold sections like 1. **Title** or **Why Recommended:**
+  const lines = rawText
+    .split(/(?:\r?\n|(?=\d+\.\s+\*\*)|(?=\*\*(?:Why Recommended|Key Features|Sales Pitch Question|Expected ROI|Core Features|Potential Pain Points)[^*]*\*\*))/g)
+    .filter(Boolean)
+    .filter(line => /[a-zA-Z0-9]/.test(line.trim()));
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+      {lines.map((lineText, lineIdx) => {
+        const trimmed = lineText.trim();
+        const isNewProduct = /^\d+\.\s+\*\*/.test(trimmed);
+
+        const renderLineContent = (str) => {
+          const labelMatch = KNOWN_LABELS
+            .map(label => ({ label, re: new RegExp(`^(${label}:?)\\s*`, 'i') }))
+            .find(({ re }) => re.test(str));
+
+          let prefix = null;
+          let rest = str;
+          if (labelMatch) {
+            const m = str.match(labelMatch.re);
+            prefix = m[1];
+            rest = str.slice(m[0].length);
+          }
+
+          const parts = rest.split(/(\*\*[^*]+\*\*)/g);
+          const renderedRest = parts.map((part, pIdx) => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              const boldContent = part.slice(2, -2);
+              const isSubLabel = boldContent.trim().endsWith(':') || KNOWN_LABELS.some(l => boldContent.includes(l));
+              return (
+                <strong
+                  key={pIdx}
+                  style={{
+                    color: isSubLabel ? '#0f172a' : accentColor,
+                    fontWeight: 700,
+                    marginRight: '0.25rem'
+                  }}
+                >
+                  {boldContent}
+                </strong>
+              );
+            }
+
+            const urlRegex = /((?:https?:\/\/|www\.|linkedin\.com|facebook\.com)[^\s]+)/g;
+            const urlParts = part.split(urlRegex);
+            return urlParts.map((subPart, uIdx) => {
+              if (subPart.match(urlRegex)) {
+                let href = subPart;
+                let suffix = '';
+                if (href.endsWith(')') && !href.includes('(')) {
+                  suffix = ')';
+                  href = href.slice(0, -1);
+                } else if (href.endsWith('.') || href.endsWith(',')) {
+                  suffix = href.slice(-1);
+                  href = href.slice(0, -1);
+                }
+                let displayHref = href;
+                if (!href.startsWith('http')) href = 'https://' + href;
+                return (
+                  <React.Fragment key={uIdx}>
+                    <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0066FF', textDecoration: 'underline', fontWeight: 500 }}>
+                      {displayHref}
+                    </a>
+                    {suffix}
+                  </React.Fragment>
+                );
+              }
+              return <span key={uIdx} style={{ color: '#334155' }}>{subPart}</span>;
+            });
+          });
+
+          return (
+            <>
+              {prefix && <strong style={{ color: '#0f172a', fontWeight: 700 }}>{prefix} </strong>}
+              {renderedRest}
+            </>
+          );
+        };
+
+        return (
+          <React.Fragment key={lineIdx}>
+            {isNewProduct && lineIdx > 0 && (
+              <hr
+                style={{
+                  border: 'none',
+                  borderTop: '1px solid #e2e8f0',
+                  margin: '0.75rem 0'
+                }}
+              />
+            )}
+            <div style={{ lineHeight: '1.65', fontSize: '0.88rem' }}>
+              {renderLineContent(trimmed)}
+            </div>
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
 };
 
 const BusinessDetail = () => {
@@ -277,7 +359,9 @@ const BusinessDetail = () => {
                       }}>
                         {row[col]}
                       </span>
-                    ) : renderTextWithLinks(row[col] || '')}
+                    ) : (
+                      renderFormattedText(row[col] || '', color)
+                    )}
                   </td>
                 ))}
               </tr>
