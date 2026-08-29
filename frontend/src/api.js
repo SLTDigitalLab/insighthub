@@ -115,3 +115,12 @@ export const fetchFindNewBusinesses = async (promptText) => {
   return response.data;
 };
 
+/**
+ * Sends formatted report results to recipient via backend email gateway
+ */
+export const sendResultsEmail = async (emailData) => {
+  const response = await axios.post('/api/send-results-email', emailData, { timeout: 35000 });
+  return response.data;
+};
+
+

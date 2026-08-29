@@ -16,7 +16,8 @@ import {
   fetchLeadDiscovery,
   fetchFindNewBusinesses,
   fetchCustomerResearch,
-  fetchHelpImproveService
+  fetchHelpImproveService,
+  sendResultsEmail
 } from '../api';
 
 
@@ -431,20 +432,17 @@ const Dashboard = () => {
     if (!results || !userEmail) return;
     setEmailSending(true);
     try {
-      await axios.post(
-        WEBHOOK_URLS.email,
-        {
-          email: userEmail,
-          subject: `InsightHub - ${activeAgent.name} Results`,
-          agentName: activeAgent.name,
-          results: results
-        },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 30000 }
-      );
-      showToast(`Results emailed to ${userEmail}`, 'success');
+      await sendResultsEmail({
+        email: userEmail,
+        subject: `InsightHub - ${activeAgent.name} Results`,
+        agentName: activeAgent.name,
+        results: results
+      });
+      showToast(`Results emailed successfully to ${userEmail}!`, 'success');
     } catch (err) {
       console.error('Email error:', err);
-      showToast('Failed to send email. Check n8n SMTP settings.', 'error');
+      const errMsg = err.response?.data?.error || err.message || 'Failed to send email. Check n8n SMTP settings.';
+      showToast(errMsg, 'error');
     } finally {
       setEmailSending(false);
     }

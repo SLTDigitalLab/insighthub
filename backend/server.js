@@ -525,29 +525,84 @@ app.post('/api/recommendations', async (req, res) => {
   }
 });
 
-// 5. Help Improve Service (Live n8n Cloud Webhook)
-app.post('/api/help-improve-service', async (req, res) => {
+// 6. Send Results Email (Live n8n Cloud Webhook Proxy)
+app.post(['/api/send-results-email', '/api/n8n/send-results-email'], async (req, res) => {
   try {
-    const { prompt } = req.body;
-    if (!prompt) {
-      return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
+    const { email, subject, agentName, results } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Recipient email is required.' });
     }
 
-    console.log(`[Help Improve Service] Requesting live n8n scrape for: "${prompt}"`);
-    const n8nResults = await queryN8nWebhook('help-improve-service', prompt);
+    console.log(`[Email Results] Sending report for "${agentName}" to: ${email}`);
+
+    // Build styled HTML report table for the email body
+    let htmlTable = '';
+    if (results && Array.isArray(results) && results.length > 0) {
+      const columns = Object.keys(results[0]);
+      const headerHtml = columns.map(c => `<th style="padding: 10px 14px; background: #0066FF; color: white; text-align: left; font-size: 12px; font-weight: bold; text-transform: uppercase;">${c}</th>`).join('');
+      const rowsHtml = results.map((row, idx) => {
+        const bg = idx % 2 === 0 ? '#ffffff' : '#f8fafc';
+        const cells = columns.map(c => {
+          let val = row[c] || '';
+          if (typeof val === 'string') {
+            val = val.replace(/\n/g, '<br/>');
+          }
+          return `<td style="padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; color: #1e293b; line-height: 1.5;">${val}</td>`;
+        }).join('');
+        return `<tr style="background: ${bg};">${cells}</tr>`;
+      }).join('');
+
+      htmlTable = `
+        <table style="width: 100%; border-collapse: collapse; margin-top: 16px; font-family: Arial, sans-serif;">
+          <thead><tr>${headerHtml}</tr></thead>
+          <tbody>${rowsHtml}</tbody>
+        </table>
+      `;
+    }
+
+    const fullHtmlBody = `
+      <div style="font-family: Arial, sans-serif; max-width: 800px; margin: 0 auto; padding: 24px; color: #0f172a; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px;">
+        <div style="border-bottom: 2px solid #0066FF; padding-bottom: 16px; margin-bottom: 20px;">
+          <h2 style="color: #0066FF; margin: 0; font-size: 22px;">InsightHub — SLTMobitel Sales Intelligence</h2>
+        </div>
+        <p style="font-size: 15px; margin-bottom: 8px;"><strong>Report:</strong> ${agentName || 'Intelligence Report'}</p>
+        <p style="font-size: 13px; color: #64748b; margin-top: 0;">Generated on ${new Date().toLocaleString()} for ${email}</p>
+        ${htmlTable}
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8; text-align: center;">
+          SLTMobitel Enterprise Sales Intelligence • Confidential & Proprietary
+        </div>
+      </div>
+    `;
+
+    // Forward to n8n Cloud webhook
+    const n8nPayload = {
+      email: email,
+      toEmail: email,
+      subject: subject || `InsightHub - ${agentName || 'Sales Intelligence'} Results`,
+      agentName: agentName,
+      htmlBody: fullHtmlBody,
+      html: fullHtmlBody,
+      text: JSON.stringify(results, null, 2)
+    };
+
+    const webhookUrl = `${N8N_BASE_URL}/send-results-email`;
+    console.log(`[Email Proxy] Forwarding to n8n webhook: ${webhookUrl}`);
+    const n8nRes = await axios.post(webhookUrl, n8nPayload, {
+      headers: { 'Content-Type': 'application/json' },
+      timeout: 30000
+    });
 
     return res.json({
       success: true,
-      agent: "Help Improve Service (Live n8n Cloud)",
-      resultsCount: n8nResults ? n8nResults.length : 0,
-      results: n8nResults || []
+      message: `Results successfully emailed to ${email}`,
+      n8nResponse: n8nRes.data
     });
   } catch (err) {
-    console.error('[Help Improve Service Proxy Error]', err.message);
-    const errText = err.response?.data?.error || err.message || '';
+    console.error('[Email Proxy Error]', err.message);
+    const errText = err.response?.data?.error || err.response?.data?.message || err.message || '';
     return res.status(500).json({
       success: false,
-      error: `Live n8n Webhook Error: ${errText}`
+      error: `Email service error: ${errText}`
     });
   }
 });
