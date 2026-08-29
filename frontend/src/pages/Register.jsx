@@ -1,10 +1,39 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import {
   ShieldCheck, UploadCloud, User, Mail, CreditCard, Hash,
-  Camera, CheckCircle, AlertCircle, Loader2, ArrowLeft, Image as ImageIcon, X
+  Camera, CheckCircle, AlertCircle, Loader2, ArrowLeft, Image as ImageIcon,
+  X, Sparkles, Clock, Compass, HeartHandshake, Quote
 } from 'lucide-react';
 import axios from 'axios';
+
+// Curated collection of serene, motivational quotes
+const MOTIVATIONAL_QUOTES = [
+  {
+    quote: "Success is where preparation and opportunity meet.",
+    author: "Bobby Unser"
+  },
+  {
+    quote: "Patience is not simply the ability to wait — it's the mindset of striving while the future unfolds.",
+    author: "InsightHub Philosophy"
+  },
+  {
+    quote: "The future belongs to those who see possibilities before they become obvious.",
+    author: "John Sculley"
+  },
+  {
+    quote: "Great things are not done by impulse, but by a series of small, dedicated actions brought together.",
+    author: "Vincent van Gogh"
+  },
+  {
+    quote: "Empowering intelligent conversations, one prospect at a time.",
+    author: "SLT Mobitel Enterprise"
+  },
+  {
+    quote: "Quality means doing it right when no one is looking.",
+    author: "Henry Ford"
+  }
+];
 
 const Register = () => {
   const navigate = useNavigate();
@@ -29,6 +58,22 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [submitted, setSubmitted] = useState(false);
+
+  // Motivational quote rotator
+  const [currentQuoteIndex, setCurrentQuoteIndex] = useState(0);
+  const [quoteFading, setQuoteFading] = useState(false);
+
+  useEffect(() => {
+    if (!submitted) return;
+    const interval = setInterval(() => {
+      setQuoteFading(true);
+      setTimeout(() => {
+        setCurrentQuoteIndex((prev) => (prev + 1) % MOTIVATIONAL_QUOTES.length);
+        setQuoteFading(false);
+      }, 400);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [submitted]);
 
   const handleChange = (e) => {
     setFormData(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -149,90 +194,187 @@ const Register = () => {
     }
   };
 
+  // ==========================================
+  // CALM & MOTIVATIONAL WAITING SCREEN
+  // ==========================================
   if (submitted) {
+    const activeQuote = MOTIVATIONAL_QUOTES[currentQuoteIndex];
+
     return (
       <div style={{
         minHeight: '100vh',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
-        padding: '2rem'
+        background: 'radial-gradient(circle at top right, #e0f2fe 0%, #f0fdf4 40%, #f8fafc 100%)',
+        padding: '2.5rem 1.5rem',
+        position: 'relative',
+        overflow: 'hidden'
       }}>
+        {/* Soft Decorative Ambient Circles */}
         <div style={{
-          background: '#ffffff',
-          padding: '3.5rem 2.5rem',
-          borderRadius: '1.25rem',
-          boxShadow: '0 20px 45px -10px rgba(0, 102, 255, 0.12), 0 0 1px 1px rgba(0, 0, 0, 0.05)',
-          width: '100%',
-          maxWidth: '520px',
-          border: '1px solid #e2e8f0',
-          textAlign: 'center'
-        }}>
+          position: 'absolute', top: '-10%', right: '-5%', width: '400px', height: '400px',
+          borderRadius: '50%', background: 'rgba(0, 102, 255, 0.04)', filter: 'blur(60px)', pointerEvents: 'none'
+        }} />
+        <div style={{
+          position: 'absolute', bottom: '-10%', left: '-5%', width: '450px', height: '450px',
+          borderRadius: '50%', background: 'rgba(16, 185, 129, 0.05)', filter: 'blur(70px)', pointerEvents: 'none'
+        }} />
+
+        <div
+          className="animate-fade-in"
+          style={{
+            background: 'rgba(255, 255, 255, 0.92)',
+            backdropFilter: 'blur(16px)',
+            padding: '3.5rem 3rem',
+            borderRadius: '1.75rem',
+            boxShadow: '0 25px 60px -15px rgba(0, 102, 255, 0.1), 0 0 1px 1px rgba(0, 0, 0, 0.04)',
+            width: '100%',
+            maxWidth: '580px',
+            border: '1px solid rgba(226, 232, 240, 0.9)',
+            textAlign: 'center',
+            position: 'relative',
+            zIndex: 10
+          }}
+        >
+          {/* Calming Pulsing Icon */}
           <div style={{
-            width: '64px',
-            height: '64px',
+            width: '76px',
+            height: '76px',
             borderRadius: '50%',
-            background: 'rgba(16, 185, 129, 0.1)',
-            color: '#10b981',
+            background: 'linear-gradient(135deg, rgba(0, 102, 255, 0.1) 0%, rgba(16, 185, 129, 0.15) 100%)',
+            color: '#0066FF',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            margin: '0 auto 1.5rem auto'
+            margin: '0 auto 1.5rem auto',
+            border: '1px solid rgba(0, 102, 255, 0.2)',
+            boxShadow: '0 8px 30px rgba(0, 102, 255, 0.15)'
           }}>
-            <CheckCircle size={36} />
+            <Sparkles size={38} style={{ color: '#0066FF' }} />
           </div>
 
-          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#0f172a', marginBottom: '0.75rem' }}>
-            Registration Submitted!
+          {/* Calming Header */}
+          <h2 style={{
+            fontSize: '1.65rem',
+            fontWeight: 800,
+            color: '#0f172a',
+            letterSpacing: '-0.025em',
+            marginBottom: '0.6rem'
+          }}>
+            Your Request is Under Review
           </h2>
 
-          <p style={{ color: '#475569', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '1.5rem' }}>
-            Thank you, <strong>{formData.name}</strong>. Your identity verification documents and registration request have been sent to the system administrator for review.
+          <p style={{
+            color: '#475569',
+            fontSize: '0.96rem',
+            lineHeight: '1.65',
+            maxWidth: '460px',
+            margin: '0 auto 2rem auto'
+          }}>
+            Please wait until the administrator reviews and approves your account request. We are verifying your KYC documents.
           </p>
 
+          {/* 3-Step Journey Timeline */}
           <div style={{
-            background: '#f8fafc',
+            background: '#ffffff',
             border: '1px solid #e2e8f0',
-            borderRadius: '0.75rem',
-            padding: '1.25rem',
-            textAlign: 'left',
-            fontSize: '0.88rem',
-            color: '#334155',
-            marginBottom: '2rem'
-          }}>
-            <p style="margin: 0 0 0.5rem 0;"><strong>Work Email:</strong> {formData.email}</p>
-            <p style="margin: 0 0 0.5rem 0;"><strong>NIC Number:</strong> {formData.nicNumber}</p>
-            <p style="margin: 0 0 0.5rem 0;"><strong>Registration No:</strong> {formData.regNumber}</p>
-            <p style="margin: 0; color: #0066FF; font-weight: 600;">Status: Pending Administrator Approval</p>
-          </div>
-
-          <div style={{
-            background: 'rgba(0, 102, 255, 0.05)',
-            border: '1px solid rgba(0, 102, 255, 0.2)',
-            borderRadius: '0.75rem',
-            padding: '1rem',
-            fontSize: '0.85rem',
-            color: '#0066FF',
+            borderRadius: '1rem',
+            padding: '1.25rem 1.5rem',
             marginBottom: '2rem',
-            lineHeight: 1.5
+            textAlign: 'left'
           }}>
-            ℹ️ Once approved by the administrator, you will receive an activation email with a link to create your password and sign in.
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.85rem' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#10b981', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>✓</div>
+              <div>
+                <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0f172a' }}>Application Submitted</span>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0' }}>Identity details & photos registered</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '0.85rem' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: 'rgba(0, 102, 255, 0.15)', color: '#0066FF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>⏳</div>
+              <div>
+                <span style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0066FF' }}>Administrator Verification</span>
+                <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '0' }}>Pending admin confirmation</p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+              <div style={{ width: '24px', height: '24px', borderRadius: '50%', background: '#f1f5f9', color: '#94a3b8', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 'bold' }}>🔒</div>
+              <div>
+                <span style={{ fontSize: '0.86rem', fontWeight: 600, color: '#94a3b8' }}>Email Activation & Password Creation</span>
+                <p style={{ fontSize: '0.75rem', color: '#94a3b8', margin: '0' }}>Link sent to your inbox upon approval</p>
+              </div>
+            </div>
           </div>
 
+          {/* Inspirational & Motivational Quote Card */}
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(0, 102, 255, 0.04) 0%, rgba(16, 185, 129, 0.06) 100%)',
+            border: '1px solid rgba(0, 102, 255, 0.15)',
+            borderRadius: '1rem',
+            padding: '1.5rem',
+            marginBottom: '2rem',
+            position: 'relative',
+            minHeight: '110px',
+            display: 'flex',
+            flexDirection: 'column',
+            justifyContent: 'center',
+            alignItems: 'center'
+          }}>
+            <Quote size={22} style={{ color: '#0066FF', opacity: 0.35, marginBottom: '0.4rem' }} />
+            <div style={{
+              opacity: quoteFading ? 0 : 1,
+              transition: 'opacity 0.4s ease-in-out',
+              width: '100%'
+            }}>
+              <p style={{
+                fontSize: '0.94rem',
+                fontStyle: 'italic',
+                color: '#1e293b',
+                lineHeight: '1.55',
+                margin: '0 0 0.4rem 0',
+                fontWeight: 500
+              }}>
+                "{activeQuote.quote}"
+              </p>
+              <span style={{
+                fontSize: '0.8rem',
+                fontWeight: 700,
+                color: '#0066FF',
+                letterSpacing: '0.02em'
+              }}>
+                — {activeQuote.author}
+              </span>
+            </div>
+          </div>
+
+          {/* User Confirmation Summary */}
+          <div style={{
+            fontSize: '0.82rem',
+            color: '#64748b',
+            marginBottom: '2rem',
+            lineHeight: 1.6
+          }}>
+            Notification will be sent to <strong>{formData.email}</strong> once approved.
+          </div>
+
+          {/* Return Button */}
           <button
             onClick={() => navigate('/login')}
             style={{
               width: '100%',
-              padding: '0.9rem',
-              borderRadius: '0.75rem',
+              padding: '0.95rem',
+              borderRadius: '0.85rem',
               border: 'none',
               background: 'linear-gradient(135deg, #0066FF 0%, #10b981 100%)',
               color: '#ffffff',
               fontWeight: 700,
               fontSize: '0.95rem',
               cursor: 'pointer',
-              boxShadow: '0 4px 15px rgba(0, 102, 255, 0.3)'
+              boxShadow: '0 4px 18px rgba(0, 102, 255, 0.3)',
+              transition: 'transform 0.15s ease'
             }}
           >
             Return to Login
@@ -242,6 +384,9 @@ const Register = () => {
     );
   }
 
+  // ==========================================
+  // REGISTRATION FORM
+  // ==========================================
   return (
     <div style={{
       minHeight: '100vh',
@@ -396,7 +541,7 @@ const Register = () => {
                   name="regNumber"
                   value={formData.regNumber}
                   onChange={handleChange}
-                  placeholder="e.g. EMP-4819"
+                  placeholder="e.g. InSP/71xx/xxxx"
                   required
                   style={{
                     width: '100%',

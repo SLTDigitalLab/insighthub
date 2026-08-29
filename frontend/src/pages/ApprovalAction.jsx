@@ -135,9 +135,9 @@ const ApprovalAction = () => {
               background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '0.75rem',
               padding: '1rem', textAlign: 'left', fontSize: '0.88rem', color: '#334155', marginBottom: '2rem'
             }}>
-              <p style="margin: 0 0 0.4rem 0;"><strong>User:</strong> {result?.user?.name}</p>
-              <p style="margin: 0 0 0.4rem 0;"><strong>Email:</strong> {result?.user?.email}</p>
-              <p style="margin: 0; color: #10b981; font-weight: 700;">Status: Approved & Activation Email Sent</p>
+              <p style={{ margin: '0 0 0.4rem 0' }}><strong>User:</strong> {result?.user?.name}</p>
+              <p style={{ margin: '0 0 0.4rem 0' }}><strong>Email:</strong> {result?.user?.email}</p>
+              <p style={{ margin: 0, color: '#10b981', fontWeight: 700 }}>Status: Approved & Activation Email Sent</p>
             </div>
             <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
               <Link
