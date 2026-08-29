@@ -580,9 +580,17 @@ app.post(['/api/send-results-email', '/api/n8n/send-results-email'], async (req,
       toEmail: email,
       subject: subject || `InsightHub - ${agentName || 'Sales Intelligence'} Results`,
       agentName: agentName,
+      results: results,
       htmlBody: fullHtmlBody,
       html: fullHtmlBody,
-      text: JSON.stringify(results, null, 2)
+      text: JSON.stringify(results, null, 2),
+      body: {
+        email: email,
+        subject: subject || `InsightHub - ${agentName || 'Sales Intelligence'} Results`,
+        agentName: agentName,
+        results: results,
+        htmlBody: fullHtmlBody
+      }
     };
 
     const webhookUrl = `${N8N_BASE_URL}/send-results-email`;
