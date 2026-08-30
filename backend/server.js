@@ -16,13 +16,16 @@ const app = express();
 const PORT = process.env.PORT || 5005;
 const N8N_BASE_URL = process.env.N8N_WEBHOOK_BASE || 'https://sltrnddigitallab.app.n8n.cloud/webhook';
 const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'shalikahathurusinghe3584@gmail.com';
-const APP_BASE_URL = process.env.APP_BASE_URL || 'http://157.245.159.130';
+const APP_BASE_URL = process.env.APP_BASE_URL || 'https://insighthub.raccoon-ai.io';
+
 
 // Middleware
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
+
 
 
 // Health Check
@@ -689,8 +692,21 @@ app.post('/api/auth/register', kycUpload.fields([
     const nicFile = req.files && req.files['nicPhoto'] ? req.files['nicPhoto'][0] : null;
     const faceFile = req.files && req.files['facePhoto'] ? req.files['facePhoto'][0] : null;
 
-    const nicPhotoUrl = nicFile ? `/uploads/kyc/${nicFile.filename}` : '';
-    const facePhotoUrl = faceFile ? `/uploads/kyc/${faceFile.filename}` : '';
+    const nicPhotoUrl = nicFile ? `/api/uploads/kyc/${nicFile.filename}` : '';
+    const facePhotoUrl = faceFile ? `/api/uploads/kyc/${faceFile.filename}` : '';
+
+    let nicBase64 = '';
+    let faceBase64 = '';
+    try {
+      if (nicFile && fs.existsSync(nicFile.path)) {
+        nicBase64 = `data:${nicFile.mimetype || 'image/jpeg'};base64,${fs.readFileSync(nicFile.path).toString('base64')}`;
+      }
+      if (faceFile && fs.existsSync(faceFile.path)) {
+        faceBase64 = `data:${faceFile.mimetype || 'image/jpeg'};base64,${fs.readFileSync(faceFile.path).toString('base64')}`;
+      }
+    } catch (readErr) {
+      console.warn('[KYC Base64 Error]', readErr.message);
+    }
 
     const user = userService.registerUser({
       name: name || email.split('@')[0],
@@ -748,21 +764,23 @@ app.post('/api/auth/register', kycUpload.fields([
           <div style="margin-bottom: 24px;">
             <h3 style="color: #0f172a; font-size: 15px; margin-bottom: 12px;">Submitted Identity Documents (KYC):</h3>
             <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-              ${fullNicPhotoUrl ? `
-                <div style="flex: 1; min-width: 240px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff; text-align: center;">
+              ${(nicBase64 || fullNicPhotoUrl) ? `
+                <div style="flex: 1; min-width: 240px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; background: #ffffff; text-align: center;">
                   <p style="margin: 0 0 8px; font-weight: bold; font-size: 12px; color: #334155;">National Identity Card (NIC)</p>
                   <a href="${fullNicPhotoUrl}" target="_blank">
-                    <img src="${fullNicPhotoUrl}" alt="NIC Photo" style="max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 4px;" />
+                    <img src="${nicBase64 || fullNicPhotoUrl}" alt="NIC Photo" style="max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; border: 1px solid #e2e8f0;" />
                   </a>
+                  <p style="margin: 6px 0 0 0;"><a href="${fullNicPhotoUrl}" target="_blank" style="font-size: 11px; color: #0066FF;">View Full Image ↗</a></p>
                 </div>
               ` : '<p style="color: #94a3b8; font-size: 13px;">No NIC Photo attached</p>'}
 
-              ${fullFacePhotoUrl ? `
-                <div style="flex: 1; min-width: 240px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 10px; background: #ffffff; text-align: center;">
+              ${(faceBase64 || fullFacePhotoUrl) ? `
+                <div style="flex: 1; min-width: 240px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; background: #ffffff; text-align: center;">
                   <p style="margin: 0 0 8px; font-weight: bold; font-size: 12px; color: #334155;">User Face Photo</p>
                   <a href="${fullFacePhotoUrl}" target="_blank">
-                    <img src="${fullFacePhotoUrl}" alt="Face Photo" style="max-width: 100%; max-height: 180px; object-fit: contain; border-radius: 4px;" />
+                    <img src="${faceBase64 || fullFacePhotoUrl}" alt="Face Photo" style="max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; border: 1px solid #e2e8f0;" />
                   </a>
+                  <p style="margin: 6px 0 0 0;"><a href="${fullFacePhotoUrl}" target="_blank" style="font-size: 11px; color: #0066FF;">View Full Image ↗</a></p>
                 </div>
               ` : '<p style="color: #94a3b8; font-size: 13px;">No Face Photo attached</p>'}
             </div>
