@@ -343,7 +343,7 @@ const BusinessDetail = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-color)', padding: '2rem' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--bg-color)', padding: '1.5rem 2rem' }}>
       {/* Toast */}
       {toast && (
         <div className={`toast ${toast.type}`}>
@@ -352,19 +352,44 @@ const BusinessDetail = () => {
         </div>
       )}
 
-      {/* Back button */}
-      <button
-        onClick={() => navigate('/dashboard')}
-        style={{
-          display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-          color: 'var(--text-muted)', background: 'transparent', fontSize: '0.9rem',
-          marginBottom: '1.5rem', transition: 'color 0.2s'
-        }}
-        onMouseOver={(e) => e.currentTarget.style.color = 'var(--primary)'}
-        onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}
-      >
-        <ArrowLeft size={18} /> Back to Dashboard
-      </button>
+      {/* Top Header Bar */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        background: '#ffffff',
+        padding: '0.75rem 1.5rem',
+        borderRadius: '1rem',
+        border: '1px solid #e2e8f0',
+        boxShadow: '0 4px 15px rgba(0,0,0,0.02)',
+        marginBottom: '1.75rem'
+      }}>
+        <div
+          onClick={() => navigate('/dashboard')}
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}
+        >
+          <img
+            src="/insighthub-logo.png"
+            alt="InsightHub Logo"
+            style={{ maxHeight: '42px', width: 'auto', objectFit: 'contain' }}
+          />
+        </div>
+
+        {/* Back button */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          style={{
+            display: 'inline-flex', alignItems: 'center', gap: '0.4rem',
+            color: '#334155', background: '#f1f5f9', fontSize: '0.85rem', fontWeight: 600,
+            padding: '0.5rem 1rem', borderRadius: '0.6rem', border: 'none', cursor: 'pointer',
+            transition: 'background 0.2s'
+          }}
+          onMouseOver={(e) => e.currentTarget.style.background = '#e2e8f0'}
+          onMouseOut={(e) => e.currentTarget.style.background = '#f1f5f9'}
+        >
+          <ArrowLeft size={16} /> Back to Dashboard
+        </button>
+      </div>
 
       {/* Hero Section */}
       <div className="business-detail-hero animate-fade-in">
