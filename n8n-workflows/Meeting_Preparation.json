@@ -64,7 +64,16 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"queries\": {{ JSON.stringify($fromAI('query', 'The Google search query string for company background and news')) }},\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}"
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The Google search query string",
+              "type": "string"
+            }
+          ]
+        }
       },
       "id": "8d793a32-ae73-428d-8f18-e71340c56757",
       "name": "Apify Google Search",
@@ -90,7 +99,16 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"queries\": {{ JSON.stringify($fromAI('query', 'The social media / LinkedIn / Facebook search query string')) }},\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}"
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The LinkedIn or Facebook search query string",
+              "type": "string"
+            }
+          ]
+        }
       },
       "id": "652f43c8-ca10-433e-8783-9a272281ef99",
       "name": "Apify Social Media Search",
@@ -114,7 +132,16 @@
         "url": "https://insighthub.raccoon-ai.io/api/vector/search",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"query\": {{ JSON.stringify($fromAI('query', 'The search query string to look up products in vector database')) }},\n  \"nResults\": 5\n}"
+        "jsonBody": "{\n  \"query\": \"{query}\",\n  \"nResults\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The product or solution search query string for vector search",
+              "type": "string"
+            }
+          ]
+        }
       },
       "id": "523bb471-df55-4325-a7dc-888966be2a0c",
       "name": "Knowledge Base Vector Search",
