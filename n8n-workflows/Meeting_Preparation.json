@@ -69,15 +69,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 20\n}",
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "query",
-              "type": "string"
-            }
-          ]
-        }
+        "jsonBody": "={\n  \"queries\": {{ JSON.stringify($fromAI('query', 'The Google search query string for company background and news')) }},\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}"
       },
       "id": "8d793a32-ae73-428d-8f18-e71340c56757",
       "name": "Apify Google Search",
@@ -96,7 +88,7 @@
     },
     {
       "parameters": {
-        "toolDescription": "Search for a target company's LinkedIn employees and identify key decision-makers (executives, directors, managers). Input: the company name as a string.",
+        "toolDescription": "Search for LinkedIn decision-makers (CEO, CTO, Head of IT, Directors, Managers) and company Facebook/Instagram links. Query examples: 'site:linkedin.com/in/ [Company Name] Sri Lanka' or 'site:facebook.com/ [Company Name] Sri Lanka'.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
@@ -109,16 +101,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1\n}",
-        "placeholderDefinitions": {
-          "values": [
-            {
-              "name": "query",
-              "description": "The social media / LinkedIn search query string",
-              "type": "string"
-            }
-          ]
-        }
+        "jsonBody": "={\n  \"queries\": {{ JSON.stringify($fromAI('query', 'The social media / LinkedIn / Facebook search query string')) }},\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}"
       },
       "id": "652f43c8-ca10-433e-8783-9a272281ef99",
       "name": "Apify Social Media Search",
