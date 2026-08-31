@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles } from 'lucide-react';
+import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles, Compass, Filter } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -17,11 +17,20 @@ import {
   fetchFindNewBusinesses,
   fetchCustomerResearch,
   fetchHelpImproveService,
+  fetchAllSearchResults,
   sendResultsEmail
 } from '../api';
 
 
 const agents = [
+  {
+    id: 'allResults',
+    name: 'All Search Results (All Scores)',
+    icon: Compass,
+    desc: 'Unfiltered lead search showing ALL discovered businesses, hotels, and companies across Sri Lanka (High, Medium, and Low scores included).',
+    placeholder: 'e.g. "hotels in kandy", "travel agencies in galle", "software companies in colombo"',
+    color: '#6366f1'
+  },
   {
     id: 'lead',
     name: 'Lead Discovery & Prospecting',
@@ -365,6 +374,8 @@ const Dashboard = () => {
   };
 
   const [toast, setToast] = useState(null);
+  const [scoreFilter, setScoreFilter] = useState('all');
+  const [tableSearch, setTableSearch] = useState('');
   const navigate = useNavigate();
   const userEmail = localStorage.getItem('userEmail') || '';
 
@@ -385,13 +396,17 @@ const Dashboard = () => {
     setLoading(true);
     setResults(null);
     setError(null);
+    setScoreFilter('all');
+    setTableSearch('');
 
     try {
       console.log(`[InsightHub Gateway] Requesting live n8n AI Agent for "${activeAgent.name}" with prompt: "${prompt}"`);
 
       let responseData = null;
 
-      if (activeAgent.id === 'lead') {
+      if (activeAgent.id === 'allResults') {
+        responseData = await fetchAllSearchResults(prompt);
+      } else if (activeAgent.id === 'lead') {
         responseData = await fetchLeadDiscovery(prompt);
       } else if (activeAgent.id === 'newBusinesses') {
         responseData = await fetchFindNewBusinesses(prompt);
@@ -499,6 +514,26 @@ const Dashboard = () => {
 
   const isLeadResults = Boolean(results && Array.isArray(results) && results.length > 0 && results[0] && results[0]['Company Name']);
 
+  const highCount = isLeadResults ? (results || []).filter(r => r['Lead Score'] && (String(r['Lead Score']).includes('Hot') || String(r['Lead Score']).includes('High'))).length : 0;
+  const medCount = isLeadResults ? (results || []).filter(r => r['Lead Score'] && String(r['Lead Score']).includes('Medium')).length : 0;
+  const lowCount = isLeadResults ? (results || []).filter(r => r['Lead Score'] && String(r['Lead Score']).includes('Low')).length : 0;
+
+  const displayedResults = isLeadResults ? (results || []).filter(row => {
+    if (scoreFilter === 'High' && !(row['Lead Score'] && (String(row['Lead Score']).includes('Hot') || String(row['Lead Score']).includes('High')))) return false;
+    if (scoreFilter === 'Medium' && !(row['Lead Score'] && String(row['Lead Score']).includes('Medium'))) return false;
+    if (scoreFilter === 'Low' && !(row['Lead Score'] && String(row['Lead Score']).includes('Low'))) return false;
+
+    if (tableSearch.trim()) {
+      const q = tableSearch.toLowerCase();
+      const name = (row['Company Name'] || '').toLowerCase();
+      const loc = (row['Location'] || '').toLowerCase();
+      const ind = (row['Industry'] || '').toLowerCase();
+      const reason = (row['Reason'] || '').toLowerCase();
+      return name.includes(q) || loc.includes(q) || ind.includes(q) || reason.includes(q);
+    }
+    return true;
+  }) : results;
+
   const leadDisplayColumns = (isLeadResults && results[0] && (results[0]['Registration Details'] || results[0]['Recommended Mobitel Products']))
     ? ['Company Name', 'Registration Details', 'Industry', 'Location', 'Recommended Mobitel Products', 'Lead Score'].filter(col => results && results[0] && results[0][col] !== undefined)
     : (isLeadResults && results[0])
@@ -553,7 +588,13 @@ const Dashboard = () => {
             return (
               <button
                 key={agent.id}
-                onClick={() => { setActiveAgent(agent); setResults(null); setError(null); }}
+                onClick={() => {
+                  setActiveAgent(agent);
+                  setResults(null);
+                  setError(null);
+                  setScoreFilter('all');
+                  setTableSearch('');
+                }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
@@ -585,6 +626,7 @@ const Dashboard = () => {
             );
           })}
         </div>
+
 
         <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#fafafa' }}>
           {userEmail && (
@@ -788,9 +830,16 @@ const Dashboard = () => {
             overflow: 'auto'
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.5rem' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a' }}>
-                Results <span style={{ color: '#64748b', fontWeight: 'normal', fontSize: '0.85rem' }}>({results.length} items)</span>
-              </h3>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#0f172a', margin: 0 }}>
+                  Results <span style={{ color: '#64748b', fontWeight: 'normal', fontSize: '0.85rem' }}>({results.length} total discovered)</span>
+                </h3>
+                {isLeadResults && scoreFilter !== 'all' && (
+                  <span style={{ fontSize: '0.78rem', color: '#0066FF', fontWeight: 600 }}>
+                    Showing {displayedResults.length} with {scoreFilter} Priority
+                  </span>
+                )}
+              </div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
                 <button
                   onClick={handleEmailResults}
@@ -837,6 +886,111 @@ const Dashboard = () => {
               </div>
             </div>
 
+            {/* Score Filter Pills & Quick Table Search (for Lead Discovery & All Results) */}
+            {isLeadResults && (
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.75rem',
+                background: '#f8fafc',
+                padding: '0.65rem 0.9rem',
+                borderRadius: '0.75rem',
+                border: '1px solid #e2e8f0',
+                marginBottom: '1.25rem'
+              }}>
+                <div style={{ display: 'flex', gap: '0.4rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <span style={{ fontSize: '0.76rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', marginRight: '0.2rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                    <Filter size={13} /> Filter Score:
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setScoreFilter('all')}
+                    style={{
+                      padding: '0.3rem 0.7rem',
+                      borderRadius: '1rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: scoreFilter === 'all' ? '#0f172a' : '#e2e8f0',
+                      color: scoreFilter === 'all' ? '#ffffff' : '#475569'
+                    }}
+                  >
+                    All Scores ({results.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScoreFilter('High')}
+                    style={{
+                      padding: '0.3rem 0.7rem',
+                      borderRadius: '1rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: scoreFilter === 'High' ? '#10b981' : 'rgba(16, 185, 129, 0.12)',
+                      color: scoreFilter === 'High' ? '#ffffff' : '#059669'
+                    }}
+                  >
+                    🔥 High Priority ({highCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScoreFilter('Medium')}
+                    style={{
+                      padding: '0.3rem 0.7rem',
+                      borderRadius: '1rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: scoreFilter === 'Medium' ? '#f59e0b' : 'rgba(245, 158, 11, 0.12)',
+                      color: scoreFilter === 'Medium' ? '#ffffff' : '#d97706'
+                    }}
+                  >
+                    ⚡ Medium ({medCount})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setScoreFilter('Low')}
+                    style={{
+                      padding: '0.3rem 0.7rem',
+                      borderRadius: '1rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: scoreFilter === 'Low' ? '#6366f1' : 'rgba(99, 102, 241, 0.12)',
+                      color: scoreFilter === 'Low' ? '#ffffff' : '#4f46e5'
+                    }}
+                  >
+                    🔹 Low ({lowCount})
+                  </button>
+                </div>
+
+                <div style={{ position: 'relative', minWidth: '200px' }}>
+                  <Search size={14} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    placeholder="Search company, city..."
+                    value={tableSearch}
+                    onChange={(e) => setTableSearch(e.target.value)}
+                    style={{
+                      width: '100%',
+                      padding: '0.35rem 0.75rem 0.35rem 2.2rem',
+                      fontSize: '0.82rem',
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '0.5rem',
+                      outline: 'none'
+                    }}
+                  />
+                </div>
+              </div>
+            )}
+
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
@@ -866,71 +1020,86 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {results.map((row, i) => (
-                    <tr
-                      key={i}
-                      className={isLeadResults ? 'clickable-row' : ''}
-                      style={{
-                        borderBottom: '1px solid #f1f5f9',
-                        transition: 'background 0.15s'
-                      }}
-                      onClick={isLeadResults ? () => handleCompanyClick(row) : undefined}
-                      onMouseOver={(e) => { if (!isLeadResults) e.currentTarget.style.background = '#f8fafc'; }}
-                      onMouseOut={(e) => { if (!isLeadResults) e.currentTarget.style.background = 'transparent'; }}
-                    >
-                      {(isLeadResults ? leadDisplayColumns : Object.keys(row)).map((col, j) => (
-                        <td key={j} style={{
-                          padding: '0.85rem 0.75rem',
-                          fontSize: '0.9rem',
-                          lineHeight: '1.5',
-                          maxWidth: '400px',
-                          color: '#334155'
-                        }}>
-                          {col === 'Customer Rating' ? (
-                            <StarRating rating={row[col]} />
-                          ) : col === 'Contact Number' ? (
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#10b981', fontWeight: 500 }}>
-                              <Phone size={14} />
-                              {row[col] || 'N/A'}
-                            </span>
-                          ) : col === 'Lead Score' ? (
-                            <span style={{
-                              padding: '0.3rem 0.85rem',
-                              borderRadius: '1rem',
-                              fontSize: '0.8rem',
-                              fontWeight: '700',
-                              background: (row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b98120' : (row[col] && row[col].includes('Medium')) ? '#f59e0b20' : '#06b6d420',
-                              color: (row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b981' : (row[col] && row[col].includes('Medium')) ? '#f59e0b' : '#06b6d4',
-                              border: `1px solid ${(row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b98140' : '#06b6d440'}`
-                            }}>
-                              {row[col]}
-                            </span>
-                          ) : col === 'Source' ? (
-                            <SourceBadge source={row[col]} />
-                          ) : col === 'Priority' && activeAgent.id === 'product' ? (
-                            <PriorityBadge priority={row[col]} />
-                          ) : (
-                            renderTextWithLinks(row[col] || '', activeAgent.color)
-                          )}
-                        </td>
-                      ))}
-                      {isLeadResults && (
-                        <td style={{ padding: '0.85rem 0.75rem' }}>
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
-                            color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600
-                          }}>
-                            View <ExternalLink size={14} />
-                          </span>
-                        </td>
-                      )}
+                  {displayedResults.length === 0 ? (
+                    <tr>
+                      <td colSpan={(isLeadResults ? leadDisplayColumns.length + 1 : Object.keys(results[0]).length)} style={{ padding: '2.5rem', textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>
+                        No results match the selected score filter or search query.
+                        <button
+                          onClick={() => { setScoreFilter('all'); setTableSearch(''); }}
+                          style={{ marginLeft: '0.75rem', color: '#0066FF', background: 'transparent', border: 'none', fontWeight: 'bold', cursor: 'pointer' }}
+                        >
+                          Clear Filter
+                        </button>
+                      </td>
                     </tr>
-                  ))}
+                  ) : (
+                    displayedResults.map((row, i) => (
+                      <tr
+                        key={i}
+                        className={isLeadResults ? 'clickable-row' : ''}
+                        style={{
+                          borderBottom: '1px solid #f1f5f9',
+                          transition: 'background 0.15s'
+                        }}
+                        onClick={isLeadResults ? () => handleCompanyClick(row) : undefined}
+                        onMouseOver={(e) => { if (!isLeadResults) e.currentTarget.style.background = '#f8fafc'; }}
+                        onMouseOut={(e) => { if (!isLeadResults) e.currentTarget.style.background = 'transparent'; }}
+                      >
+                        {(isLeadResults ? leadDisplayColumns : Object.keys(row)).map((col, j) => (
+                          <td key={j} style={{
+                            padding: '0.85rem 0.75rem',
+                            fontSize: '0.9rem',
+                            lineHeight: '1.5',
+                            maxWidth: '400px',
+                            color: '#334155'
+                          }}>
+                            {col === 'Customer Rating' ? (
+                              <StarRating rating={row[col]} />
+                            ) : col === 'Contact Number' ? (
+                              <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', color: '#10b981', fontWeight: 500 }}>
+                                <Phone size={14} />
+                                {row[col] || 'N/A'}
+                              </span>
+                            ) : col === 'Lead Score' ? (
+                              <span style={{
+                                padding: '0.3rem 0.85rem',
+                                borderRadius: '1rem',
+                                fontSize: '0.8rem',
+                                fontWeight: '700',
+                                background: (row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b98120' : (row[col] && row[col].includes('Medium')) ? '#f59e0b20' : '#6366f120',
+                                color: (row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b981' : (row[col] && row[col].includes('Medium')) ? '#f59e0b' : '#6366f1',
+                                border: `1px solid ${(row[col] && (row[col].includes('Hot') || row[col].includes('High'))) ? '#10b98140' : '#6366f140'}`
+                              }}>
+                                {row[col]}
+                              </span>
+                            ) : col === 'Source' ? (
+                              <SourceBadge source={row[col]} />
+                            ) : col === 'Priority' && activeAgent.id === 'product' ? (
+                              <PriorityBadge priority={row[col]} />
+                            ) : (
+                              renderTextWithLinks(row[col] || '', activeAgent.color)
+                            )}
+                          </td>
+                        ))}
+                        {isLeadResults && (
+                          <td style={{ padding: '0.85rem 0.75rem' }}>
+                            <span style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '0.35rem',
+                              color: 'var(--primary)', fontSize: '0.85rem', fontWeight: 600
+                            }}>
+                              View <ExternalLink size={14} />
+                            </span>
+                          </td>
+                        )}
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
           </div>
         )}
+
 
         {(!results || results.length === 0) && !loading && !error && (
           <div style={{

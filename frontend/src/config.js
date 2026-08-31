@@ -26,6 +26,8 @@ export const BACKEND_ENDPOINTS = {
   findNewBusinesses:  `${LOCAL_BACKEND_URL}/find-new-businesses`,
   customerResearch:   `${LOCAL_BACKEND_URL}/customer-research`,
   helpImproveService: `${LOCAL_BACKEND_URL}/help-improve-service`,
+  allSearchResults:   `${LOCAL_BACKEND_URL}/all-search-results`,
   health:             `${LOCAL_BACKEND_URL}/health`,
 };
+
 

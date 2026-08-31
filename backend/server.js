@@ -347,6 +347,55 @@ app.post('/api/lead-discovery', async (req, res) => {
   }
 });
 
+// 1.5 All Search Results (Comprehensive - All Low/Medium/High Lead Scores Included)
+app.post('/api/all-search-results', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
+    }
+
+    console.log(`[All Search Results] Requesting comprehensive scrape for: "${prompt}"`);
+    const n8nResults = await queryN8nWebhook('lead-discovery', prompt);
+
+    // Process all results, computing Lead Score for entries if absent, preserving ALL scores
+    const allLeads = (n8nResults || []).map(item => {
+      let score = item['Lead Score'];
+      if (!score || score === 'null' || score === 'N/A') {
+        const rating = parseFloat(item['Customer Rating']) || 0;
+        const size = (item['Size'] || '').toLowerCase();
+        if (rating >= 4.0 || size === 'enterprise') score = 'High';
+        else if (rating >= 3.0 || size === 'medium') score = 'Medium';
+        else score = 'Low';
+      }
+      return {
+        ...item,
+        'Lead Score': score
+      };
+    });
+
+    return res.json({
+      success: true,
+      agent: "All Search Results (All Scores)",
+      resultsCount: allLeads.length,
+      results: allLeads
+    });
+  } catch (err) {
+    console.error('[All Search Results Proxy Error]', err.message);
+    const errText = err.response?.data?.error || err.message || '';
+    if (err.response?.status === 524 || errText.includes('524')) {
+      return res.status(524).json({
+        success: false,
+        error: "n8n Cloud Webhook Timeout (524): Deep scraping in progress. Please click Search again to fetch the results."
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      error: `Live n8n Webhook Error: ${errText}`
+    });
+  }
+});
+
 // 2. Customer Research & Intelligence (Live n8n Cloud Webhook)
 app.post('/api/customer-research', async (req, res) => {
   try {

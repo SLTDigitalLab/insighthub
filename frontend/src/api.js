@@ -116,6 +116,16 @@ export const fetchFindNewBusinesses = async (promptText) => {
 };
 
 /**
+ * Fetches all discovered search results without limitation on Lead Score (Low, Medium, High all included)
+ */
+export const fetchAllSearchResults = async (promptText) => {
+  const response = await axios.post(BACKEND_ENDPOINTS.allSearchResults, {
+    prompt: promptText
+  }, { timeout: 240000 });
+  return response.data;
+};
+
+/**
  * Sends formatted report results to recipient via backend email gateway
  */
 export const sendResultsEmail = async (emailData) => {
