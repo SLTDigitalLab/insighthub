@@ -57,16 +57,11 @@
     },
     {
       "parameters": {
+        "toolDescription": "Perform a comprehensive Google web search for company background, leadership, news, and official website in Sri Lanka.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "parametersHeaders": {
-          "values": [
-            {}
-          ]
-        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"queries\": {{ JSON.stringify($fromAI('query', 'The Google search query string for company background and news')) }},\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}"
@@ -93,12 +88,6 @@
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "parametersHeaders": {
-          "values": [
-            {}
-          ]
-        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={\n  \"queries\": {{ JSON.stringify($fromAI('query', 'The social media / LinkedIn / Facebook search query string')) }},\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}"
@@ -120,17 +109,12 @@
     },
     {
       "parameters": {
+        "toolDescription": "Search SLT-Mobitel's official vector database across all 9 Strategic Pillars for official enterprise products, specifications, and solution features.",
         "method": "POST",
-        "url": "http://localhost:5000/api/vector/search",
-        "sendHeaders": true,
-        "parametersHeaders": {
-          "values": [
-            {}
-          ]
-        },
+        "url": "https://insighthub.raccoon-ai.io/api/vector/search",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"query\": \"{{ $fromAI('query', 'The search query string to look up products in vector database') }}\",\n  \"nResults\": 5\n}"
+        "jsonBody": "={\n  \"query\": {{ JSON.stringify($fromAI('query', 'The search query string to look up products in vector database')) }},\n  \"nResults\": 5\n}"
       },
       "id": "523bb471-df55-4325-a7dc-888966be2a0c",
       "name": "Knowledge Base Vector Search",
