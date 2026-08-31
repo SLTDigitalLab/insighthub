@@ -374,6 +374,39 @@ app.post('/api/customer-research', async (req, res) => {
   }
 });
 
+// 2.5 Help Improve Service (Live n8n Cloud Webhook)
+app.post('/api/help-improve-service', async (req, res) => {
+  try {
+    const { prompt } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ success: false, error: 'Prompt parameter is required.' });
+    }
+
+    console.log(`[Help Improve Service] Requesting live n8n analysis for: "${prompt}"`);
+    const n8nResults = await queryN8nWebhook('help-improve-service', prompt);
+
+    return res.json({
+      success: true,
+      agent: "Help Improve Service (Live n8n Cloud)",
+      resultsCount: n8nResults ? n8nResults.length : 0,
+      results: n8nResults || []
+    });
+  } catch (err) {
+    console.error('[Help Improve Service Proxy Error]', err.message);
+    const errText = err.response?.data?.error || err.message || '';
+    if (err.response?.status === 524 || errText.includes('524')) {
+      return res.status(524).json({
+        success: false,
+        error: "n8n Cloud Webhook Timeout (524): The n8n AI Agent is currently analyzing customer reviews and feedback. Please click Search again to fetch the results."
+      });
+    }
+    return res.status(500).json({
+      success: false,
+      error: `Live n8n Webhook Error: ${errText}`
+    });
+  }
+});
+
 // 3. Meeting Preparation Brief (Live n8n Cloud Webhook / ChromaDB Vector RAG)
 app.post('/api/meeting-prep', async (req, res) => {
   try {
