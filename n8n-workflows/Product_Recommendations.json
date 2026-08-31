@@ -57,19 +57,23 @@
     },
     {
       "parameters": {
+        "toolDescription": "Perform a general Google web search for company background, client industry context, and competitor analysis.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "parametersHeaders": {
-          "values": [
-            {}
-          ]
-        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}"
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The Google search query string",
+              "type": "string"
+            }
+          ]
+        }
       },
       "id": "621beda6-d3ed-4adc-94fa-f1a4f5a088de",
       "name": "Apify Google Search",
@@ -88,19 +92,14 @@
     },
     {
       "parameters": {
+        "toolDescription": "Search LinkedIn and Facebook for company details and digital maturity.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "parametersHeaders": {
-          "values": [
-            {}
-          ]
-        },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 20\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}",
         "placeholderDefinitions": {
           "values": [
             {
@@ -128,11 +127,12 @@
     },
     {
       "parameters": {
+        "toolDescription": "Search SLT-Mobitel's official vector database across all 9 Strategic Pillars for official enterprise products, specifications, and solution features.",
         "method": "POST",
-        "url": "http://localhost:5000/api/vector/search",
+        "url": "https://insighthub.raccoon-ai.io/api/vector/search",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"query\": \"{query}\"\n}",
+        "jsonBody": "{\n  \"query\": \"{query}\",\n  \"nResults\": 5\n}",
         "placeholderDefinitions": {
           "values": [
             {
@@ -173,10 +173,6 @@
         "url": "https://api.apify.com/v2/acts/compass~google-maps-extractor/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "parametersHeaders": {
-          "values": []
-        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{\n  \"searchStringsArray\": [\"{businessName} {location}\"],\n  \"maxCrawledPlacesPerSearch\": 1,\n  \"maxReviews\": 3\n}",
@@ -184,11 +180,13 @@
           "values": [
             {
               "name": "businessName",
-              "description": "The name of the business to search reviews for"
+              "description": "The name of the business to search reviews for",
+              "type": "string"
             },
             {
               "name": "location",
-              "description": "City or region, if known, to disambiguate the business"
+              "description": "City or region, if known, to disambiguate the business",
+              "type": "string"
             }
           ]
         }
