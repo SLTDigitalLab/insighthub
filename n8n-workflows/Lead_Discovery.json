@@ -65,7 +65,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 5,\n  \"resultsPerPage\": 100\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
         "placeholderDefinitions": {
           "values": [
             {
@@ -99,7 +99,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"searchStringsArray\": [\"{query}\"],\n  \"locationQuery\": \"Sri Lanka\",\n  \"maxCrawledPlacesPerSearch\": 20,\n  \"language\": \"en\"\n}",
+        "jsonBody": "{\n  \"searchStringsArray\": [\"{query}\"],\n  \"locationQuery\": \"Sri Lanka\",\n  \"maxCrawledPlacesPerSearch\": 20,\n  \"maxReviews\": 0,\n  \"maxImages\": 0,\n  \"language\": \"en\"\n}",
         "placeholderDefinitions": {
           "values": [
             {
