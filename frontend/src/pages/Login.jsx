@@ -81,31 +81,23 @@ const Login = () => {
   const handleMicrosoftLogin = async () => {
     setError('');
     setLoading(true);
-    setStatusMessage('Opening Microsoft Entra ID Sign-In...');
+    setStatusMessage('Redirecting to Microsoft Entra ID...');
 
     try {
-      if (instance && instance.loginPopup) {
-        const response = await instance.loginPopup(loginRequest);
-        if (response && response.account) {
-          const userEmail = (response.account.username || response.account.idTokenClaims?.email || '').toLowerCase().trim();
-          const userName = response.account.name || response.account.idTokenClaims?.name || userEmail.split('@')[0];
-          await verifyAndRedirect(userEmail, userName);
-          return;
-        }
+      if (instance) {
+        // Full page redirect in the same tab
+        await instance.loginRedirect(loginRequest);
+      } else {
+        // Direct OAuth Redirect in the same tab
+        const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || '437e0ec1-9151-438f-9ddb-d86e6e25527d';
+        const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
+        const redirectUri = encodeURIComponent(window.location.origin + '/');
+        const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${Date.now()}&prompt=select_account`;
+        window.location.href = authUrl;
       }
-    } catch (popupErr) {
-      console.warn('Popup login failed/blocked, trying redirect flow:', popupErr);
-    }
-
-    // Direct OAuth Redirect Fallback
-    try {
-      const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || '437e0ec1-9151-438f-9ddb-d86e6e25527d';
-      const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
-      const redirectUri = encodeURIComponent(window.location.origin + '/');
-      const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${Date.now()}&prompt=select_account`;
-      window.location.href = authUrl;
     } catch (err) {
-      setError('Unable to initialize Microsoft authentication. Please check your browser popup blocker or internet connection.');
+      console.error('Microsoft login redirect error:', err);
+      setError(err.message || 'Unable to redirect to Microsoft authentication.');
       setLoading(false);
     }
   };
