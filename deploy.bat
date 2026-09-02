@@ -6,7 +6,7 @@ echo ========================================================
 echo 1. Staging and committing changes...
 if exist .git\index.lock del /f /q .git\index.lock
 git add -A
-git commit -m "Fix MSAL inProgress redirect listener for instant page routing"
+git commit -m "Add fail-safe token extractor and direct account authorization in Login"
 
 echo 2. Pushing to GitHub repository...
 git push origin InsightHub-check

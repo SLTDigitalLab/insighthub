@@ -13,40 +13,67 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [error, setError] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Verifying Microsoft session...');
+  const [statusMessage, setStatusMessage] = useState('Checking Microsoft session...');
 
   useEffect(() => {
     let isMounted = true;
 
-    // While MSAL is still handling the redirect or starting up, wait
-    if (inProgress !== InteractionStatus.None) {
-      setCheckingAuth(true);
-      setStatusMessage('Processing Microsoft Entra ID authentication...');
-      return;
-    }
+    // Helper to extract email from direct URL hash/search if available
+    const extractEmailFromUrl = () => {
+      try {
+        const hash = window.location.hash || '';
+        const search = window.location.search || '';
+        const fullParams = new URLSearchParams(hash.startsWith('#') ? hash.substring(1) : (search.startsWith('?') ? search.substring(1) : ''));
+        const token = fullParams.get('id_token') || fullParams.get('access_token');
+        if (token) {
+          const parts = token.split('.');
+          if (parts.length >= 2) {
+            const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+            const email = (payload.email || payload.preferred_username || payload.upn || payload.unique_name || '').toLowerCase().trim();
+            const name = payload.name || payload.given_name || (email ? email.split('@')[0] : '');
+            if (email) {
+              localStorage.setItem('userEmail', email);
+              localStorage.setItem('userName', name);
+              return { email, name };
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('URL token extract error:', e);
+      }
+      return null;
+    };
 
     const verifyUserSession = async () => {
-      // 1. Check all possible sources for the authenticated Microsoft user
+      // 1. Check direct token in URL
+      const urlUser = extractEmailFromUrl();
+
+      // 2. Check MSAL accounts array
       const allMsalAccounts = instance?.getAllAccounts?.() || accounts || [];
       const activeMsalAccount = allMsalAccounts.length > 0 ? allMsalAccounts[0] : null;
 
       let emailToCheck = (
+        urlUser?.email ||
         activeMsalAccount?.username ||
         activeMsalAccount?.idTokenClaims?.email ||
         activeMsalAccount?.idTokenClaims?.preferred_username ||
         activeMsalAccount?.idTokenClaims?.upn ||
+        localStorage.getItem('userEmail') ||
         ''
       ).toLowerCase().trim();
 
-      let nameToCheck = activeMsalAccount?.name || activeMsalAccount?.idTokenClaims?.name || '';
+      let nameToCheck = urlUser?.name || activeMsalAccount?.name || activeMsalAccount?.idTokenClaims?.name || localStorage.getItem('userName') || '';
 
-      // Fallback to localStorage
-      if (!emailToCheck) {
-        emailToCheck = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
-        nameToCheck = localStorage.getItem('userName') || '';
+      // If still processing redirect and no email found yet, show loading
+      if (inProgress !== InteractionStatus.None && !emailToCheck) {
+        if (isMounted) {
+          setCheckingAuth(true);
+          setStatusMessage('Processing Microsoft Entra ID authentication...');
+        }
+        return;
       }
 
-      // If no active account is detected, show the clean login button
+      // If no account is logged in, show the clean login button
       if (!emailToCheck || !emailToCheck.includes('@')) {
         if (isMounted) {
           setCheckingAuth(false);
@@ -55,7 +82,7 @@ const Login = () => {
         return;
       }
 
-      // User account detected -> verify access permissions with backend
+      // Account detected -> verify organization access permissions
       if (isMounted) {
         setCheckingAuth(true);
         setStatusMessage(`Authorizing ${emailToCheck}...`);
