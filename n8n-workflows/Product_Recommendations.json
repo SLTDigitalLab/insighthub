@@ -207,46 +207,7 @@
       }
     }
   ],
-  "pinData": {
-    "Webhook": [
-      {
-        "json": {
-          "headers": {
-            "host": "ushani77.app.n8n.cloud",
-            "user-agent": "axios/1.19.0",
-            "content-length": "21",
-            "accept": "application/json, text/plain, */*",
-            "accept-encoding": "gzip, br",
-            "cdn-loop": "cloudflare; loops=1; subreqs=1",
-            "cf-connecting-ip": "2402:4000:23d1:5e5a:e535:4873:8bb8:15db",
-            "cf-ew-via": "15",
-            "cf-ipcountry": "LK",
-            "cf-ray": "a2c7b3224b986357-CMB",
-            "cf-visitor": "{\"scheme\":\"https\"}",
-            "cf-worker": "n8n.cloud",
-            "content-type": "application/json",
-            "x-forwarded-for": "2402:4000:23d1:5e5a:e535:4873:8bb8:15db, 172.68.91.162",
-            "x-forwarded-host": "ushani77.app.n8n.cloud",
-            "x-forwarded-port": "443",
-            "x-forwarded-proto": "https",
-            "x-forwarded-server": "traefik-prod-users-gwc-77-684f686786-62wk8",
-            "x-is-trusted": "yes",
-            "x-real-ip": "2402:4000:23d1:5e5a:e535:4873:8bb8:15db"
-          },
-          "params": {},
-          "query": {},
-          "body": {
-            "prompt": "HNB bank"
-          },
-          "webhookUrl": "https://ushani77.app.n8n.cloud/webhook/product-recommendation",
-          "executionMode": "production"
-        },
-        "pairedItem": {
-          "item": 0
-        }
-      }
-    ]
-  },
+  "pinData": {},
   "connections": {
     "Webhook": {
       "main": [

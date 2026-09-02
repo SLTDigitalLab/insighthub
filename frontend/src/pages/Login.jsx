@@ -1,66 +1,125 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, ArrowRight, Lock, User, Mail, AlertCircle, Loader2 } from 'lucide-react';
+import { ShieldCheck, ArrowRight, AlertCircle, Loader2, CheckCircle2, Lock } from 'lucide-react';
+import { useMsal } from '@azure/msal-react';
+import { loginRequest } from '../authConfig';
 import axios from 'axios';
 
 const Login = () => {
   const navigate = useNavigate();
+  const { instance, accounts } = useMsal();
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(false);
   const [error, setError] = useState('');
+  const [statusMessage, setStatusMessage] = useState('');
 
-  const handlePasswordLogin = async (e) => {
-    e.preventDefault();
-    setError('');
+  // Check if user is already authenticated with MSAL or in local storage
+  useEffect(() => {
+    const checkActiveSession = async () => {
+      const storedEmail = localStorage.getItem('userEmail');
+      const activeAccount = accounts && accounts[0];
+      const emailToCheck = activeAccount?.username || storedEmail;
 
-    if (!email.trim() || !password) {
-      setError('Please enter your work email and password.');
-      return;
-    }
+      if (emailToCheck) {
+        setCheckingAuth(true);
+        try {
+          const res = await axios.post('/api/auth/verify-access', { email: emailToCheck });
+          if (res.data.success && res.data.approved) {
+            localStorage.setItem('userEmail', emailToCheck);
+            if (res.data.role === 'admin') {
+              localStorage.setItem('insightHub_adminAuth', 'true');
+            }
+            navigate('/dashboard');
+          } else if (res.data.status === 'pending_approval') {
+            navigate('/request-access');
+          }
+        } catch (err) {
+          console.warn('Session check warning:', err);
+        } finally {
+          setCheckingAuth(false);
+        }
+      }
+    };
 
+    checkActiveSession();
+  }, [accounts]);
+
+  const verifyAndRedirect = async (email, name) => {
     setLoading(true);
+    setStatusMessage('Verifying organization authorization...');
     try {
-      const res = await axios.post('/api/auth/login', {
-        email: email.trim(),
-        password: password
-      });
+      const res = await axios.post('/api/auth/verify-access', { email });
 
-      if (res.data.success) {
-        localStorage.setItem('userEmail', res.data.user.email);
-        if (res.data.user.role === 'admin') {
+      if (res.data.success && res.data.approved) {
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userName', name || email.split('@')[0]);
+        if (res.data.role === 'admin') {
           localStorage.setItem('insightHub_adminAuth', 'true');
         }
         navigate('/dashboard');
+      } else if (res.data.status === 'pending_approval') {
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userName', name || email.split('@')[0]);
+        navigate('/request-access');
+      } else if (res.data.status === 'declined') {
+        setError('Your access request was declined by the administrator. Please contact your administrator.');
       } else {
-        setError(res.data.error || 'Login failed.');
+        // Not found in pre-approved list -> send to access request flow
+        localStorage.setItem('userEmail', email);
+        localStorage.setItem('userName', name || email.split('@')[0]);
+        navigate('/request-access');
       }
     } catch (err) {
-      setError(err.response?.data?.error || 'Invalid credentials or unapproved account.');
+      setError(err.response?.data?.error || 'Authorization check failed. Please try again.');
     } finally {
       setLoading(false);
+      setStatusMessage('');
     }
   };
 
   const handleMicrosoftLogin = async () => {
-    const envClientId = import.meta.env.VITE_MSAL_CLIENT_ID;
+    setError('');
+    setLoading(true);
+    setStatusMessage('Opening Microsoft Entra ID Sign-In...');
 
-    if (envClientId && envClientId !== 'Enter_the_Application_Id_Here') {
-      const redirectUri = encodeURIComponent(window.location.origin + '/');
-      const authUrl = `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?client_id=${envClientId}&response_type=id_token&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${Date.now()}&prompt=select_account`;
-      window.location.href = authUrl;
-      return;
+    try {
+      if (instance && instance.loginPopup) {
+        const response = await instance.loginPopup(loginRequest);
+        if (response && response.account) {
+          const userEmail = (response.account.username || response.account.idTokenClaims?.email || '').toLowerCase().trim();
+          const userName = response.account.name || response.account.idTokenClaims?.name || userEmail.split('@')[0];
+          await verifyAndRedirect(userEmail, userName);
+          return;
+        }
+      }
+    } catch (popupErr) {
+      console.warn('Popup login failed/blocked, trying redirect flow:', popupErr);
     }
 
-    // Direct corporate login fallback
-    if (email.trim()) {
-      localStorage.setItem('userEmail', email.trim());
-      navigate('/dashboard');
-    } else {
-      setError('Please enter your work email above to continue.');
+    // Direct OAuth Redirect Fallback
+    try {
+      const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || '437e0ec1-9151-438f-9ddb-d86e6e25527d';
+      const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
+      const redirectUri = encodeURIComponent(window.location.origin + '/');
+      const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${Date.now()}&prompt=select_account`;
+      window.location.href = authUrl;
+    } catch (err) {
+      setError('Unable to initialize Microsoft authentication. Please check your browser popup blocker or internet connection.');
+      setLoading(false);
     }
   };
+
+  if (checkingAuth) {
+    return (
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
+        <div style={{ textAlign: 'center' }}>
+          <Loader2 size={38} className="spin" style={{ color: '#0066FF', margin: '0 auto 1rem auto' }} />
+          <p style={{ color: '#64748b', fontSize: '0.92rem', fontWeight: 600 }}>Verifying enterprise credentials...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{
@@ -75,38 +134,38 @@ const Login = () => {
         className="animate-fade-in"
         style={{
           background: '#ffffff',
-          padding: '3rem 2.5rem',
-          borderRadius: '1.25rem',
-          boxShadow: '0 20px 45px -10px rgba(0, 102, 255, 0.12), 0 0 1px 1px rgba(0, 0, 0, 0.05)',
+          padding: '3.5rem 2.75rem',
+          borderRadius: '1.5rem',
+          boxShadow: '0 25px 50px -12px rgba(0, 102, 255, 0.15), 0 0 1px 1px rgba(0, 0, 0, 0.05)',
           width: '100%',
-          maxWidth: '460px',
+          maxWidth: '480px',
           border: '1px solid #e2e8f0',
           textAlign: 'center'
         }}
       >
         {/* Logo Section */}
-        <div style={{ marginBottom: '1.75rem' }}>
+        <div style={{ marginBottom: '2rem' }}>
           <div style={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '0.6rem 1.25rem',
-            borderRadius: '1rem',
+            padding: '0.75rem 1.5rem',
+            borderRadius: '1.25rem',
             background: '#ffffff',
             border: '1px solid #f1f5f9',
-            boxShadow: '0 8px 25px rgba(0, 102, 255, 0.08)',
-            marginBottom: '0.75rem'
+            boxShadow: '0 10px 30px rgba(0, 102, 255, 0.08)',
+            marginBottom: '1rem'
           }}>
             <img
               src="/insighthub-logo.png"
               alt="InsightHub Logo"
-              style={{ maxHeight: '85px', maxWidth: '220px', width: 'auto', objectFit: 'contain' }}
+              style={{ maxHeight: '90px', maxWidth: '240px', width: 'auto', objectFit: 'contain' }}
             />
           </div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: '800', color: '#0f172a', letterSpacing: '-0.02em', marginTop: '0.25rem' }}>
+          <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0f172a', letterSpacing: '-0.02em', marginTop: '0.35rem' }}>
             Enterprise Sales Intelligence
           </h2>
-          <p style={{ color: '#64748b', marginTop: '0.25rem', fontSize: '0.84rem', fontWeight: 500 }}>
+          <p style={{ color: '#64748b', marginTop: '0.35rem', fontSize: '0.88rem', fontWeight: 500 }}>
             Where Intelligence Meets Sales — SLT Mobitel
           </p>
         </div>
@@ -116,166 +175,129 @@ const Login = () => {
             background: '#fef2f2',
             border: '1px solid #fecaca',
             color: '#dc2626',
-            borderRadius: '0.75rem',
-            padding: '0.75rem 1rem',
+            borderRadius: '0.85rem',
+            padding: '0.85rem 1rem',
             fontSize: '0.85rem',
             display: 'flex',
             alignItems: 'center',
-            gap: '0.5rem',
-            marginBottom: '1.25rem',
+            gap: '0.6rem',
+            marginBottom: '1.5rem',
             textAlign: 'left'
           }}>
-            <AlertCircle size={16} style={{ flexShrink: 0 }} />
+            <AlertCircle size={18} style={{ flexShrink: 0 }} />
             <span>{error}</span>
           </div>
         )}
 
-        {/* Email & Password Login Form */}
-        <form onSubmit={handlePasswordLogin} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', textAlign: 'left', marginBottom: '1.25rem' }}>
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-              Work Email Address
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Mail size={17} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-              <input
-                type="email"
-                placeholder="name@mobitel.lk"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem 0.75rem 2.6rem',
-                  fontSize: '0.9rem',
-                  borderRadius: '0.75rem',
-                  border: '1px solid #cbd5e1',
-                  outline: 'none'
-                }}
-              />
-            </div>
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-              Password
-            </label>
-            <div style={{ position: 'relative' }}>
-              <Lock size={17} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-              <input
-                type="password"
-                placeholder="••••••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                style={{
-                  width: '100%',
-                  padding: '0.75rem 1rem 0.75rem 2.6rem',
-                  fontSize: '0.9rem',
-                  borderRadius: '0.75rem',
-                  border: '1px solid #cbd5e1',
-                  outline: 'none'
-                }}
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '0.85rem',
-              borderRadius: '0.75rem',
-              border: 'none',
-              background: 'linear-gradient(135deg, #0066FF 0%, #10b981 100%)',
-              color: '#ffffff',
-              fontWeight: 700,
-              fontSize: '0.95rem',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.5rem',
-              boxShadow: '0 4px 15px rgba(0, 102, 255, 0.3)',
-              marginTop: '0.25rem'
-            }}
-          >
-            {loading ? <Loader2 size={18} className="spin" /> : 'Sign In'}
-          </button>
-        </form>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', margin: '1.25rem 0' }}>
-          <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
-          <span style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'uppercase', fontWeight: 600 }}>or</span>
-          <div style={{ flex: 1, height: '1px', background: '#e2e8f0' }} />
-        </div>
-
-        {/* Microsoft 365 Button */}
-        <button
-          type="button"
-          onClick={handleMicrosoftLogin}
-          style={{
-            width: '100%',
-            padding: '0.8rem 1rem',
-            fontSize: '0.88rem',
-            fontWeight: 600,
-            borderRadius: '0.75rem',
-            border: '1px solid #cbd5e1',
-            background: '#ffffff',
-            color: '#0f172a',
+        {statusMessage && (
+          <div style={{
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            color: '#1d4ed8',
+            borderRadius: '0.85rem',
+            padding: '0.75rem 1rem',
+            fontSize: '0.85rem',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            gap: '0.65rem',
-            cursor: 'pointer',
-            transition: 'background 0.2s'
-          }}
-          onMouseOver={(e) => e.currentTarget.style.background = '#f8fafc'}
-          onMouseOut={(e) => e.currentTarget.style.background = '#ffffff'}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 21 21">
-            <path fill="#f25022" d="M1 1h9v9H1z"/>
-            <path fill="#7fba00" d="M11 1h9v9h-9z"/>
-            <path fill="#00a4ef" d="M1 11h9v9H1z"/>
-            <path fill="#ffb900" d="M11 11h9v9h-9z"/>
-          </svg>
-          <span>Sign in with Microsoft 365</span>
-        </button>
+            gap: '0.6rem',
+            marginBottom: '1.5rem'
+          }}>
+            <Loader2 size={16} className="spin" />
+            <span>{statusMessage}</span>
+          </div>
+        )}
 
-        {/* Registration CTA */}
+        {/* Security / Single Sign-On Info Banner */}
         <div style={{
-          marginTop: '1.75rem',
-          padding: '1rem',
-          background: 'rgba(0, 102, 255, 0.04)',
-          border: '1px dashed rgba(0, 102, 255, 0.3)',
-          borderRadius: '0.75rem',
+          background: 'linear-gradient(135deg, rgba(0, 102, 255, 0.04) 0%, rgba(16, 185, 129, 0.04) 100%)',
+          border: '1px solid #e2e8f0',
+          borderRadius: '1rem',
+          padding: '1.25rem 1rem',
+          marginBottom: '2rem',
           textAlign: 'center'
         }}>
-          <p style={{ fontSize: '0.85rem', color: '#334155', margin: '0 0 0.4rem 0' }}>
-            Don't have an approved account yet?
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', color: '#0066FF', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.4rem' }}>
+            <ShieldCheck size={16} /> Enterprise Single Sign-On (SSO)
+          </div>
+          <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
+            Access is restricted to authorized Sri Lanka Telecom staff using verified <strong>@slt.com.lk</strong> Microsoft credentials.
           </p>
-          <Link
-            to="/register"
-            style={{
-              color: '#0066FF',
-              fontWeight: 800,
-              fontSize: '0.88rem',
-              textDecoration: 'none',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.25rem'
-            }}
-          >
-            Request Registration & Access →
-          </Link>
         </div>
 
-        {/* Footer with Admin Link */}
-        <div style={{ marginTop: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.75rem', color: '#94a3b8' }}>
-          <span>SLTMobitel Digital Lab</span>
-          <Link to="/admin" style={{ color: '#64748b', textDecoration: 'none', fontWeight: 600 }}>
-            Administrator Portal 🔒
+        {/* Microsoft Sign In Button */}
+        <button
+          type="button"
+          onClick={handleMicrosoftLogin}
+          disabled={loading}
+          style={{
+            width: '100%',
+            padding: '0.95rem 1.25rem',
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            color: '#0f172a',
+            background: '#ffffff',
+            border: '1.5px solid #cbd5e1',
+            borderRadius: '0.85rem',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.85rem',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.06)',
+            marginBottom: '1.5rem'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.borderColor = '#0066FF';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 102, 255, 0.15)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.06)';
+          }}
+        >
+          {loading ? (
+            <Loader2 size={20} className="spin" style={{ color: '#0066FF' }} />
+          ) : (
+            <>
+              {/* Microsoft 4-Color Grid Logo */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', width: '20px', height: '20px', flexShrink: 0 }}>
+                <div style={{ background: '#f25022', borderRadius: '1px' }}></div>
+                <div style={{ background: '#7fba00', borderRadius: '1px' }}></div>
+                <div style={{ background: '#00a4ef', borderRadius: '1px' }}></div>
+                <div style={{ background: '#ffb900', borderRadius: '1px' }}></div>
+              </div>
+              <span>Sign In with Microsoft Work Account</span>
+              <ArrowRight size={17} style={{ color: '#64748b', marginLeft: 'auto' }} />
+            </>
+          )}
+        </button>
+
+        {/* Footer Info & Admin Portal Quicklink */}
+        <div style={{
+          marginTop: '2rem',
+          paddingTop: '1.5rem',
+          borderTop: '1px solid #f1f5f9',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontSize: '0.8rem',
+          color: '#94a3b8'
+        }}>
+          <span>SLT-Mobitel Digital Labs</span>
+          <Link
+            to="/admin"
+            style={{
+              color: '#0066FF',
+              textDecoration: 'none',
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.3rem'
+            }}
+          >
+            <Lock size={13} /> Administrator Portal
           </Link>
         </div>
       </div>

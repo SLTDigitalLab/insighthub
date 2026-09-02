@@ -753,71 +753,73 @@ const sendEmailNotification = async ({ toEmail, subject, htmlBody }) => {
 };
 
 // ==========================================
-// USER REGISTRATION & ADMIN APPROVAL ROUTES
+// MICROSOFT SSO & ACCESS CONTROL ROUTES
 // ==========================================
 
-// 1. User Registration with KYC Uploads
-app.post('/api/auth/register', kycUpload.fields([
-  { name: 'nicPhoto', maxCount: 1 },
-  { name: 'facePhoto', maxCount: 1 }
-]), async (req, res) => {
+// 1. Verify Access for Authenticated Microsoft Work User
+app.post('/api/auth/verify-access', (req, res) => {
   try {
-    const { name, email, nicNumber, regNumber } = req.body;
+    const { email } = req.body;
+    if (!email) {
+      return res.status(400).json({ success: false, approved: false, error: 'Email is required.' });
+    }
 
-    if (!email || !nicNumber || !regNumber) {
+    const result = userService.verifyAccess(email);
+    res.json({
+      success: true,
+      ...result
+    });
+  } catch (err) {
+    console.error('[Verify Access Error]', err);
+    res.status(500).json({ success: false, approved: false, error: err.message });
+  }
+});
+
+// 2. Self-Service Access Request (From Microsoft Authenticated User)
+app.post('/api/auth/request-access', async (req, res) => {
+  try {
+    const { name, email, department, designation, note } = req.body;
+
+    if (!email) {
       return res.status(400).json({
         success: false,
-        error: 'Microsoft Work Email, NIC Number, and Employee/Registration Number are required.'
+        error: 'Microsoft Work Email is required.'
       });
     }
 
-    const nicFile = req.files && req.files['nicPhoto'] ? req.files['nicPhoto'][0] : null;
-    const faceFile = req.files && req.files['facePhoto'] ? req.files['facePhoto'][0] : null;
-
-    const nicPhotoUrl = nicFile ? `/api/uploads/kyc/${nicFile.filename}` : '';
-    const facePhotoUrl = faceFile ? `/api/uploads/kyc/${faceFile.filename}` : '';
-
-    let nicBase64 = '';
-    let faceBase64 = '';
-    try {
-      if (nicFile && fs.existsSync(nicFile.path)) {
-        nicBase64 = `data:${nicFile.mimetype || 'image/jpeg'};base64,${fs.readFileSync(nicFile.path).toString('base64')}`;
-      }
-      if (faceFile && fs.existsSync(faceFile.path)) {
-        faceBase64 = `data:${faceFile.mimetype || 'image/jpeg'};base64,${fs.readFileSync(faceFile.path).toString('base64')}`;
-      }
-    } catch (readErr) {
-      console.warn('[KYC Base64 Error]', readErr.message);
-    }
-
-    const user = userService.registerUser({
+    const result = userService.requestAccess({
       name: name || email.split('@')[0],
       email: email,
-      nicNumber: nicNumber,
-      regNumber: regNumber,
-      nicPhotoUrl: nicPhotoUrl,
-      facePhotoUrl: facePhotoUrl
+      department: department || 'SLT Enterprise',
+      designation: designation || 'Staff',
+      note: note || ''
     });
 
-    // Build Admin Notification Email with KYC Photos & 1-Click Action Buttons
+    if (result.alreadyApproved) {
+      return res.json({
+        success: true,
+        alreadyApproved: true,
+        message: 'Your account is already authorized! Please sign in.',
+        user: result.user
+      });
+    }
+
+    const user = result.user;
     const clientOrigin = req.headers.origin || APP_BASE_URL;
     const approveUrl = `${clientOrigin}/approval-action?action=approve&token=${user.approvalToken}`;
     const declineUrl = `${clientOrigin}/approval-action?action=decline&token=${user.declineToken}`;
     const adminPortalUrl = `${clientOrigin}/admin`;
 
-    const fullNicPhotoUrl = nicPhotoUrl ? `${clientOrigin}${nicPhotoUrl}` : '';
-    const fullFacePhotoUrl = facePhotoUrl ? `${clientOrigin}${facePhotoUrl}` : '';
-
     const adminEmailHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 680px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+      <div style="font-family: Arial, sans-serif; max-width: 650px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #0066FF 0%, #10b981 100%); padding: 28px 36px;">
-          <h1 style="color: white; margin: 0; font-size: 22px;">InsightHub Registration Request</h1>
+          <h1 style="color: white; margin: 0; font-size: 22px;">InsightHub Access Request</h1>
           <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0; font-size: 13px;">SLT Mobitel — Enterprise Sales Intelligence</p>
         </div>
         <div style="padding: 28px 36px;">
-          <h2 style="color: #0f172a; margin: 0 0 16px; font-size: 18px;">New User Access Verification Needed</h2>
+          <h2 style="color: #0f172a; margin: 0 0 16px; font-size: 18px;">New User Requesting Platform Access</h2>
           <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
-            A new user has submitted a registration request with identity verification details. Please review their KYC credentials below:
+            A user has authenticated via Microsoft Entra ID (@slt.com.lk) and is requesting access to InsightHub:
           </p>
 
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
@@ -826,60 +828,41 @@ app.post('/api/auth/register', kycUpload.fields([
               <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.name}</td>
             </tr>
             <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Work Email:</td>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Microsoft Work Email:</td>
               <td style="padding: 12px 16px; color: #0066FF; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.email}</td>
             </tr>
             <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">NIC Number:</td>
-              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.nicNumber}</td>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Department:</td>
+              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.department || 'SLT Enterprise'}</td>
             </tr>
             <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Employee / Reg No:</td>
-              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.regNumber}</td>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Designation:</td>
+              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.designation || 'Staff'}</td>
             </tr>
+            ${user.note ? `
             <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569;">Submission Date:</td>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">User Note:</td>
+              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.note}</td>
+            </tr>
+            ` : ''}
+            <tr>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569;">Request Date:</td>
               <td style="padding: 12px 16px; color: #64748b;">${new Date().toLocaleString()}</td>
             </tr>
           </table>
 
-          <div style="margin-bottom: 24px;">
-            <h3 style="color: #0f172a; font-size: 15px; margin-bottom: 12px;">Submitted Identity Documents (KYC):</h3>
-            <div style="display: flex; gap: 16px; flex-wrap: wrap;">
-              ${(nicBase64 || fullNicPhotoUrl) ? `
-                <div style="flex: 1; min-width: 240px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; background: #ffffff; text-align: center;">
-                  <p style="margin: 0 0 8px; font-weight: bold; font-size: 12px; color: #334155;">National Identity Card (NIC)</p>
-                  <a href="${fullNicPhotoUrl}" target="_blank">
-                    <img src="${nicBase64 || fullNicPhotoUrl}" alt="NIC Photo" style="max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; border: 1px solid #e2e8f0;" />
-                  </a>
-                  <p style="margin: 6px 0 0 0;"><a href="${fullNicPhotoUrl}" target="_blank" style="font-size: 11px; color: #0066FF;">View Full Image ↗</a></p>
-                </div>
-              ` : '<p style="color: #94a3b8; font-size: 13px;">No NIC Photo attached</p>'}
-
-              ${(faceBase64 || fullFacePhotoUrl) ? `
-                <div style="flex: 1; min-width: 240px; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; background: #ffffff; text-align: center;">
-                  <p style="margin: 0 0 8px; font-weight: bold; font-size: 12px; color: #334155;">User Face Photo</p>
-                  <a href="${fullFacePhotoUrl}" target="_blank">
-                    <img src="${faceBase64 || fullFacePhotoUrl}" alt="Face Photo" style="max-width: 100%; max-height: 200px; object-fit: contain; border-radius: 6px; border: 1px solid #e2e8f0;" />
-                  </a>
-                  <p style="margin: 6px 0 0 0;"><a href="${fullFacePhotoUrl}" target="_blank" style="font-size: 11px; color: #0066FF;">View Full Image ↗</a></p>
-                </div>
-              ` : '<p style="color: #94a3b8; font-size: 13px;">No Face Photo attached</p>'}
-            </div>
-          </div>
-
           <div style="margin-top: 28px; padding-top: 20px; border-top: 1px solid #e2e8f0; text-align: center;">
-            <p style="font-size: 14px; font-weight: bold; color: #0f172a; margin-bottom: 16px;">Administrator Action:</p>
+            <p style="font-size: 14px; font-weight: bold; color: #0f172a; margin-bottom: 16px;">1-Click Administrator Action:</p>
             <div style="display: flex; gap: 16px; justify-content: center; margin-bottom: 16px;">
               <a href="${approveUrl}" style="background: #10b981; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);">
-                ✓ Approve Registration
+                ✓ Grant Access
               </a>
               <a href="${declineUrl}" style="background: #ef4444; color: #ffffff; text-decoration: none; padding: 12px 28px; border-radius: 8px; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);">
-                ✕ Decline Registration
+                ✕ Decline
               </a>
             </div>
             <p style="font-size: 12px; color: #64748b; margin-top: 16px;">
-              Or manage all users in the <a href="${adminPortalUrl}" style="color: #0066FF; text-decoration: underline;">Admin Portal</a>.
+              Manage all users in the <a href="${adminPortalUrl}" style="color: #0066FF; text-decoration: underline;">Admin Portal</a>.
             </p>
           </div>
         </div>
@@ -892,13 +875,13 @@ app.post('/api/auth/register', kycUpload.fields([
     // Dispatch email to Admin
     sendEmailNotification({
       toEmail: ADMIN_EMAIL,
-      subject: `[Action Required] New InsightHub Registration: ${user.name} (${user.email})`,
+      subject: `[Access Request] New InsightHub Access Request: ${user.name} (${user.email})`,
       htmlBody: adminEmailHtml
     });
 
     res.json({
       success: true,
-      message: 'Registration request submitted successfully! Your account is pending administrator approval. You will receive an email once approved.',
+      message: 'Access request submitted successfully! The administrator has been notified. You will receive an email once approved.',
       user: {
         id: user.id,
         name: user.name,
@@ -907,12 +890,84 @@ app.post('/api/auth/register', kycUpload.fields([
       }
     });
   } catch (err) {
-    console.error('[Registration Error]', err);
+    console.error('[Request Access Error]', err);
     res.status(400).json({ success: false, error: err.message });
   }
 });
 
-// 2. Email 1-Click Action Handler (Approve / Decline)
+// 3. Admin Pre-Authorizes / Invites User
+app.post('/api/admin/invite-user', async (req, res) => {
+  try {
+    const { email, name, department, designation, role, invitedBy } = req.body;
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Email address is required.' });
+    }
+
+    const { user, isNew } = userService.inviteUser({
+      email,
+      name,
+      department,
+      designation,
+      role,
+      invitedBy: invitedBy || 'Administrator'
+    });
+
+    const clientOrigin = req.headers.origin || APP_BASE_URL;
+    const loginUrl = `${clientOrigin}/login`;
+
+    const inviteEmailHtml = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+        <div style="background: linear-gradient(135deg, #0066FF 0%, #10b981 100%); padding: 28px 36px;">
+          <h1 style="color: white; margin: 0; font-size: 22px;">Access Granted to InsightHub 🎉</h1>
+          <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0; font-size: 13px;">SLT Mobitel — Enterprise Sales Intelligence Platform</p>
+        </div>
+        <div style="padding: 28px 36px;">
+          <h2 style="color: #0f172a; margin: 0 0 12px; font-size: 18px;">Hello ${user.name},</h2>
+          <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
+            An administrator has granted you access to <strong>InsightHub</strong>. You can now sign in using your official SLT Microsoft Work Account (<code>${user.email}</code>) to complete your registration and start discovering high-converting enterprise leads.
+          </p>
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="${loginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
+              Sign In with Microsoft Work Account →
+            </a>
+          </div>
+          <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
+            Or copy and paste this link into your browser:<br/>
+            <a href="${loginUrl}" style="color: #0066FF; word-break: break-all;">${loginUrl}</a>
+          </p>
+        </div>
+        <div style="background: #f8fafc; padding: 16px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
+          SLTMobitel Enterprise Sales Intelligence • Confidential
+        </div>
+      </div>
+    `;
+
+    // Dispatch invitation email
+    sendEmailNotification({
+      toEmail: user.email,
+      subject: `[InsightHub Access Granted] Administrator has authorized your account`,
+      htmlBody: inviteEmailHtml
+    });
+
+    res.json({
+      success: true,
+      message: `Access granted to ${user.email}! An invitation email has been sent.`,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        status: user.status,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    console.error('[Invite User Error]', err);
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// 4. Email 1-Click Action Handler (Approve / Decline from Admin Email)
 app.get('/api/auth/action/:action/:token', async (req, res) => {
   try {
     const { action, token } = req.params;
@@ -929,28 +984,24 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
 
       userService.approveUser(user, 'Email 1-Click Action');
 
-      // Send confirmation email to the user with "Set Password" link
-      const setPasswordUrl = `${clientOrigin}/set-password?token=${user.setPasswordToken}`;
+      // Send confirmation email to the user
+      const loginUrl = `${clientOrigin}/login`;
       const userApprovedEmailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           <div style="background: linear-gradient(135deg, #0066FF 0%, #10b981 100%); padding: 28px 36px;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">Account Approved! 🎉</h1>
+            <h1 style="color: white; margin: 0; font-size: 22px;">Access Request Approved! 🎉</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0; font-size: 13px;">SLT Mobitel — InsightHub Access Granted</p>
           </div>
           <div style="padding: 28px 36px;">
             <h2 style="color: #0f172a; margin: 0 0 12px; font-size: 18px;">Welcome to InsightHub, ${user.name}</h2>
             <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-              Your registration request has been verified and approved by the system administrator. You can now set your login password to activate your access.
+              Your access request has been approved by the system administrator. You can now sign in with your SLT Microsoft Work Account.
             </p>
             <div style="text-align: center; margin: 28px 0;">
-              <a href="${setPasswordUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
-                Set Your Password & Sign In →
+              <a href="${loginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
+                Sign In with Microsoft →
               </a>
             </div>
-            <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
-              If the button doesn't work, copy and paste this link into your browser:<br/>
-              <a href="${setPasswordUrl}" style="color: #0066FF; word-break: break-all;">${setPasswordUrl}</a>
-            </p>
           </div>
           <div style="background: #f8fafc; padding: 16px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
             SLTMobitel Enterprise Sales Intelligence • Confidential
@@ -960,7 +1011,7 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
 
       sendEmailNotification({
         toEmail: user.email,
-        subject: `Your InsightHub Account Has Been Approved — Set Your Password`,
+        subject: `Your InsightHub Access Request Has Been Approved! 🎉`,
         htmlBody: userApprovedEmailHtml
       });
 
@@ -982,19 +1033,18 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
 
       userService.declineUser(user, 'Declined via Email 1-Click Action');
 
-      // Send rejection email
       const userDeclinedEmailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           <div style="background: #ef4444; padding: 24px 36px;">
-            <h1 style="color: white; margin: 0; font-size: 20px;">InsightHub Registration Status</h1>
+            <h1 style="color: white; margin: 0; font-size: 20px;">InsightHub Access Request Status</h1>
           </div>
           <div style="padding: 28px 36px;">
             <h2 style="color: #0f172a; margin: 0 0 12px; font-size: 18px;">Hello ${user.name},</h2>
             <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
-              Your registration request for InsightHub could not be approved at this time.
+              Your access request for InsightHub could not be approved at this time.
             </p>
             <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
-              If you believe this was in error, please contact your internal system administrator or submit a fresh request with valid corporate credentials.
+              If you believe this was in error, please contact your internal system administrator or department head.
             </p>
           </div>
         </div>
@@ -1002,14 +1052,14 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
 
       sendEmailNotification({
         toEmail: user.email,
-        subject: `InsightHub Registration Status Update`,
+        subject: `InsightHub Access Request Status Update`,
         htmlBody: userDeclinedEmailHtml
       });
 
       return res.json({
         success: true,
         action: 'declined',
-        message: `Registration for ${user.name} (${user.email}) has been declined.`,
+        message: `Access request for ${user.name} (${user.email}) has been declined.`,
         user: { name: user.name, email: user.email, status: user.status }
       });
     } else {
@@ -1021,80 +1071,7 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
   }
 });
 
-// 3. Verify Set Password Token
-app.get('/api/auth/verify-token/:token', (req, res) => {
-  const { token } = req.params;
-  const user = userService.getUserBySetPasswordToken(token);
-
-  if (!user) {
-    return res.status(400).json({
-      success: false,
-      error: 'This activation link is invalid, expired, or has already been used.'
-    });
-  }
-
-  res.json({
-    success: true,
-    user: {
-      name: user.name,
-      email: user.email
-    }
-  });
-});
-
-// 4. Set Password & Activate User
-app.post('/api/auth/set-password', (req, res) => {
-  try {
-    const { token, password } = req.body;
-
-    if (!token || !password) {
-      return res.status(400).json({ success: false, error: 'Token and new password are required.' });
-    }
-
-    const user = userService.setUserPassword(token, password);
-
-    res.json({
-      success: true,
-      message: 'Password created successfully! You are now fully activated.',
-      user: {
-        id: user.id,
-        name: user.name,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (err) {
-    console.error('[Set Password Error]', err);
-    res.status(400).json({ success: false, error: err.message });
-  }
-});
-
-// 5. User Sign In (Email + Password)
-app.post('/api/auth/login', (req, res) => {
-  try {
-    const { email, password } = req.body;
-
-    if (!email || !password) {
-      return res.status(400).json({ success: false, error: 'Email and password are required.' });
-    }
-
-    const result = userService.authenticate(email, password);
-    if (!result.success) {
-      return res.status(401).json(result);
-    }
-
-    res.json({
-      success: true,
-      message: 'Login successful!',
-      user: result.user
-    });
-  } catch (err) {
-    console.error('[Login Error]', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 6. Admin Portal: Get All Registered Users
+// 5. Admin Portal: Get All Registered & Authorized Users
 app.get('/api/admin/users', (req, res) => {
   try {
     const users = userService.getAllUsers();
@@ -1109,7 +1086,7 @@ app.get('/api/admin/users', (req, res) => {
   }
 });
 
-// 7. Admin Portal: User Action (Approve / Decline from Admin Dashboard)
+// 6. Admin Portal: User Action (Approve / Decline / Revoke from Admin Dashboard)
 app.post('/api/admin/user-action', async (req, res) => {
   try {
     const { userId, action, reason } = req.body;
@@ -1124,46 +1101,49 @@ app.post('/api/admin/user-action', async (req, res) => {
       userService.approveUser(user, 'Admin Portal');
 
       // Dispatch activation email to user
-      const setPasswordUrl = `${clientOrigin}/set-password?token=${user.setPasswordToken}`;
+      const loginUrl = `${clientOrigin}/login`;
       const userApprovedEmailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           <div style="background: linear-gradient(135deg, #0066FF 0%, #10b981 100%); padding: 28px 36px;">
-            <h1 style="color: white; margin: 0; font-size: 22px;">Account Approved! 🎉</h1>
+            <h1 style="color: white; margin: 0; font-size: 22px;">InsightHub Access Approved! 🎉</h1>
             <p style="color: rgba(255,255,255,0.9); margin: 6px 0 0; font-size: 13px;">SLT Mobitel — InsightHub Access Granted</p>
           </div>
           <div style="padding: 28px 36px;">
             <h2 style="color: #0f172a; margin: 0 0 12px; font-size: 18px;">Welcome to InsightHub, ${user.name}</h2>
             <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-              Your registration request has been verified and approved by the system administrator. Please set your password to activate your access.
+              Your access request has been approved by the system administrator. You can now sign in using your SLT Microsoft Work Account.
             </p>
             <div style="text-align: center; margin: 28px 0;">
-              <a href="${setPasswordUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
-                Set Your Password & Sign In →
+              <a href="${loginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
+                Sign In with Microsoft →
               </a>
             </div>
-            <p style="color: #64748b; font-size: 12px;">Link: <a href="${setPasswordUrl}">${setPasswordUrl}</a></p>
           </div>
         </div>
       `;
 
       sendEmailNotification({
         toEmail: user.email,
-        subject: `Your InsightHub Account Has Been Approved — Set Your Password`,
+        subject: `Your InsightHub Access Has Been Approved! 🎉`,
         htmlBody: userApprovedEmailHtml
       });
 
       return res.json({
         success: true,
-        message: `User ${user.name} approved successfully.`,
+        message: `User ${user.name} (${user.email}) approved successfully. Notification email dispatched.`,
         user: { id: user.id, name: user.name, email: user.email, status: user.status }
       });
 
-    } else if (action === 'decline') {
-      userService.declineUser(user, reason || 'Declined by Administrator');
+    } else if (action === 'decline' || action === 'revoke') {
+      if (action === 'revoke') {
+        userService.revokeAccess(user, 'Admin Portal');
+      } else {
+        userService.declineUser(user, reason || 'Declined by Administrator', 'Admin Portal');
+      }
 
       return res.json({
         success: true,
-        message: `User ${user.name} declined.`,
+        message: `User ${user.name} status updated to ${user.status}.`,
         user: { id: user.id, name: user.name, email: user.email, status: user.status }
       });
     } else {

@@ -1,7 +1,7 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import App from './App.jsx';
 
 // MSAL imports
 import { PublicClientApplication } from '@azure/msal-browser';
@@ -17,10 +17,14 @@ if (window.location.hash && (window.location.hash.includes('id_token') || window
       const parts = token.split('.');
       if (parts.length >= 2) {
         const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        const userEmail = payload.email || payload.preferred_username || payload.upn || payload.name || 'enterprise.user@mobitel.lk';
-        localStorage.setItem('userEmail', userEmail);
+        const userEmail = payload.email || payload.preferred_username || payload.upn || payload.unique_name || '';
+        const userName = payload.name || payload.given_name || userEmail.split('@')[0] || '';
+        if (userEmail) {
+          localStorage.setItem('userEmail', userEmail.toLowerCase().trim());
+          localStorage.setItem('userName', userName);
+          localStorage.setItem('msalUser', JSON.stringify({ email: userEmail, name: userName }));
+        }
         window.location.hash = '';
-        window.location.href = '/dashboard';
       }
     }
   } catch (err) {
@@ -55,8 +59,13 @@ try {
   msalInstance.initialize().then(() => {
     msalInstance.handleRedirectPromise().then((response) => {
       if (response && response.account) {
-        localStorage.setItem('userEmail', response.account.username);
-        window.location.href = '/dashboard';
+        const email = response.account.username || response.account.idTokenClaims?.email || response.account.idTokenClaims?.preferred_username || '';
+        const name = response.account.name || response.account.idTokenClaims?.name || email.split('@')[0] || '';
+        if (email) {
+          localStorage.setItem('userEmail', email.toLowerCase().trim());
+          localStorage.setItem('userName', name);
+          localStorage.setItem('msalUser', JSON.stringify({ email, name }));
+        }
       }
     }).catch(e => {
       console.warn("MSAL Redirect Warning:", e);
@@ -64,7 +73,7 @@ try {
 
     renderApp(msalInstance);
   }).catch(e => {
-    console.warn("MSAL initialize failed (falling back to direct auth):", e);
+    console.warn("MSAL initialize failed (falling back):", e);
     renderApp(null);
   });
 } catch (e) {

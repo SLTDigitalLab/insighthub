@@ -4,25 +4,10 @@ const crypto = require('crypto');
 
 const DATA_DIR = path.join(__dirname, '..', 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
-const KYC_UPLOADS_DIR = path.join(__dirname, '..', 'uploads', 'kyc');
 
-// Ensure directories exist
+// Ensure data directory exists
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-if (!fs.existsSync(KYC_UPLOADS_DIR)) {
-  fs.mkdirSync(KYC_UPLOADS_DIR, { recursive: true });
-}
-
-// Password hashing utility using crypto PBKDF2
-function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
-  const hash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return { salt, hash };
-}
-
-function verifyPassword(password, salt, hash) {
-  const checkHash = crypto.pbkdf2Sync(password, salt, 1000, 64, 'sha512').toString('hex');
-  return checkHash === hash;
 }
 
 class UserService {
@@ -56,27 +41,22 @@ class UserService {
   }
 
   initDefaultAdmin() {
-    const adminEmail = process.env.ADMIN_EMAIL || 'shalikahathurusinghe3584@gmail.com';
-    const existingAdmin = this.users.find(u => u.email.toLowerCase() === adminEmail.toLowerCase() || u.role === 'admin');
+    const adminEmail = (process.env.ADMIN_EMAIL || 'shalikahathurusinghe3584@gmail.com').toLowerCase().trim();
+    const existingAdmin = this.users.find(u => u.email.toLowerCase() === adminEmail || u.role === 'admin');
     
     if (!existingAdmin) {
-      const { salt, hash } = hashPassword('Admin@Mobitel2026!');
       const adminUser = {
         id: 'admin-' + crypto.randomUUID(),
         name: 'System Administrator',
         email: adminEmail,
-        nicNumber: '199000000000',
-        regNumber: 'ADMIN-001',
-        nicPhotoUrl: '',
-        facePhotoUrl: '',
+        department: 'Digital Labs / IT',
+        designation: 'Enterprise Administrator',
         status: 'approved',
         role: 'admin',
-        salt,
-        passwordHash: hash,
-        passwordSet: true,
         createdAt: new Date().toISOString(),
         approvedAt: new Date().toISOString(),
-        approvedBy: 'System'
+        approvedBy: 'System',
+        lastLoginAt: null
       };
       this.users.push(adminUser);
       this.saveUsers();
@@ -85,7 +65,7 @@ class UserService {
   }
 
   getAllUsers() {
-    return this.users.map(({ salt, passwordHash, ...safeUser }) => safeUser);
+    return this.users.map(({ approvalToken, declineToken, ...safeUser }) => safeUser);
   }
 
   getUserById(id) {
@@ -107,64 +87,182 @@ class UserService {
     return this.users.find(u => u.declineToken === token);
   }
 
-  getUserBySetPasswordToken(token) {
-    if (!token) return null;
-    return this.users.find(u => u.setPasswordToken === token && u.status === 'approved');
-  }
-
-  registerUser({ name, email, nicNumber, regNumber, nicPhotoUrl, facePhotoUrl }) {
+  /**
+   * Admin pre-authorizes / invites an SLT email address
+   */
+  inviteUser({ email, name, department, designation, role, invitedBy = 'Administrator' }) {
     const cleanEmail = email.trim().toLowerCase();
-    const existing = this.getUserByEmail(cleanEmail);
+    
+    if (!cleanEmail.includes('@')) {
+      throw new Error('Please provide a valid email address.');
+    }
 
-    if (existing) {
-      if (existing.status === 'approved') {
-        throw new Error('An approved account already exists with this email address. Please sign in.');
-      } else if (existing.status === 'pending_approval') {
-        throw new Error('A registration request with this email is already pending admin approval.');
-      } else {
-        // If previously declined, allow re-registration by replacing tokens
-        existing.name = name.trim();
-        existing.nicNumber = nicNumber.trim();
-        existing.regNumber = regNumber.trim();
-        existing.nicPhotoUrl = nicPhotoUrl || existing.nicPhotoUrl;
-        existing.facePhotoUrl = facePhotoUrl || existing.facePhotoUrl;
-        existing.status = 'pending_approval';
-        existing.approvalToken = crypto.randomBytes(24).toString('hex');
-        existing.declineToken = crypto.randomBytes(24).toString('hex');
-        existing.setPasswordToken = null;
-        existing.createdAt = new Date().toISOString();
-        this.saveUsers();
-        return existing;
-      }
+    let user = this.getUserByEmail(cleanEmail);
+
+    if (user) {
+      // Re-activate or update existing user
+      user.name = name?.trim() || user.name || cleanEmail.split('@')[0];
+      user.department = department?.trim() || user.department || 'SLT Enterprise';
+      user.designation = designation?.trim() || user.designation || 'Sales Executive';
+      user.role = role || user.role || 'user';
+      user.status = 'approved';
+      user.invitedAt = new Date().toISOString();
+      user.invitedBy = invitedBy;
+      user.approvedAt = new Date().toISOString();
+      user.approvedBy = invitedBy;
+      this.saveUsers();
+      return { user, isNew: false };
     }
 
     const newUser = {
       id: 'usr-' + crypto.randomUUID(),
-      name: name.trim(),
+      name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
-      nicNumber: nicNumber.trim(),
-      regNumber: regNumber.trim(),
-      nicPhotoUrl: nicPhotoUrl || '',
-      facePhotoUrl: facePhotoUrl || '',
-      status: 'pending_approval',
-      role: 'user',
-      approvalToken: crypto.randomBytes(24).toString('hex'),
-      declineToken: crypto.randomBytes(24).toString('hex'),
-      setPasswordToken: null,
-      salt: null,
-      passwordHash: null,
-      passwordSet: false,
+      department: department?.trim() || 'SLT Enterprise',
+      designation: designation?.trim() || 'Sales Executive',
+      status: 'approved',
+      role: role || 'user',
       createdAt: new Date().toISOString(),
-      approvedAt: null,
-      approvedBy: null
+      invitedAt: new Date().toISOString(),
+      invitedBy: invitedBy,
+      approvedAt: new Date().toISOString(),
+      approvedBy: invitedBy,
+      lastLoginAt: null
     };
 
     this.users.push(newUser);
     this.saveUsers();
-    return newUser;
+    return { user: newUser, isNew: true };
   }
 
-  approveUser(userOrId, approvedBy = 'Admin') {
+  /**
+   * User self-requests access after authenticating with Microsoft Entra ID
+   */
+  requestAccess({ name, email, department, designation, note }) {
+    const cleanEmail = email.trim().toLowerCase();
+    let user = this.getUserByEmail(cleanEmail);
+
+    if (user && user.status === 'approved') {
+      return { alreadyApproved: true, user };
+    }
+
+    const approvalToken = crypto.randomBytes(24).toString('hex');
+    const declineToken = crypto.randomBytes(24).toString('hex');
+
+    if (user) {
+      // Update pending or re-request after decline
+      user.name = name?.trim() || user.name || cleanEmail.split('@')[0];
+      user.department = department?.trim() || user.department || 'SLT Enterprise';
+      user.designation = designation?.trim() || user.designation || 'Staff';
+      user.note = note?.trim() || '';
+      user.status = 'pending_approval';
+      user.approvalToken = approvalToken;
+      user.declineToken = declineToken;
+      user.requestedAt = new Date().toISOString();
+      this.saveUsers();
+      return { user, isNew: false };
+    }
+
+    const newUser = {
+      id: 'usr-' + crypto.randomUUID(),
+      name: name?.trim() || cleanEmail.split('@')[0],
+      email: cleanEmail,
+      department: department?.trim() || 'SLT Enterprise',
+      designation: designation?.trim() || 'Staff',
+      note: note?.trim() || '',
+      status: 'pending_approval',
+      role: 'user',
+      approvalToken: approvalToken,
+      declineToken: declineToken,
+      createdAt: new Date().toISOString(),
+      requestedAt: new Date().toISOString(),
+      approvedAt: null,
+      approvedBy: null,
+      lastLoginAt: null
+    };
+
+    this.users.push(newUser);
+    this.saveUsers();
+    return { user: newUser, isNew: true };
+  }
+
+  /**
+   * Verify if a Microsoft authenticated user has approved access
+   */
+  verifyAccess(email) {
+    if (!email) {
+      return { approved: false, status: 'missing_email', message: 'No email provided.' };
+    }
+
+    const cleanEmail = email.trim().toLowerCase();
+    const adminEmail = (process.env.ADMIN_EMAIL || 'shalikahathurusinghe3584@gmail.com').toLowerCase().trim();
+
+    // Auto-approve Master Admin
+    if (cleanEmail === adminEmail) {
+      let admin = this.getUserByEmail(cleanEmail);
+      if (!admin) {
+        admin = {
+          id: 'admin-' + crypto.randomUUID(),
+          name: 'System Administrator',
+          email: cleanEmail,
+          status: 'approved',
+          role: 'admin',
+          createdAt: new Date().toISOString()
+        };
+        this.users.push(admin);
+        this.saveUsers();
+      }
+      return { approved: true, status: 'approved', role: 'admin', user: admin };
+    }
+
+    const user = this.getUserByEmail(cleanEmail);
+
+    if (!user) {
+      return {
+        approved: false,
+        status: 'not_found',
+        message: 'No pre-authorization found for this work account.'
+      };
+    }
+
+    if (user.status === 'approved') {
+      user.lastLoginAt = new Date().toISOString();
+      this.saveUsers();
+      return {
+        approved: true,
+        status: 'approved',
+        role: user.role || 'user',
+        user: {
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+          department: user.department,
+          designation: user.designation
+        }
+      };
+    }
+
+    if (user.status === 'pending_approval') {
+      return {
+        approved: false,
+        status: 'pending_approval',
+        message: 'Your access request is currently pending administrator verification.'
+      };
+    }
+
+    if (user.status === 'declined') {
+      return {
+        approved: false,
+        status: 'declined',
+        message: 'Your access request was declined by the administrator.'
+      };
+    }
+
+    return { approved: false, status: user.status, message: 'Access not approved.' };
+  }
+
+  approveUser(userOrId, approvedBy = 'Administrator') {
     const user = typeof userOrId === 'string' ? this.getUserById(userOrId) : userOrId;
     if (!user) throw new Error('User not found.');
 
@@ -173,82 +271,37 @@ class UserService {
     user.approvedBy = approvedBy;
     user.approvalToken = null;
     user.declineToken = null;
-    user.setPasswordToken = crypto.randomBytes(32).toString('hex');
 
     this.saveUsers();
     return user;
   }
 
-  declineUser(userOrId, reason = 'Registration declined by administrator') {
+  declineUser(userOrId, reason = 'Registration declined by administrator', declinedBy = 'Administrator') {
     const user = typeof userOrId === 'string' ? this.getUserById(userOrId) : userOrId;
     if (!user) throw new Error('User not found.');
 
     user.status = 'declined';
     user.declineReason = reason;
     user.declinedAt = new Date().toISOString();
+    user.declinedBy = declinedBy;
     user.approvalToken = null;
     user.declineToken = null;
-    user.setPasswordToken = null;
 
     this.saveUsers();
     return user;
   }
 
-  setUserPassword(token, newPassword) {
-    const user = this.getUserBySetPasswordToken(token);
-    if (!user) {
-      throw new Error('Invalid or expired password reset token.');
-    }
+  revokeAccess(userOrId, revokedBy = 'Administrator') {
+    const user = typeof userOrId === 'string' ? this.getUserById(userOrId) : userOrId;
+    if (!user) throw new Error('User not found.');
 
-    if (!newPassword || newPassword.length < 6) {
-      throw new Error('Password must be at least 6 characters long.');
-    }
-
-    const { salt, hash } = hashPassword(newPassword);
-    user.salt = salt;
-    user.passwordHash = hash;
-    user.passwordSet = true;
-    user.setPasswordToken = null; // Invalidate token once used
-    user.lastPasswordUpdate = new Date().toISOString();
+    user.status = 'declined';
+    user.declineReason = 'Access revoked by administrator';
+    user.revokedAt = new Date().toISOString();
+    user.revokedBy = revokedBy;
 
     this.saveUsers();
     return user;
-  }
-
-  authenticate(email, password) {
-    const user = this.getUserByEmail(email);
-    if (!user) {
-      return { success: false, error: 'No account found with this email address.' };
-    }
-
-    if (user.status === 'pending_approval') {
-      return {
-        success: false,
-        error: 'Your registration is currently pending administrator verification. Please check your email for updates.'
-      };
-    }
-
-    if (user.status === 'declined') {
-      return {
-        success: false,
-        error: 'Your registration request was declined. Please contact the administrator for assistance.'
-      };
-    }
-
-    if (!user.passwordSet || !user.passwordHash) {
-      return {
-        success: false,
-        error: 'Your password has not been set yet. Please use the activation link sent to your email.'
-      };
-    }
-
-    const isValid = verifyPassword(password, user.salt, user.passwordHash);
-    if (!isValid) {
-      return { success: false, error: 'Invalid password. Please try again.' };
-    }
-
-    const { salt, passwordHash, ...safeUser } = user;
-    return { success: true, user: safeUser };
   }
 }
 
