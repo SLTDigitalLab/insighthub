@@ -15,7 +15,7 @@ const userService = require('./services/userService');
 const app = express();
 const PORT = process.env.PORT || 5005;
 const N8N_BASE_URL = process.env.N8N_WEBHOOK_BASE || 'https://sltrnddigitallab.app.n8n.cloud/webhook';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'shalikahathurusinghe3584@gmail.com';
+const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk';
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://insighthub.raccoon-ai.io';
 
 

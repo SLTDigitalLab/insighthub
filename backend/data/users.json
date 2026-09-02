@@ -1,0 +1,41 @@
+[
+  {
+    "id": "admin-dev-001",
+    "name": "Dinesh Shameera (Admin)",
+    "email": "020601@intranet.slt.com.lk",
+    "department": "Digital Labs / Enterprise IT",
+    "designation": "System Administrator",
+    "status": "approved",
+    "role": "admin",
+    "createdAt": "2026-09-02T13:00:00.000Z",
+    "approvedAt": "2026-09-02T13:00:00.000Z",
+    "approvedBy": "System",
+    "lastLoginAt": null
+  },
+  {
+    "id": "admin-master-001",
+    "name": "Lahiru (System Administrator)",
+    "email": "lahirus@slt.com.lk",
+    "department": "Digital Labs / Enterprise IT",
+    "designation": "Administrator",
+    "status": "approved",
+    "role": "admin",
+    "createdAt": "2026-09-02T12:00:00.000Z",
+    "approvedAt": "2026-09-02T12:00:00.000Z",
+    "approvedBy": "System",
+    "lastLoginAt": null
+  },
+  {
+    "id": "admin-master-002",
+    "name": "Shalika Hathurusinghe",
+    "email": "shalikahathurusinghe3584@gmail.com",
+    "department": "Digital Labs",
+    "designation": "Administrator",
+    "status": "approved",
+    "role": "admin",
+    "createdAt": "2026-09-02T12:00:00.000Z",
+    "approvedAt": "2026-09-02T12:00:00.000Z",
+    "approvedBy": "System",
+    "lastLoginAt": null
+  }
+]

@@ -41,27 +41,37 @@ class UserService {
   }
 
   initDefaultAdmin() {
-    const adminEmail = (process.env.ADMIN_EMAIL || 'shalikahathurusinghe3584@gmail.com').toLowerCase().trim();
-    const existingAdmin = this.users.find(u => u.email.toLowerCase() === adminEmail || u.role === 'admin');
-    
-    if (!existingAdmin) {
-      const adminUser = {
-        id: 'admin-' + crypto.randomUUID(),
-        name: 'System Administrator',
-        email: adminEmail,
-        department: 'Digital Labs / IT',
-        designation: 'Enterprise Administrator',
-        status: 'approved',
-        role: 'admin',
-        createdAt: new Date().toISOString(),
-        approvedAt: new Date().toISOString(),
-        approvedBy: 'System',
-        lastLoginAt: null
-      };
-      this.users.push(adminUser);
-      this.saveUsers();
-      console.log(`[UserService] Default Admin account initialized: ${adminEmail}`);
-    }
+    const adminEmails = [
+      (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim(),
+      '020601@intranet.slt.com.lk',
+      'shalikahathurusinghe3584@gmail.com'
+    ];
+
+    adminEmails.forEach(email => {
+      const existing = this.users.find(u => u.email.toLowerCase() === email);
+      if (!existing) {
+        const adminUser = {
+          id: 'admin-' + crypto.randomUUID(),
+          name: email.includes('020601') ? 'Dinesh Shameera (Admin)' : 'System Administrator',
+          email: email,
+          department: 'Digital Labs / Enterprise IT',
+          designation: 'Enterprise Administrator',
+          status: 'approved',
+          role: 'admin',
+          createdAt: new Date().toISOString(),
+          approvedAt: new Date().toISOString(),
+          approvedBy: 'System',
+          lastLoginAt: null
+        };
+        this.users.push(adminUser);
+        console.log(`[UserService] Admin account initialized: ${email}`);
+      } else {
+        existing.status = 'approved';
+        existing.role = 'admin';
+      }
+    });
+
+    this.saveUsers();
   }
 
   getAllUsers() {
@@ -195,15 +205,19 @@ class UserService {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const adminEmail = (process.env.ADMIN_EMAIL || 'shalikahathurusinghe3584@gmail.com').toLowerCase().trim();
+    const adminEmails = [
+      (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim(),
+      '020601@intranet.slt.com.lk',
+      'shalikahathurusinghe3584@gmail.com'
+    ];
 
-    // Auto-approve Master Admin
-    if (cleanEmail === adminEmail) {
+    // Auto-approve Master Admins
+    if (adminEmails.includes(cleanEmail)) {
       let admin = this.getUserByEmail(cleanEmail);
       if (!admin) {
         admin = {
           id: 'admin-' + crypto.randomUUID(),
-          name: 'System Administrator',
+          name: cleanEmail.includes('020601') ? 'Dinesh Shameera' : 'System Administrator',
           email: cleanEmail,
           status: 'approved',
           role: 'admin',
@@ -211,6 +225,9 @@ class UserService {
         };
         this.users.push(admin);
         this.saveUsers();
+      } else {
+        admin.status = 'approved';
+        admin.role = 'admin';
       }
       return { approved: true, status: 'approved', role: 'admin', user: admin };
     }

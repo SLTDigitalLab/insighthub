@@ -38,8 +38,14 @@ const AdminPortal = () => {
 
   useEffect(() => {
     const isAuth = localStorage.getItem('insightHub_adminAuth');
-    const storedEmail = localStorage.getItem('userEmail');
-    if (isAuth === 'true' || storedEmail?.includes('shalikahathurusinghe3584@gmail.com') || storedEmail?.includes('admin')) {
+    const storedEmail = (localStorage.getItem('userEmail') || '').toLowerCase();
+    if (
+      isAuth === 'true' ||
+      storedEmail.includes('020601') ||
+      storedEmail.includes('lahirus@slt.com.lk') ||
+      storedEmail.includes('shalikahathurusinghe') ||
+      storedEmail.includes('admin')
+    ) {
       setIsAuthenticated(true);
       fetchUsers();
     }
@@ -66,15 +72,17 @@ const AdminPortal = () => {
     setLoginLoading(true);
 
     try {
+      const cleanEmail = adminEmail.trim().toLowerCase();
       // Master admin check
-      const masterAdminEmail = 'shalikahathurusinghe3584@gmail.com';
       if (
-        (adminEmail.trim().toLowerCase() === masterAdminEmail && adminPassword === 'Admin@Mobitel2026!') ||
-        (adminEmail.trim().toLowerCase().includes('admin') && adminPassword === 'Admin@Mobitel2026!')
+        (cleanEmail === '020601@intranet.slt.com.lk' && adminPassword === 'Admin@Mobitel2026!') ||
+        (cleanEmail === 'lahirus@slt.com.lk' && adminPassword === 'Admin@Mobitel2026!') ||
+        (cleanEmail === 'shalikahathurusinghe3584@gmail.com' && adminPassword === 'Admin@Mobitel2026!') ||
+        (cleanEmail.includes('admin') && adminPassword === 'Admin@Mobitel2026!')
       ) {
         setIsAuthenticated(true);
         localStorage.setItem('insightHub_adminAuth', 'true');
-        localStorage.setItem('userEmail', adminEmail.trim());
+        localStorage.setItem('userEmail', cleanEmail);
         fetchUsers();
         return;
       }
@@ -198,7 +206,7 @@ const AdminPortal = () => {
                 type="email"
                 value={adminEmail}
                 onChange={(e) => setAdminEmail(e.target.value)}
-                placeholder="shalikahathurusinghe3584@gmail.com"
+                placeholder="lahirus@slt.com.lk"
                 required
                 style={{
                   width: '100%', padding: '0.75rem 1rem', fontSize: '0.9rem',

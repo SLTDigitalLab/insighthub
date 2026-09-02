@@ -6,7 +6,7 @@ echo ========================================================
 echo 1. Staging and committing changes...
 if exist .git\index.lock del /f /q .git\index.lock
 git add -A
-git commit -m "Implement direct token parser and backend ms-code-exchange for instant login transition"
+git commit -m "Grant full development admin credentials to 020601@intranet.slt.com.lk"
 
 echo 2. Pushing to GitHub repository...
 git push origin InsightHub-check
