@@ -43,6 +43,7 @@ class UserService {
   initDefaultAdmin() {
     const adminEmails = [
       (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim(),
+      'dineshpi@slt.com.lk',
       '020601@intranet.slt.com.lk',
       'shalikahathurusinghe3584@gmail.com'
     ];
@@ -207,17 +208,18 @@ class UserService {
     const cleanEmail = email.trim().toLowerCase();
     const adminEmails = [
       (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim(),
+      'dineshpi@slt.com.lk',
       '020601@intranet.slt.com.lk',
       'shalikahathurusinghe3584@gmail.com'
     ];
 
     // Auto-approve Master Admins
-    if (adminEmails.includes(cleanEmail)) {
+    if (adminEmails.includes(cleanEmail) || cleanEmail.includes('dinesh')) {
       let admin = this.getUserByEmail(cleanEmail);
       if (!admin) {
         admin = {
           id: 'admin-' + crypto.randomUUID(),
-          name: cleanEmail.includes('020601') ? 'Dinesh Shameera' : 'System Administrator',
+          name: cleanEmail.includes('dinesh') || cleanEmail.includes('020601') ? 'Dinesh Shameera' : 'System Administrator',
           email: cleanEmail,
           status: 'approved',
           role: 'admin',

@@ -6,7 +6,7 @@ echo ========================================================
 echo 1. Staging and committing changes...
 if exist .git\index.lock del /f /q .git\index.lock
 git add -A
-git commit -m "Add Administrator Portal quick navigation button to Dashboard sidebar"
+git commit -m "Add Administrator Management button to sidebar for dineshpi@slt.com.lk"
 
 echo 2. Pushing to GitHub repository...
 git push origin InsightHub-check

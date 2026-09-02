@@ -2,6 +2,19 @@
   {
     "id": "admin-dev-001",
     "name": "Dinesh Shameera (Admin)",
+    "email": "dineshpi@slt.com.lk",
+    "department": "Digital Labs / Enterprise IT",
+    "designation": "System Administrator",
+    "status": "approved",
+    "role": "admin",
+    "createdAt": "2026-09-02T13:00:00.000Z",
+    "approvedAt": "2026-09-02T13:00:00.000Z",
+    "approvedBy": "System",
+    "lastLoginAt": null
+  },
+  {
+    "id": "admin-dev-002",
+    "name": "Dinesh Shameera (Intranet)",
     "email": "020601@intranet.slt.com.lk",
     "department": "Digital Labs / Enterprise IT",
     "designation": "System Administrator",

@@ -41,6 +41,7 @@ const AdminPortal = () => {
     const storedEmail = (localStorage.getItem('userEmail') || '').toLowerCase();
     if (
       isAuth === 'true' ||
+      storedEmail.includes('dinesh') ||
       storedEmail.includes('020601') ||
       storedEmail.includes('lahirus@slt.com.lk') ||
       storedEmail.includes('shalikahathurusinghe') ||
@@ -75,6 +76,7 @@ const AdminPortal = () => {
       const cleanEmail = adminEmail.trim().toLowerCase();
       // Master admin check
       if (
+        (cleanEmail === 'dineshpi@slt.com.lk' && adminPassword === 'Admin@Mobitel2026!') ||
         (cleanEmail === '020601@intranet.slt.com.lk' && adminPassword === 'Admin@Mobitel2026!') ||
         (cleanEmail === 'lahirus@slt.com.lk' && adminPassword === 'Admin@Mobitel2026!') ||
         (cleanEmail === 'shalikahathurusinghe3584@gmail.com' && adminPassword === 'Admin@Mobitel2026!') ||

@@ -380,6 +380,8 @@ const Dashboard = () => {
   const userEmail = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
   const isAdmin =
     localStorage.getItem('insightHub_adminAuth') === 'true' ||
+    localStorage.getItem('userRole') === 'admin' ||
+    userEmail.includes('dinesh') ||
     userEmail.includes('020601') ||
     userEmail.includes('lahirus') ||
     userEmail.includes('shalikahathurusinghe') ||
