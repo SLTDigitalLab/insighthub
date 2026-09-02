@@ -8,30 +8,6 @@ import { PublicClientApplication } from '@azure/msal-browser';
 import { MsalProvider } from '@azure/msal-react';
 import { msalConfig } from './authConfig';
 
-// 1. Direct Microsoft OAuth Hash Callback Handler
-if (window.location.hash && (window.location.hash.includes('id_token') || window.location.hash.includes('access_token'))) {
-  try {
-    const params = new URLSearchParams(window.location.hash.substring(1));
-    const token = params.get('id_token') || params.get('access_token');
-    if (token) {
-      const parts = token.split('.');
-      if (parts.length >= 2) {
-        const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-        const userEmail = payload.email || payload.preferred_username || payload.upn || payload.unique_name || '';
-        const userName = payload.name || payload.given_name || userEmail.split('@')[0] || '';
-        if (userEmail) {
-          localStorage.setItem('userEmail', userEmail.toLowerCase().trim());
-          localStorage.setItem('userName', userName);
-          localStorage.setItem('msalUser', JSON.stringify({ email: userEmail, name: userName }));
-        }
-        window.location.hash = '';
-      }
-    }
-  } catch (err) {
-    console.warn('OAuth hash parse error:', err);
-  }
-}
-
 const renderApp = (instance) => {
   const rootElement = document.getElementById('root');
   if (!rootElement) return;
@@ -53,30 +29,47 @@ const renderApp = (instance) => {
   }
 };
 
-try {
-  const msalInstance = new PublicClientApplication(msalConfig);
-  
-  msalInstance.initialize().then(() => {
-    msalInstance.handleRedirectPromise().then((response) => {
-      if (response && response.account) {
-        const email = response.account.username || response.account.idTokenClaims?.email || response.account.idTokenClaims?.preferred_username || '';
-        const name = response.account.name || response.account.idTokenClaims?.name || email.split('@')[0] || '';
+const initMsal = async () => {
+  try {
+    const msalInstance = new PublicClientApplication(msalConfig);
+    await msalInstance.initialize();
+
+    // Process redirect response
+    try {
+      const redirectResponse = await msalInstance.handleRedirectPromise();
+      if (redirectResponse && redirectResponse.account) {
+        msalInstance.setActiveAccount(redirectResponse.account);
+        const email = (redirectResponse.account.username || redirectResponse.account.idTokenClaims?.email || redirectResponse.account.idTokenClaims?.preferred_username || '').toLowerCase().trim();
+        const name = redirectResponse.account.name || redirectResponse.account.idTokenClaims?.name || email.split('@')[0] || '';
         if (email) {
-          localStorage.setItem('userEmail', email.toLowerCase().trim());
+          localStorage.setItem('userEmail', email);
           localStorage.setItem('userName', name);
           localStorage.setItem('msalUser', JSON.stringify({ email, name }));
         }
       }
-    }).catch(e => {
-      console.warn("MSAL Redirect Warning:", e);
-    });
+    } catch (redirectError) {
+      console.warn("MSAL Redirect Error:", redirectError);
+    }
+
+    // If active account not set yet, check existing accounts in storage
+    if (!msalInstance.getActiveAccount()) {
+      const currentAccounts = msalInstance.getAllAccounts();
+      if (currentAccounts.length > 0) {
+        msalInstance.setActiveAccount(currentAccounts[0]);
+        const email = (currentAccounts[0].username || currentAccounts[0].idTokenClaims?.email || '').toLowerCase().trim();
+        const name = currentAccounts[0].name || currentAccounts[0].idTokenClaims?.name || email.split('@')[0] || '';
+        if (email) {
+          localStorage.setItem('userEmail', email);
+          localStorage.setItem('userName', name);
+        }
+      }
+    }
 
     renderApp(msalInstance);
-  }).catch(e => {
-    console.warn("MSAL initialize failed (falling back):", e);
+  } catch (err) {
+    console.error("MSAL Initialization Error:", err);
     renderApp(null);
-  });
-} catch (e) {
-  console.warn("MSAL constructor error (falling back):", e);
-  renderApp(null);
-}
+  }
+};
+
+initMsal();

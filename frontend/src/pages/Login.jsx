@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, ArrowRight, AlertCircle, Loader2, CheckCircle2, Lock } from 'lucide-react';
+import { ShieldCheck, ArrowRight, AlertCircle, Loader2, Lock } from 'lucide-react';
 import { useMsal } from '@azure/msal-react';
 import { loginRequest } from '../authConfig';
 import axios from 'axios';
@@ -10,89 +10,79 @@ const Login = () => {
   const { instance, accounts } = useMsal();
 
   const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
   const [error, setError] = useState('');
-  const [statusMessage, setStatusMessage] = useState('');
+  const [statusMessage, setStatusMessage] = useState('Checking enterprise session...');
 
-  // Check if user is already authenticated with MSAL or in local storage
   useEffect(() => {
     let isMounted = true;
 
-    const checkActiveSession = async () => {
-      let emailToCheck = '';
-      let nameToCheck = '';
-
-      // 1. Check direct MSAL instance redirect response
-      try {
-        if (instance && instance.handleRedirectPromise) {
-          const redirectResponse = await instance.handleRedirectPromise();
-          if (redirectResponse && redirectResponse.account) {
-            emailToCheck = (redirectResponse.account.username || redirectResponse.account.idTokenClaims?.email || '').toLowerCase().trim();
-            nameToCheck = redirectResponse.account.name || redirectResponse.account.idTokenClaims?.name || emailToCheck.split('@')[0];
-          }
-        }
-      } catch (redirectErr) {
-        console.warn('handleRedirectPromise error:', redirectErr);
-      }
-
-      // 2. Fallback to active MSAL accounts array or localStorage
-      if (!emailToCheck) {
-        const activeAccount = accounts && accounts[0];
-        if (activeAccount) {
-          emailToCheck = (activeAccount.username || activeAccount.idTokenClaims?.email || '').toLowerCase().trim();
-          nameToCheck = activeAccount.name || activeAccount.idTokenClaims?.name || emailToCheck.split('@')[0];
-        }
-      }
+    const verifyUserSession = async () => {
+      // Find active Microsoft user from MSAL or localStorage
+      const activeMsalAccount = (accounts && accounts.length > 0) ? accounts[0] : (instance?.getActiveAccount?.() || null);
+      let emailToCheck = (activeMsalAccount?.username || activeMsalAccount?.idTokenClaims?.email || activeMsalAccount?.idTokenClaims?.preferred_username || '').toLowerCase().trim();
+      let nameToCheck = activeMsalAccount?.name || activeMsalAccount?.idTokenClaims?.name || '';
 
       if (!emailToCheck) {
         emailToCheck = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
         nameToCheck = localStorage.getItem('userName') || '';
       }
 
-      // If an authenticated Microsoft user was detected, verify their organization authorization
-      if (emailToCheck && emailToCheck.includes('@')) {
+      // If no account is logged in, show the login screen
+      if (!emailToCheck || !emailToCheck.includes('@')) {
+        if (isMounted) {
+          setCheckingAuth(false);
+          setStatusMessage('');
+        }
+        return;
+      }
+
+      // Account detected, verify access against the database
+      if (isMounted) {
         setCheckingAuth(true);
         setStatusMessage('Verifying organization authorization...');
-        try {
-          const res = await axios.post('/api/auth/verify-access', { email: emailToCheck });
-          
-          if (!isMounted) return;
+      }
 
-          localStorage.setItem('userEmail', emailToCheck);
-          if (nameToCheck) localStorage.setItem('userName', nameToCheck);
+      try {
+        const res = await axios.post('/api/auth/verify-access', { email: emailToCheck });
 
-          if (res.data.success && res.data.approved) {
-            if (res.data.role === 'admin') {
-              localStorage.setItem('insightHub_adminAuth', 'true');
-            }
-            navigate('/dashboard');
-          } else if (res.data.status === 'declined') {
-            setError('Your access request was declined by the administrator. Please contact your department head.');
-          } else {
-            // Both 'pending_approval' and 'not_found' route to Request Access flow
-            navigate('/request-access');
+        if (!isMounted) return;
+
+        localStorage.setItem('userEmail', emailToCheck);
+        if (nameToCheck) localStorage.setItem('userName', nameToCheck);
+
+        if (res.data.success && res.data.approved) {
+          if (res.data.role === 'admin') {
+            localStorage.setItem('insightHub_adminAuth', 'true');
           }
-        } catch (err) {
-          console.warn('Session verification error:', err);
-          if (isMounted) {
-            // Still route to request-access so the user can submit their request
-            navigate('/request-access');
-          }
-        } finally {
-          if (isMounted) {
-            setCheckingAuth(false);
-            setStatusMessage('');
-          }
+          navigate('/dashboard', { replace: true });
+        } else if (res.data.status === 'declined') {
+          setError('Your access request was declined by the administrator. Please contact your department head.');
+          setCheckingAuth(false);
+        } else {
+          // If pending approval or not found (uninvited), forward to Request Access page
+          navigate('/request-access', { replace: true });
+        }
+      } catch (err) {
+        console.warn('Authorization verification warning:', err);
+        if (isMounted) {
+          // Fallback to request access so user can submit their request
+          navigate('/request-access', { replace: true });
+        }
+      } finally {
+        if (isMounted) {
+          setCheckingAuth(false);
+          setStatusMessage('');
         }
       }
     };
 
-    checkActiveSession();
+    verifyUserSession();
 
     return () => {
       isMounted = false;
     };
-  }, [instance, accounts]);
+  }, [accounts, instance, navigate]);
 
   const handleMicrosoftLogin = async () => {
     setError('');
@@ -101,13 +91,11 @@ const Login = () => {
 
     try {
       if (instance) {
-        // Full page redirect in the same tab
         await instance.loginRedirect(loginRequest);
       } else {
-        // Direct OAuth Redirect in the same tab
         const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || '437e0ec1-9151-438f-9ddb-d86e6e25527d';
         const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
-        const redirectUri = encodeURIComponent(window.location.origin + '/');
+        const redirectUri = encodeURIComponent(window.location.origin + '/login');
         const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${Date.now()}&prompt=select_account`;
         window.location.href = authUrl;
       }
@@ -123,7 +111,7 @@ const Login = () => {
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
         <div style={{ textAlign: 'center' }}>
           <Loader2 size={38} className="spin" style={{ color: '#0066FF', margin: '0 auto 1rem auto' }} />
-          <p style={{ color: '#64748b', fontSize: '0.92rem', fontWeight: 600 }}>Verifying enterprise credentials...</p>
+          <p style={{ color: '#64748b', fontSize: '0.92rem', fontWeight: 600 }}>{statusMessage || 'Verifying enterprise credentials...'}</p>
         </div>
       </div>
     );
@@ -194,25 +182,6 @@ const Login = () => {
           }}>
             <AlertCircle size={18} style={{ flexShrink: 0 }} />
             <span>{error}</span>
-          </div>
-        )}
-
-        {statusMessage && (
-          <div style={{
-            background: '#eff6ff',
-            border: '1px solid #bfdbfe',
-            color: '#1d4ed8',
-            borderRadius: '0.85rem',
-            padding: '0.75rem 1rem',
-            fontSize: '0.85rem',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.6rem',
-            marginBottom: '1.5rem'
-          }}>
-            <Loader2 size={16} className="spin" />
-            <span>{statusMessage}</span>
           </div>
         )}
 

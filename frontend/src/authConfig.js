@@ -10,9 +10,9 @@ export const msalConfig = {
     auth: {
         clientId: clientId,
         authority: `https://login.microsoftonline.com/${tenantId}`,
-        redirectUri: window.location.origin + '/',
+        redirectUri: window.location.origin + '/login',
         postLogoutRedirectUri: window.location.origin + '/login',
-        navigateToLoginRequestUrl: false,
+        navigateToLoginRequestUrl: true,
     },
     cache: {
         cacheLocation: "localStorage",
