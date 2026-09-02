@@ -1,12 +1,12 @@
 @echo off
 echo ========================================================
-echo  InsightHub: Deploying Microsoft SSO Updates to Git
+echo  InsightHub: Deploying Administrator Portal Navigation
 echo ========================================================
 
 echo 1. Staging and committing changes...
 if exist .git\index.lock del /f /q .git\index.lock
 git add -A
-git commit -m "Grant full development admin credentials to 020601@intranet.slt.com.lk"
+git commit -m "Add Administrator Portal quick navigation button to Dashboard sidebar"
 
 echo 2. Pushing to GitHub repository...
 git push origin InsightHub-check

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles, Compass, Filter } from 'lucide-react';
+import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles, Compass, Filter, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -377,7 +377,13 @@ const Dashboard = () => {
   const [scoreFilter, setScoreFilter] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
   const navigate = useNavigate();
-  const userEmail = localStorage.getItem('userEmail') || '';
+  const userEmail = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+  const isAdmin =
+    localStorage.getItem('insightHub_adminAuth') === 'true' ||
+    userEmail.includes('020601') ||
+    userEmail.includes('lahirus') ||
+    userEmail.includes('shalikahathurusinghe') ||
+    userEmail.includes('admin');
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -628,24 +634,61 @@ const Dashboard = () => {
         </div>
 
 
-        <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.75rem', background: '#fafafa' }}>
+        <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.6rem', background: '#fafafa' }}>
           {userEmail && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748b', padding: '0.25rem 0' }}>
               <Mail size={14} color="#64748b" />
               <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: 500 }}>{userEmail}</span>
             </div>
           )}
+
+          {isAdmin && (
+            <button
+              onClick={() => navigate('/admin')}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                color: '#0066FF',
+                background: '#eff6ff',
+                width: '100%',
+                padding: '0.65rem 0.85rem',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                borderRadius: '0.65rem',
+                border: '1.5px solid #bfdbfe',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(0, 102, 255, 0.08)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = '#dbeafe';
+                e.currentTarget.style.borderColor = '#93c5fd';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 102, 255, 0.15)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
+                e.currentTarget.style.borderColor = '#bfdbfe';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 102, 255, 0.08)';
+              }}
+            >
+              <ShieldCheck size={18} color="#0066FF" />
+              <span style={{ flex: 1, textAlign: 'left' }}>Administrator Portal</span>
+              <ChevronRight size={15} color="#0066FF" />
+            </button>
+          )}
+
           <button
             onClick={handleLogout}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.5rem',
-              color: '#ef4444', background: 'transparent', width: '100%', padding: '0.5rem', fontSize: '0.9rem', fontWeight: 600,
+              color: '#ef4444', background: 'transparent', width: '100%', padding: '0.5rem', fontSize: '0.88rem', fontWeight: 600,
               borderRadius: '0.5rem', transition: 'background 0.2s', border: 'none', cursor: 'pointer'
             }}
             onMouseOver={(e) => e.currentTarget.style.background = '#fee2e2'}
             onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
           >
-            <LogOut size={18} /> Logout
+            <LogOut size={17} /> Logout
           </button>
         </div>
       </div>
