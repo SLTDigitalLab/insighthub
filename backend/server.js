@@ -756,6 +756,66 @@ const sendEmailNotification = async ({ toEmail, subject, htmlBody }) => {
 // MICROSOFT SSO & ACCESS CONTROL ROUTES
 // ==========================================
 
+// 0. Microsoft OAuth Code Exchange Fallback Endpoint
+app.post('/api/auth/ms-code-exchange', async (req, res) => {
+  try {
+    const { code, redirectUri } = req.body;
+    if (!code) {
+      return res.status(400).json({ success: false, error: 'Authorization code is required.' });
+    }
+
+    const tenantId = process.env.AZURE_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
+    const clientId = process.env.AZURE_CLIENT_ID || '437e0ec1-9151-438f-9ddb-d86e6e25527d';
+    const clientOrigin = req.headers.origin || APP_BASE_URL;
+    const finalRedirectUri = redirectUri || `${clientOrigin}/login`;
+
+    const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+    
+    const params = new URLSearchParams();
+    params.append('client_id', clientId);
+    params.append('grant_type', 'authorization_code');
+    params.append('code', code);
+    params.append('redirect_uri', finalRedirectUri);
+    params.append('scope', 'openid profile email User.Read');
+
+    const tokenRes = await axios.post(tokenEndpoint, params.toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+
+    const tokenData = tokenRes.data;
+    let email = '';
+    let name = '';
+
+    if (tokenData.id_token) {
+      const parts = tokenData.id_token.split('.');
+      if (parts.length >= 2) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        email = (payload.email || payload.preferred_username || payload.upn || payload.unique_name || '').toLowerCase().trim();
+        name = payload.name || payload.given_name || (email ? email.split('@')[0] : '');
+      }
+    }
+
+    if (!email) {
+      return res.status(400).json({ success: false, error: 'Could not extract user identity from Microsoft token.' });
+    }
+
+    const accessResult = userService.verifyAccess(email);
+
+    res.json({
+      success: true,
+      email,
+      name,
+      ...accessResult
+    });
+  } catch (err) {
+    console.error('[MS Code Exchange Error]', err.response?.data || err.message);
+    res.status(400).json({
+      success: false,
+      error: err.response?.data?.error_description || err.message || 'Failed to exchange Microsoft authorization code.'
+    });
+  }
+});
+
 // 1. Verify Access for Authenticated Microsoft Work User
 app.post('/api/auth/verify-access', (req, res) => {
   try {

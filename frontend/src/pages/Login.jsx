@@ -1,119 +1,135 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, ArrowRight, AlertCircle, Loader2, Lock } from 'lucide-react';
-import { useMsal } from '@azure/msal-react';
-import { InteractionStatus } from '@azure/msal-browser';
-import { loginRequest } from '../authConfig';
 import axios from 'axios';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { instance, accounts, inProgress } = useMsal();
 
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [error, setError] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Checking Microsoft session...');
+  const [statusMessage, setStatusMessage] = useState('Checking enterprise session...');
 
   useEffect(() => {
     let isMounted = true;
 
-    // Helper to extract email from direct URL hash/search if available
-    const extractEmailFromUrl = () => {
+    const processLoginCallbackAndSession = async () => {
       try {
         const hash = window.location.hash || '';
         const search = window.location.search || '';
-        const fullParams = new URLSearchParams(hash.startsWith('#') ? hash.substring(1) : (search.startsWith('?') ? search.substring(1) : ''));
-        const token = fullParams.get('id_token') || fullParams.get('access_token');
-        if (token) {
-          const parts = token.split('.');
+        const rawParams = hash.startsWith('#') ? hash.substring(1) : (search.startsWith('?') ? search.substring(1) : '');
+        const urlParams = new URLSearchParams(rawParams);
+
+        // 1. Check for Direct ID Token in URL (Implicit / Hybrid)
+        const idToken = urlParams.get('id_token') || urlParams.get('access_token');
+        if (idToken) {
+          const parts = idToken.split('.');
           if (parts.length >= 2) {
             const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
             const email = (payload.email || payload.preferred_username || payload.upn || payload.unique_name || '').toLowerCase().trim();
             const name = payload.name || payload.given_name || (email ? email.split('@')[0] : '');
+            
             if (email) {
+              if (isMounted) {
+                setCheckingAuth(true);
+                setStatusMessage(`Authorizing ${email}...`);
+              }
+
               localStorage.setItem('userEmail', email);
               localStorage.setItem('userName', name);
-              return { email, name };
+
+              const res = await axios.post('/api/auth/verify-access', { email });
+              if (!isMounted) return;
+
+              if (res.data.success && res.data.approved) {
+                if (res.data.role === 'admin') localStorage.setItem('insightHub_adminAuth', 'true');
+                navigate('/dashboard', { replace: true });
+                return;
+              } else if (res.data.status === 'declined') {
+                setError('Your access request was declined by the administrator. Please contact your department head.');
+                setCheckingAuth(false);
+                return;
+              } else {
+                navigate('/request-access', { replace: true });
+                return;
+              }
             }
           }
         }
-      } catch (e) {
-        console.warn('URL token extract error:', e);
-      }
-      return null;
-    };
 
-    const verifyUserSession = async () => {
-      // 1. Check direct token in URL
-      const urlUser = extractEmailFromUrl();
+        // 2. Check for Authorization Code in URL (#code=... or ?code=...)
+        const authCode = urlParams.get('code');
+        if (authCode) {
+          if (isMounted) {
+            setCheckingAuth(true);
+            setStatusMessage('Verifying Microsoft authorization code...');
+          }
 
-      // 2. Check MSAL accounts array
-      const allMsalAccounts = instance?.getAllAccounts?.() || accounts || [];
-      const activeMsalAccount = allMsalAccounts.length > 0 ? allMsalAccounts[0] : null;
+          try {
+            const exchangeRes = await axios.post('/api/auth/ms-code-exchange', {
+              code: authCode,
+              redirectUri: window.location.origin + '/login'
+            });
 
-      let emailToCheck = (
-        urlUser?.email ||
-        activeMsalAccount?.username ||
-        activeMsalAccount?.idTokenClaims?.email ||
-        activeMsalAccount?.idTokenClaims?.preferred_username ||
-        activeMsalAccount?.idTokenClaims?.upn ||
-        localStorage.getItem('userEmail') ||
-        ''
-      ).toLowerCase().trim();
+            if (!isMounted) return;
 
-      let nameToCheck = urlUser?.name || activeMsalAccount?.name || activeMsalAccount?.idTokenClaims?.name || localStorage.getItem('userName') || '';
+            if (exchangeRes.data.success) {
+              const email = exchangeRes.data.email;
+              const name = exchangeRes.data.name;
+              localStorage.setItem('userEmail', email);
+              localStorage.setItem('userName', name);
 
-      // If still processing redirect and no email found yet, show loading
-      if (inProgress !== InteractionStatus.None && !emailToCheck) {
-        if (isMounted) {
-          setCheckingAuth(true);
-          setStatusMessage('Processing Microsoft Entra ID authentication...');
+              if (exchangeRes.data.approved) {
+                if (exchangeRes.data.role === 'admin') localStorage.setItem('insightHub_adminAuth', 'true');
+                navigate('/dashboard', { replace: true });
+                return;
+              } else if (exchangeRes.data.status === 'declined') {
+                setError('Your access request was declined by the administrator.');
+                setCheckingAuth(false);
+                return;
+              } else {
+                navigate('/request-access', { replace: true });
+                return;
+              }
+            }
+          } catch (codeErr) {
+            console.warn('Code exchange warning:', codeErr);
+          }
         }
-        return;
-      }
 
-      // If no account is logged in, show the clean login button
-      if (!emailToCheck || !emailToCheck.includes('@')) {
+        // 3. Check existing user session in localStorage
+        const existingEmail = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+        if (existingEmail && existingEmail.includes('@')) {
+          if (isMounted) {
+            setCheckingAuth(true);
+            setStatusMessage(`Welcome back, checking access...`);
+          }
+
+          const res = await axios.post('/api/auth/verify-access', { email: existingEmail });
+          if (!isMounted) return;
+
+          if (res.data.success && res.data.approved) {
+            if (res.data.role === 'admin') localStorage.setItem('insightHub_adminAuth', 'true');
+            navigate('/dashboard', { replace: true });
+            return;
+          } else if (res.data.status === 'declined') {
+            setError('Your access request was declined by the administrator.');
+            setCheckingAuth(false);
+            return;
+          } else {
+            navigate('/request-access', { replace: true });
+            return;
+          }
+        }
+
+        // 4. If no session and no URL parameters, show the clean login screen
         if (isMounted) {
           setCheckingAuth(false);
           setStatusMessage('');
-        }
-        return;
-      }
-
-      // Account detected -> verify organization access permissions
-      if (isMounted) {
-        setCheckingAuth(true);
-        setStatusMessage(`Authorizing ${emailToCheck}...`);
-      }
-
-      try {
-        const res = await axios.post('/api/auth/verify-access', { email: emailToCheck });
-
-        if (!isMounted) return;
-
-        localStorage.setItem('userEmail', emailToCheck);
-        if (nameToCheck) localStorage.setItem('userName', nameToCheck);
-
-        if (res.data.success && res.data.approved) {
-          if (res.data.role === 'admin') {
-            localStorage.setItem('insightHub_adminAuth', 'true');
-          }
-          navigate('/dashboard', { replace: true });
-        } else if (res.data.status === 'declined') {
-          setError('Your access request was declined by the administrator. Please contact your department head.');
-          setCheckingAuth(false);
-        } else {
-          // If pending approval or not found (uninvited), forward to Request Access page
-          navigate('/request-access', { replace: true });
         }
       } catch (err) {
-        console.warn('Authorization verification warning:', err);
-        if (isMounted) {
-          navigate('/request-access', { replace: true });
-        }
-      } finally {
+        console.error('Session verification error:', err);
         if (isMounted) {
           setCheckingAuth(false);
           setStatusMessage('');
@@ -121,28 +137,28 @@ const Login = () => {
       }
     };
 
-    verifyUserSession();
+    processLoginCallbackAndSession();
 
     return () => {
       isMounted = false;
     };
-  }, [accounts, inProgress, instance, navigate]);
+  }, [navigate]);
 
-  const handleMicrosoftLogin = async () => {
+  const handleMicrosoftLogin = () => {
     setError('');
     setLoading(true);
     setStatusMessage('Redirecting to Microsoft Entra ID...');
 
     try {
-      if (instance) {
-        await instance.loginRedirect(loginRequest);
-      } else {
-        const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || '437e0ec1-9151-438f-9ddb-d86e6e25527d';
-        const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
-        const redirectUri = encodeURIComponent(window.location.origin + '/login');
-        const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${Date.now()}&prompt=select_account`;
-        window.location.href = authUrl;
-      }
+      const clientId = '437e0ec1-9151-438f-9ddb-d86e6e25527d';
+      const tenantId = '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
+      const redirectUri = encodeURIComponent(window.location.origin + '/login');
+      const nonce = Math.random().toString(36).substring(2) + Date.now().toString(36);
+
+      // Request ID Token (and code) directly in fragment so identity is delivered instantly
+      const authUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize?client_id=${clientId}&response_type=id_token%20code&redirect_uri=${redirectUri}&scope=openid%20profile%20email&response_mode=fragment&nonce=${nonce}&prompt=select_account`;
+      
+      window.location.href = authUrl;
     } catch (err) {
       console.error('Microsoft login redirect error:', err);
       setError(err.message || 'Unable to redirect to Microsoft authentication.');
