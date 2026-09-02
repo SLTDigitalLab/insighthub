@@ -16,67 +16,83 @@ const Login = () => {
 
   // Check if user is already authenticated with MSAL or in local storage
   useEffect(() => {
-    const checkActiveSession = async () => {
-      const storedEmail = localStorage.getItem('userEmail');
-      const activeAccount = accounts && accounts[0];
-      const emailToCheck = activeAccount?.username || storedEmail;
+    let isMounted = true;
 
-      if (emailToCheck) {
+    const checkActiveSession = async () => {
+      let emailToCheck = '';
+      let nameToCheck = '';
+
+      // 1. Check direct MSAL instance redirect response
+      try {
+        if (instance && instance.handleRedirectPromise) {
+          const redirectResponse = await instance.handleRedirectPromise();
+          if (redirectResponse && redirectResponse.account) {
+            emailToCheck = (redirectResponse.account.username || redirectResponse.account.idTokenClaims?.email || '').toLowerCase().trim();
+            nameToCheck = redirectResponse.account.name || redirectResponse.account.idTokenClaims?.name || emailToCheck.split('@')[0];
+          }
+        }
+      } catch (redirectErr) {
+        console.warn('handleRedirectPromise error:', redirectErr);
+      }
+
+      // 2. Fallback to active MSAL accounts array or localStorage
+      if (!emailToCheck) {
+        const activeAccount = accounts && accounts[0];
+        if (activeAccount) {
+          emailToCheck = (activeAccount.username || activeAccount.idTokenClaims?.email || '').toLowerCase().trim();
+          nameToCheck = activeAccount.name || activeAccount.idTokenClaims?.name || emailToCheck.split('@')[0];
+        }
+      }
+
+      if (!emailToCheck) {
+        emailToCheck = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+        nameToCheck = localStorage.getItem('userName') || '';
+      }
+
+      // If an authenticated Microsoft user was detected, verify their organization authorization
+      if (emailToCheck && emailToCheck.includes('@')) {
         setCheckingAuth(true);
+        setStatusMessage('Verifying organization authorization...');
         try {
           const res = await axios.post('/api/auth/verify-access', { email: emailToCheck });
+          
+          if (!isMounted) return;
+
+          localStorage.setItem('userEmail', emailToCheck);
+          if (nameToCheck) localStorage.setItem('userName', nameToCheck);
+
           if (res.data.success && res.data.approved) {
-            localStorage.setItem('userEmail', emailToCheck);
             if (res.data.role === 'admin') {
               localStorage.setItem('insightHub_adminAuth', 'true');
             }
             navigate('/dashboard');
-          } else if (res.data.status === 'pending_approval') {
+          } else if (res.data.status === 'declined') {
+            setError('Your access request was declined by the administrator. Please contact your department head.');
+          } else {
+            // Both 'pending_approval' and 'not_found' route to Request Access flow
             navigate('/request-access');
           }
         } catch (err) {
-          console.warn('Session check warning:', err);
+          console.warn('Session verification error:', err);
+          if (isMounted) {
+            // Still route to request-access so the user can submit their request
+            navigate('/request-access');
+          }
         } finally {
-          setCheckingAuth(false);
+          if (isMounted) {
+            setCheckingAuth(false);
+            setStatusMessage('');
+          }
         }
       }
     };
 
     checkActiveSession();
-  }, [accounts]);
 
-  const verifyAndRedirect = async (email, name) => {
-    setLoading(true);
-    setStatusMessage('Verifying organization authorization...');
-    try {
-      const res = await axios.post('/api/auth/verify-access', { email });
-
-      if (res.data.success && res.data.approved) {
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userName', name || email.split('@')[0]);
-        if (res.data.role === 'admin') {
-          localStorage.setItem('insightHub_adminAuth', 'true');
-        }
-        navigate('/dashboard');
-      } else if (res.data.status === 'pending_approval') {
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userName', name || email.split('@')[0]);
-        navigate('/request-access');
-      } else if (res.data.status === 'declined') {
-        setError('Your access request was declined by the administrator. Please contact your administrator.');
-      } else {
-        // Not found in pre-approved list -> send to access request flow
-        localStorage.setItem('userEmail', email);
-        localStorage.setItem('userName', name || email.split('@')[0]);
-        navigate('/request-access');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Authorization check failed. Please try again.');
-    } finally {
-      setLoading(false);
-      setStatusMessage('');
-    }
-  };
+    return () => {
+      isMounted = false;
+    };
+  }, [instance, accounts]);
 
   const handleMicrosoftLogin = async () => {
     setError('');
