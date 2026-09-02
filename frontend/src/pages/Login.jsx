@@ -2,33 +2,51 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, ArrowRight, AlertCircle, Loader2, Lock } from 'lucide-react';
 import { useMsal } from '@azure/msal-react';
+import { InteractionStatus } from '@azure/msal-browser';
 import { loginRequest } from '../authConfig';
 import axios from 'axios';
 
 const Login = () => {
   const navigate = useNavigate();
-  const { instance, accounts } = useMsal();
+  const { instance, accounts, inProgress } = useMsal();
 
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [error, setError] = useState('');
-  const [statusMessage, setStatusMessage] = useState('Checking enterprise session...');
+  const [statusMessage, setStatusMessage] = useState('Verifying Microsoft session...');
 
   useEffect(() => {
     let isMounted = true;
 
+    // While MSAL is still handling the redirect or starting up, wait
+    if (inProgress !== InteractionStatus.None) {
+      setCheckingAuth(true);
+      setStatusMessage('Processing Microsoft Entra ID authentication...');
+      return;
+    }
+
     const verifyUserSession = async () => {
-      // Find active Microsoft user from MSAL or localStorage
-      const activeMsalAccount = (accounts && accounts.length > 0) ? accounts[0] : (instance?.getActiveAccount?.() || null);
-      let emailToCheck = (activeMsalAccount?.username || activeMsalAccount?.idTokenClaims?.email || activeMsalAccount?.idTokenClaims?.preferred_username || '').toLowerCase().trim();
+      // 1. Check all possible sources for the authenticated Microsoft user
+      const allMsalAccounts = instance?.getAllAccounts?.() || accounts || [];
+      const activeMsalAccount = allMsalAccounts.length > 0 ? allMsalAccounts[0] : null;
+
+      let emailToCheck = (
+        activeMsalAccount?.username ||
+        activeMsalAccount?.idTokenClaims?.email ||
+        activeMsalAccount?.idTokenClaims?.preferred_username ||
+        activeMsalAccount?.idTokenClaims?.upn ||
+        ''
+      ).toLowerCase().trim();
+
       let nameToCheck = activeMsalAccount?.name || activeMsalAccount?.idTokenClaims?.name || '';
 
+      // Fallback to localStorage
       if (!emailToCheck) {
         emailToCheck = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
         nameToCheck = localStorage.getItem('userName') || '';
       }
 
-      // If no account is logged in, show the login screen
+      // If no active account is detected, show the clean login button
       if (!emailToCheck || !emailToCheck.includes('@')) {
         if (isMounted) {
           setCheckingAuth(false);
@@ -37,10 +55,10 @@ const Login = () => {
         return;
       }
 
-      // Account detected, verify access against the database
+      // User account detected -> verify access permissions with backend
       if (isMounted) {
         setCheckingAuth(true);
-        setStatusMessage('Verifying organization authorization...');
+        setStatusMessage(`Authorizing ${emailToCheck}...`);
       }
 
       try {
@@ -66,7 +84,6 @@ const Login = () => {
       } catch (err) {
         console.warn('Authorization verification warning:', err);
         if (isMounted) {
-          // Fallback to request access so user can submit their request
           navigate('/request-access', { replace: true });
         }
       } finally {
@@ -82,7 +99,7 @@ const Login = () => {
     return () => {
       isMounted = false;
     };
-  }, [accounts, instance, navigate]);
+  }, [accounts, inProgress, instance, navigate]);
 
   const handleMicrosoftLogin = async () => {
     setError('');

@@ -6,7 +6,7 @@ echo ========================================================
 echo 1. Staging and committing changes...
 if exist .git\index.lock del /f /q .git\index.lock
 git add -A
-git commit -m "Fix Microsoft redirect routing to Request Access and Dashboard"
+git commit -m "Fix MSAL inProgress redirect listener for instant page routing"
 
 echo 2. Pushing to GitHub repository...
 git push origin InsightHub-check
@@ -21,7 +21,6 @@ echo Run this in your server terminal (ssh root@157.245.159.130):
 echo.
 echo   cd /var/www/insighthub
 echo   git pull origin main
-echo   cd backend && pm2 restart all
-echo   cd ../frontend && npm run build
+echo   cd frontend && npm run build
 echo.
 pause
