@@ -712,18 +712,44 @@ const Dashboard = () => {
             <p style={{ color: 'var(--text-muted)', marginLeft: '3.25rem' }}>{activeAgent.desc}</p>
           </div>
 
-          <button
-            onClick={() => setShowKBModal(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: '0.5rem',
-              background: 'linear-gradient(135deg, #0066FF 0%, #10b981 100%)', color: 'white',
-              padding: '0.75rem 1.4rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 'bold',
-              boxShadow: '0 4px 18px rgba(0, 102, 255, 0.35)',
-              border: 'none', cursor: 'pointer', transition: 'all 0.2s'
-            }}
-          >
-            <Database size={16} /> Knowledge Base & Vector DB
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/admin')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  background: '#ffffff', color: '#0066FF',
+                  border: '1.5px solid #0066FF',
+                  padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
+                  boxShadow: '0 2px 10px rgba(0, 102, 255, 0.1)',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#eff6ff';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 102, 255, 0.2)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(0, 102, 255, 0.1)';
+                }}
+              >
+                <ShieldCheck size={17} color="#0066FF" /> Administrator Portal
+              </button>
+            )}
+
+            <button
+              onClick={() => setShowKBModal(true)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                background: 'linear-gradient(135deg, #0066FF 0%, #10b981 100%)', color: 'white',
+                padding: '0.75rem 1.4rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 'bold',
+                boxShadow: '0 4px 18px rgba(0, 102, 255, 0.35)',
+                border: 'none', cursor: 'pointer', transition: 'all 0.2s'
+              }}
+            >
+              <Database size={16} /> Knowledge Base & Vector DB
+            </button>
+          </div>
         </div>
 
         {activeAgent.id === 'newBusinesses' && (

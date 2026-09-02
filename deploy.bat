@@ -1,12 +1,12 @@
 @echo off
 echo ========================================================
-echo  InsightHub: Deploying Administrator Portal Navigation
+echo  InsightHub: Deploying Administrator Portal Buttons
 echo ========================================================
 
 echo 1. Staging and committing changes...
 if exist .git\index.lock del /f /q .git\index.lock
 git add -A
-git commit -m "Add Administrator Management button to sidebar for dineshpi@slt.com.lk"
+git commit -m "Add Administrator Portal buttons to Top Header and Sidebar"
 
 echo 2. Pushing to GitHub repository...
 git push origin InsightHub-check
