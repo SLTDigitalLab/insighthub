@@ -101,7 +101,16 @@ class UserService {
   /**
    * Admin pre-authorizes / invites an SLT email address
    */
-  inviteUser({ email, name, department, designation, role, invitedBy = 'Administrator' }) {
+  inviteUser({
+    email,
+    name,
+    userType = 'Account manager',
+    rebmArea = 'WPC1',
+    serviceNumber = '',
+    mobileNumber = '',
+    role = 'user',
+    invitedBy = 'Administrator'
+  }) {
     const cleanEmail = email.trim().toLowerCase();
     
     if (!cleanEmail.includes('@')) {
@@ -113,8 +122,12 @@ class UserService {
     if (user) {
       // Re-activate or update existing user
       user.name = name?.trim() || user.name || cleanEmail.split('@')[0];
-      user.department = department?.trim() || user.department || 'SLT Enterprise';
-      user.designation = designation?.trim() || user.designation || 'Sales Executive';
+      user.userType = userType || user.userType || 'Account manager';
+      user.rebmArea = rebmArea || user.rebmArea || '';
+      user.serviceNumber = serviceNumber?.trim() || user.serviceNumber || '';
+      user.mobileNumber = mobileNumber?.trim() || user.mobileNumber || '';
+      user.department = `${user.userType} - ${user.rebmArea}`;
+      user.designation = user.userType;
       user.role = role || user.role || 'user';
       user.status = 'approved';
       user.invitedAt = new Date().toISOString();
@@ -129,8 +142,12 @@ class UserService {
       id: 'usr-' + crypto.randomUUID(),
       name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
-      department: department?.trim() || 'SLT Enterprise',
-      designation: designation?.trim() || 'Sales Executive',
+      userType: userType || 'Account manager',
+      rebmArea: rebmArea || '',
+      serviceNumber: serviceNumber?.trim() || '',
+      mobileNumber: mobileNumber?.trim() || '',
+      department: `${userType || 'Account manager'} - ${rebmArea || 'WPC1'}`,
+      designation: userType || 'Account manager',
       status: 'approved',
       role: role || 'user',
       createdAt: new Date().toISOString(),
@@ -149,7 +166,15 @@ class UserService {
   /**
    * User self-requests access after authenticating with Microsoft Entra ID
    */
-  requestAccess({ name, email, department, designation, note }) {
+  requestAccess({
+    name,
+    email,
+    userType = 'Account manager',
+    rebmArea = 'WPC1',
+    serviceNumber = '',
+    mobileNumber = '',
+    note = ''
+  }) {
     const cleanEmail = email.trim().toLowerCase();
     let user = this.getUserByEmail(cleanEmail);
 
@@ -163,8 +188,12 @@ class UserService {
     if (user) {
       // Update pending or re-request after decline
       user.name = name?.trim() || user.name || cleanEmail.split('@')[0];
-      user.department = department?.trim() || user.department || 'SLT Enterprise';
-      user.designation = designation?.trim() || user.designation || 'Staff';
+      user.userType = userType || user.userType || 'Account manager';
+      user.rebmArea = rebmArea || user.rebmArea || '';
+      user.serviceNumber = serviceNumber?.trim() || user.serviceNumber || '';
+      user.mobileNumber = mobileNumber?.trim() || user.mobileNumber || '';
+      user.department = `${user.userType} - ${user.rebmArea}`;
+      user.designation = user.userType;
       user.note = note?.trim() || '';
       user.status = 'pending_approval';
       user.approvalToken = approvalToken;
@@ -178,8 +207,12 @@ class UserService {
       id: 'usr-' + crypto.randomUUID(),
       name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
-      department: department?.trim() || 'SLT Enterprise',
-      designation: designation?.trim() || 'Staff',
+      userType: userType || 'Account manager',
+      rebmArea: rebmArea || '',
+      serviceNumber: serviceNumber?.trim() || '',
+      mobileNumber: mobileNumber?.trim() || '',
+      department: `${userType || 'Account manager'} - ${rebmArea || 'WPC1'}`,
+      designation: userType || 'Account manager',
       note: note?.trim() || '',
       status: 'pending_approval',
       role: 'user',
@@ -256,6 +289,10 @@ class UserService {
           name: user.name,
           email: user.email,
           role: user.role,
+          userType: user.userType,
+          rebmArea: user.rebmArea,
+          serviceNumber: user.serviceNumber,
+          mobileNumber: user.mobileNumber,
           department: user.department,
           designation: user.designation
         }

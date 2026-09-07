@@ -7,6 +7,11 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
+export const REBM_AREAS = [
+  'CPN', 'CPS', 'EP', 'NCP', 'NP', 'NWPE', 'NWPW', 'SAB', 'SPE', 'SPW',
+  'UVA', 'WPC1', 'WPC2', 'WPE', 'WPN', 'WPNE', 'WPS', 'WPSE', 'WPSW'
+];
+
 const AdminPortal = () => {
   const navigate = useNavigate();
 
@@ -20,11 +25,16 @@ const AdminPortal = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('invite'); // 'invite' | 'pending' | 'approved' | 'declined' | 'all'
   const [searchTerm, setSearchTerm] = useState('');
+  const [typeFilter, setTypeFilter] = useState('all');
+  const [areaFilter, setAreaFilter] = useState('all');
 
-  // Invite User Form State
+  // Structured Invite User Form State
+  const [inviteUserType, setInviteUserType] = useState('Account manager'); // 'Account manager' | 'REBM manager'
+  const [inviteRebmArea, setInviteRebmArea] = useState('CPN');
+  const [inviteFullName, setInviteFullName] = useState('');
+  const [inviteServiceNumber, setInviteServiceNumber] = useState('');
+  const [inviteMobileNumber, setInviteMobileNumber] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
-  const [inviteName, setInviteName] = useState('');
-  const [inviteDepartment, setInviteDepartment] = useState('Enterprise Sales & Solutions');
   const [inviteRole, setInviteRole] = useState('user');
   const [inviteLoading, setInviteLoading] = useState(false);
 
@@ -105,7 +115,19 @@ const AdminPortal = () => {
   const handleInviteUser = async (e) => {
     e.preventDefault();
     if (!inviteEmail.trim()) {
-      showToast('Please provide an email address.', 'error');
+      showToast('Please provide a valid work email address.', 'error');
+      return;
+    }
+    if (!inviteFullName.trim()) {
+      showToast('Please enter the user full name.', 'error');
+      return;
+    }
+    if (!inviteServiceNumber.trim()) {
+      showToast('Please enter the service number.', 'error');
+      return;
+    }
+    if (!inviteMobileNumber.trim()) {
+      showToast('Please enter the mobile number.', 'error');
       return;
     }
 
@@ -113,8 +135,11 @@ const AdminPortal = () => {
     try {
       const res = await axios.post('/api/admin/invite-user', {
         email: inviteEmail.trim(),
-        name: inviteName.trim() || inviteEmail.trim().split('@')[0],
-        department: inviteDepartment,
+        name: inviteFullName.trim(),
+        userType: inviteUserType,
+        rebmArea: inviteRebmArea,
+        serviceNumber: inviteServiceNumber.trim(),
+        mobileNumber: inviteMobileNumber.trim(),
         role: inviteRole,
         invitedBy: 'Administrator'
       });
@@ -122,7 +147,9 @@ const AdminPortal = () => {
       if (res.data.success) {
         showToast(res.data.message || `Access granted to ${inviteEmail}! Invitation email sent.`, 'success');
         setInviteEmail('');
-        setInviteName('');
+        setInviteFullName('');
+        setInviteServiceNumber('');
+        setInviteMobileNumber('');
         fetchUsers();
         setActiveTab('approved');
       } else {
@@ -268,12 +295,19 @@ const AdminPortal = () => {
       activeTab === 'approved' ? u.status === 'approved' :
       activeTab === 'declined' ? u.status === 'declined' : true;
 
+    const matchesType = typeFilter === 'all' || u.userType === typeFilter;
+    const matchesArea = areaFilter === 'all' || u.rebmArea === areaFilter;
+
     const matchesSearch =
       (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.serviceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.mobileNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.rebmArea || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.userType || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.department || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesTab && matchesSearch;
+    return matchesTab && matchesType && matchesArea && matchesSearch;
   });
 
   return (
@@ -425,12 +459,41 @@ const AdminPortal = () => {
             </button>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-            <div style={{ position: 'relative', width: '260px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            {/* User Type Filter */}
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              style={{
+                padding: '0.55rem 0.85rem', fontSize: '0.85rem', fontWeight: 600,
+                border: '1px solid #cbd5e1', borderRadius: '0.6rem', outline: 'none', background: '#ffffff', color: '#334155'
+              }}
+            >
+              <option value="all">All User Types</option>
+              <option value="Account manager">Account manager</option>
+              <option value="REBM manager">REBM manager</option>
+            </select>
+
+            {/* REBM Area Filter */}
+            <select
+              value={areaFilter}
+              onChange={(e) => setAreaFilter(e.target.value)}
+              style={{
+                padding: '0.55rem 0.85rem', fontSize: '0.85rem', fontWeight: 600,
+                border: '1px solid #cbd5e1', borderRadius: '0.6rem', outline: 'none', background: '#ffffff', color: '#334155'
+              }}
+            >
+              <option value="all">All REBM Areas</option>
+              {REBM_AREAS.map(a => (
+                <option key={a} value={a}>{a}</option>
+              ))}
+            </select>
+
+            <div style={{ position: 'relative', width: '220px' }}>
               <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
               <input
                 type="text"
-                placeholder="Search by name, email, department..."
+                placeholder="Search users..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 style={{
@@ -462,17 +525,109 @@ const AdminPortal = () => {
           }}>
             <div style={{ marginBottom: '1.5rem' }}>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 0.25rem 0', color: '#0f172a' }}>
-                Pre-Authorize & Invite SLT Users
+                Pre-Authorize & Add User
               </h3>
               <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                When you add an <code>@slt.com.lk</code> email address here, the user receives an automated invitation email and is pre-approved to sign in with their Microsoft Work Account.
+                Select whether the user is an <strong>Account manager</strong> or <strong>REBM manager</strong>, assign their <strong>REBM area</strong>, and fill in their employee credentials.
               </p>
             </div>
 
-            <form onSubmit={handleInviteUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', alignItems: 'flex-end' }}>
+            <form onSubmit={handleInviteUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', alignItems: 'flex-end' }}>
+              {/* 1. User Type Dropdown */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                  Work Email (@slt.com.lk) *
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  User Type *
+                </label>
+                <select
+                  value={inviteUserType}
+                  onChange={(e) => setInviteUserType(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem', fontWeight: 600,
+                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
+                  }}
+                >
+                  <option value="Account manager">Account manager</option>
+                  <option value="REBM manager">REBM manager</option>
+                </select>
+              </div>
+
+              {/* 2. REBM Area Dropdown */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  REBM Area *
+                </label>
+                <select
+                  value={inviteRebmArea}
+                  onChange={(e) => setInviteRebmArea(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem', fontWeight: 600,
+                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
+                  }}
+                >
+                  {REBM_AREAS.map(area => (
+                    <option key={area} value={area}>{area}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 3. Full Name of the User */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  Full Name of the User *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Kamal Perera"
+                  value={inviteFullName}
+                  onChange={(e) => setInviteFullName(e.target.value)}
+                  required
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem',
+                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 4. Service Number */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  Service Number *
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. 020601"
+                  value={inviteServiceNumber}
+                  onChange={(e) => setInviteServiceNumber(e.target.value)}
+                  required
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem',
+                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 5. Mobile Number */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  Mobile Number *
+                </label>
+                <input
+                  type="tel"
+                  placeholder="e.g. 0712345678"
+                  value={inviteMobileNumber}
+                  onChange={(e) => setInviteMobileNumber(e.target.value)}
+                  required
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem',
+                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none'
+                  }}
+                />
+              </div>
+
+              {/* 6. Email */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  Email (@slt.com.lk) *
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
@@ -483,79 +638,44 @@ const AdminPortal = () => {
                     onChange={(e) => setInviteEmail(e.target.value)}
                     required
                     style={{
-                      width: '100%', padding: '0.65rem 0.85rem 0.65rem 2.3rem', fontSize: '0.88rem',
+                      width: '100%', padding: '0.7rem 0.85rem 0.7rem 2.3rem', fontSize: '0.88rem',
                       border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none'
                     }}
                   />
                 </div>
               </div>
 
+              {/* 7. Access Role */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                  Employee Name (Optional)
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g. Kamal Perera"
-                  value={inviteName}
-                  onChange={(e) => setInviteName(e.target.value)}
-                  style={{
-                    width: '100%', padding: '0.65rem 0.85rem', fontSize: '0.88rem',
-                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none'
-                  }}
-                />
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                  Department / Division
-                </label>
-                <select
-                  value={inviteDepartment}
-                  onChange={(e) => setInviteDepartment(e.target.value)}
-                  style={{
-                    width: '100%', padding: '0.65rem 0.85rem', fontSize: '0.88rem',
-                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff'
-                  }}
-                >
-                  <option value="Enterprise Sales & Solutions">Enterprise Sales & Solutions</option>
-                  <option value="SME Business Development">SME Business Development</option>
-                  <option value="Corporate & Strategic Accounts">Corporate & Strategic Accounts</option>
-                  <option value="Product Marketing & Strategy">Product Marketing & Strategy</option>
-                  <option value="Network & Cloud Infrastructure">Network & Cloud Infrastructure</option>
-                  <option value="Digital Labs / R&D">Digital Labs / R&D</option>
-                </select>
-              </div>
-
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                  Access Role
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  Platform Access Role
                 </label>
                 <select
                   value={inviteRole}
                   onChange={(e) => setInviteRole(e.target.value)}
                   style={{
-                    width: '100%', padding: '0.65rem 0.85rem', fontSize: '0.88rem',
-                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff'
+                    width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem',
+                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
                   }}
                 >
-                  <option value="user">Standard User (Sales Rep / Consultant)</option>
+                  <option value="user">Standard User ({inviteUserType})</option>
                   <option value="admin">Administrator (Full Access)</option>
                 </select>
               </div>
 
+              {/* Submit Button */}
               <div>
                 <button
                   type="submit"
                   disabled={inviteLoading}
                   style={{
-                    width: '100%', padding: '0.7rem 1.25rem', fontSize: '0.9rem', fontWeight: 700,
-                    color: '#ffffff', background: '#10b981', border: 'none', borderRadius: '0.65rem',
+                    width: '100%', padding: '0.75rem 1.25rem', fontSize: '0.9rem', fontWeight: 700,
+                    color: '#ffffff', background: '#0066FF', border: 'none', borderRadius: '0.65rem',
                     cursor: inviteLoading ? 'not-allowed' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
-                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)'
+                    boxShadow: '0 4px 12px rgba(0, 102, 255, 0.25)'
                   }}
                 >
-                  {inviteLoading ? <Loader2 size={16} className="spin" /> : <><Check size={16} /> Grant Access & Send Invite</>}
+                  {inviteLoading ? <Loader2 size={16} className="spin" /> : <><Check size={16} /> Add User & Grant Access</>}
                 </button>
               </div>
             </form>
@@ -570,9 +690,11 @@ const AdminPortal = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
-                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>User / Employee</th>
-                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Work Email (@slt.com.lk)</th>
-                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Department / Role</th>
+                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>User / Full Name</th>
+                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Work Email</th>
+                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>User Type</th>
+                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>REBM Area</th>
+                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Mobile Number</th>
                 <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Access Status</th>
                 <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700, textAlign: 'right' }}>Actions</th>
               </tr>
@@ -580,8 +702,8 @@ const AdminPortal = () => {
             <tbody>
               {filteredUsers.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
-                    No user records found in this view.
+                  <td colSpan={7} style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
+                    No user records found matching the current filters.
                   </td>
                 </tr>
               ) : (
@@ -589,30 +711,74 @@ const AdminPortal = () => {
                   const isApproved = u.status === 'approved';
                   const isPending = u.status === 'pending_approval';
                   const isDeclined = u.status === 'declined';
+                  const isAccountMgr = (u.userType || '').toLowerCase().includes('account');
+                  const isRebmMgr = (u.userType || '').toLowerCase().includes('rebm');
 
                   return (
                     <tr key={u.id || u.email} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
                       <td style={{ padding: '1rem 1.25rem' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{u.name || u.email.split('@')[0]}</div>
-                        {u.designation && <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{u.designation}</div>}
+                        <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
+                          {u.serviceNumber ? (
+                            <span>Service No: <strong>{u.serviceNumber}</strong></span>
+                          ) : (
+                            <span>Service No: —</span>
+                          )}
+                        </div>
                       </td>
 
                       <td style={{ padding: '1rem 1.25rem' }}>
                         <span style={{ fontFamily: 'monospace', fontSize: '0.85rem', color: '#0066FF', fontWeight: 600 }}>
                           {u.email}
                         </span>
+                        {u.role === 'admin' && (
+                          <div style={{ marginTop: '0.25rem' }}>
+                            <span style={{
+                              display: 'inline-block', fontSize: '0.68rem', fontWeight: 800,
+                              padding: '0.1rem 0.45rem', borderRadius: '0.35rem',
+                              background: '#ede9fe', color: '#6d28d9', textTransform: 'uppercase', letterSpacing: '0.04em'
+                            }}>
+                              Admin
+                            </span>
+                          </div>
+                        )}
                       </td>
 
-                      <td style={{ padding: '1rem 1.25rem', color: '#334155' }}>
-                        <div>{u.department || 'SLT Enterprise'}</div>
-                        <span style={{
-                          display: 'inline-block', fontSize: '0.72rem', fontWeight: 700,
-                          padding: '0.15rem 0.5rem', borderRadius: '0.4rem',
-                          background: u.role === 'admin' ? '#ede9fe' : '#f1f5f9',
-                          color: u.role === 'admin' ? '#6d28d9' : '#475569', marginTop: '0.2rem'
-                        }}>
-                          {u.role === 'admin' ? 'Administrator' : 'Standard User'}
-                        </span>
+                      <td style={{ padding: '1rem 1.25rem' }}>
+                        {u.userType ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            fontSize: '0.75rem', fontWeight: 700,
+                            padding: '0.25rem 0.65rem', borderRadius: '0.4rem',
+                            background: isAccountMgr ? '#eff6ff' : isRebmMgr ? '#f0fdf4' : '#f1f5f9',
+                            color: isAccountMgr ? '#1d4ed8' : isRebmMgr ? '#15803d' : '#334155',
+                            border: `1px solid ${isAccountMgr ? '#bfdbfe' : isRebmMgr ? '#bbf7d0' : '#e2e8f0'}`
+                          }}>
+                            {u.userType}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Standard</span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '1rem 1.25rem' }}>
+                        {u.rebmArea ? (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center',
+                            fontSize: '0.75rem', fontWeight: 800,
+                            padding: '0.25rem 0.6rem', borderRadius: '0.4rem',
+                            background: '#f8fafc', color: '#0f172a',
+                            border: '1px solid #cbd5e1'
+                          }}>
+                            {u.rebmArea}
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>—</span>
+                        )}
+                      </td>
+
+                      <td style={{ padding: '1rem 1.25rem', color: '#334155', fontSize: '0.85rem' }}>
+                        {u.mobileNumber || '—'}
                       </td>
 
                       <td style={{ padding: '1rem 1.25rem' }}>

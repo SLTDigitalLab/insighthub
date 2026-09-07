@@ -3,13 +3,20 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Mail, User, Building, Briefcase, FileText, ArrowRight, CheckCircle, Clock, AlertCircle, Loader2, LogOut } from 'lucide-react';
 import axios from 'axios';
 
+const REBM_AREAS = [
+  'CPN', 'CPS', 'EP', 'NCP', 'NP', 'NWPE', 'NWPW', 'SAB', 'SPE', 'SPW',
+  'UVA', 'WPC1', 'WPC2', 'WPE', 'WPN', 'WPNE', 'WPS', 'WPSE', 'WPSW'
+];
+
 const RequestAccess = () => {
   const navigate = useNavigate();
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [department, setDepartment] = useState('Enterprise Sales & Solutions');
-  const [designation, setDesignation] = useState('');
+  const [userType, setUserType] = useState('Account manager'); // 'Account manager' | 'REBM manager'
+  const [rebmArea, setRebmArea] = useState('WPC1');
+  const [serviceNumber, setServiceNumber] = useState('');
+  const [mobileNumber, setMobileNumber] = useState('');
   const [note, setNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -53,14 +60,24 @@ const RequestAccess = () => {
       setError('Please sign in with your Microsoft Work Account first.');
       return;
     }
+    if (!serviceNumber.trim()) {
+      setError('Please enter your SLT Service Number.');
+      return;
+    }
+    if (!mobileNumber.trim()) {
+      setError('Please enter your Mobile Number.');
+      return;
+    }
 
     setLoading(true);
     try {
       const res = await axios.post('/api/auth/request-access', {
         name: name.trim(),
         email: email.trim(),
-        department: department.trim(),
-        designation: designation.trim() || 'Enterprise Account Executive',
+        userType,
+        rebmArea,
+        serviceNumber: serviceNumber.trim(),
+        mobileNumber: mobileNumber.trim(),
         note: note.trim()
       });
 
@@ -222,7 +239,48 @@ const RequestAccess = () => {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                Full Name
+                User Type *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Briefcase size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <select
+                  value={userType}
+                  onChange={(e) => setUserType(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', fontSize: '0.88rem', fontWeight: 600,
+                    border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none', background: '#ffffff', color: '#0f172a'
+                  }}
+                >
+                  <option value="Account manager">Account manager</option>
+                  <option value="REBM manager">REBM manager</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                REBM Area *
+              </label>
+              <div style={{ position: 'relative' }}>
+                <Building size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <select
+                  value={rebmArea}
+                  onChange={(e) => setRebmArea(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', fontSize: '0.88rem', fontWeight: 600,
+                    border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none', background: '#ffffff', color: '#0f172a'
+                  }}
+                >
+                  {REBM_AREAS.map(area => (
+                    <option key={area} value={area}>{area}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                Full Name *
               </label>
               <div style={{ position: 'relative' }}>
                 <User size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
@@ -242,45 +300,36 @@ const RequestAccess = () => {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                Department / Division
+                Service Number *
               </label>
-              <div style={{ position: 'relative' }}>
-                <Building size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <select
-                  value={department}
-                  onChange={(e) => setDepartment(e.target.value)}
-                  style={{
-                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', fontSize: '0.88rem',
-                    border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none', background: '#ffffff'
-                  }}
-                >
-                  <option value="Enterprise Sales & Solutions">Enterprise Sales & Solutions</option>
-                  <option value="SME Business Development">SME Business Development</option>
-                  <option value="Corporate & Strategic Accounts">Corporate & Strategic Accounts</option>
-                  <option value="Product Marketing & Strategy">Product Marketing & Strategy</option>
-                  <option value="Network & Cloud Infrastructure">Network & Cloud Infrastructure</option>
-                  <option value="Digital Labs / R&D">Digital Labs / R&D</option>
-                </select>
-              </div>
+              <input
+                type="text"
+                value={serviceNumber}
+                onChange={(e) => setServiceNumber(e.target.value)}
+                required
+                placeholder="e.g. 020601"
+                style={{
+                  width: '100%', padding: '0.75rem 1rem', fontSize: '0.88rem',
+                  border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none'
+                }}
+              />
             </div>
 
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                Designation / Job Role
+                Mobile Number *
               </label>
-              <div style={{ position: 'relative' }}>
-                <Briefcase size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                <input
-                  type="text"
-                  value={designation}
-                  onChange={(e) => setDesignation(e.target.value)}
-                  placeholder="e.g. Account Manager / Sales Specialist"
-                  style={{
-                    width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', fontSize: '0.88rem',
-                    border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none'
-                  }}
-                />
-              </div>
+              <input
+                type="tel"
+                value={mobileNumber}
+                onChange={(e) => setMobileNumber(e.target.value)}
+                required
+                placeholder="e.g. 0712345678"
+                style={{
+                  width: '100%', padding: '0.75rem 1rem', fontSize: '0.88rem',
+                  border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none'
+                }}
+              />
             </div>
 
             <div>

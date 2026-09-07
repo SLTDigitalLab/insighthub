@@ -838,7 +838,7 @@ app.post('/api/auth/verify-access', (req, res) => {
 // 2. Self-Service Access Request (From Microsoft Authenticated User)
 app.post('/api/auth/request-access', async (req, res) => {
   try {
-    const { name, email, department, designation, note } = req.body;
+    const { name, email, userType, rebmArea, serviceNumber, mobileNumber, note } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -850,8 +850,10 @@ app.post('/api/auth/request-access', async (req, res) => {
     const result = userService.requestAccess({
       name: name || email.split('@')[0],
       email: email,
-      department: department || 'SLT Enterprise',
-      designation: designation || 'Staff',
+      userType: userType || 'Account manager',
+      rebmArea: rebmArea || 'WPC1',
+      serviceNumber: serviceNumber || '',
+      mobileNumber: mobileNumber || '',
       note: note || ''
     });
 
@@ -884,20 +886,28 @@ app.post('/api/auth/request-access', async (req, res) => {
 
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
             <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569; width: 35%; border-bottom: 1px solid #e2e8f0;">Full Name:</td>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; width: 35%; border-bottom: 1px solid #e2e8f0;">User Type:</td>
+              <td style="padding: 12px 16px; color: #0066FF; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.userType || 'Account manager'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">REBM Area:</td>
+              <td style="padding: 12px 16px; color: #0f172a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.rebmArea || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Full Name:</td>
               <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.name}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Service Number:</td>
+              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.serviceNumber || 'N/A'}</td>
+            </tr>
+            <tr>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Mobile Number:</td>
+              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.mobileNumber || 'N/A'}</td>
             </tr>
             <tr>
               <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Microsoft Work Email:</td>
               <td style="padding: 12px 16px; color: #0066FF; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.email}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Department:</td>
-              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.department || 'SLT Enterprise'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Designation:</td>
-              <td style="padding: 12px 16px; color: #0f172a; border-bottom: 1px solid #e2e8f0;">${user.designation || 'Staff'}</td>
             </tr>
             ${user.note ? `
             <tr>
@@ -935,7 +945,7 @@ app.post('/api/auth/request-access', async (req, res) => {
     // Dispatch email to Admin
     sendEmailNotification({
       toEmail: ADMIN_EMAIL,
-      subject: `[Access Request] New InsightHub Access Request: ${user.name} (${user.email})`,
+      subject: `[Access Request] New InsightHub Access Request: ${user.name} (${user.userType} - ${user.rebmArea})`,
       htmlBody: adminEmailHtml
     });
 
@@ -946,6 +956,8 @@ app.post('/api/auth/request-access', async (req, res) => {
         id: user.id,
         name: user.name,
         email: user.email,
+        userType: user.userType,
+        rebmArea: user.rebmArea,
         status: user.status
       }
     });
@@ -958,7 +970,7 @@ app.post('/api/auth/request-access', async (req, res) => {
 // 3. Admin Pre-Authorizes / Invites User
 app.post('/api/admin/invite-user', async (req, res) => {
   try {
-    const { email, name, department, designation, role, invitedBy } = req.body;
+    const { email, name, userType, rebmArea, serviceNumber, mobileNumber, role, invitedBy } = req.body;
 
     if (!email) {
       return res.status(400).json({ success: false, error: 'Email address is required.' });
@@ -967,8 +979,10 @@ app.post('/api/admin/invite-user', async (req, res) => {
     const { user, isNew } = userService.inviteUser({
       email,
       name,
-      department,
-      designation,
+      userType,
+      rebmArea,
+      serviceNumber,
+      mobileNumber,
       role,
       invitedBy: invitedBy || 'Administrator'
     });
@@ -985,7 +999,7 @@ app.post('/api/admin/invite-user', async (req, res) => {
         <div style="padding: 28px 36px;">
           <h2 style="color: #0f172a; margin: 0 0 12px; font-size: 18px;">Hello ${user.name},</h2>
           <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-            An administrator has granted you access to <strong>InsightHub</strong>. You can now sign in using your official SLT Microsoft Work Account (<code>${user.email}</code>) to complete your registration and start discovering high-converting enterprise leads.
+            An administrator has granted you access to <strong>InsightHub</strong> as a <strong>${user.userType}</strong> (${user.rebmArea} Area). You can now sign in using your official SLT Microsoft Work Account (<code>${user.email}</code>) to complete your registration and start discovering high-converting enterprise leads.
           </p>
           <div style="text-align: center; margin: 28px 0;">
             <a href="${loginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
@@ -1006,17 +1020,21 @@ app.post('/api/admin/invite-user', async (req, res) => {
     // Dispatch invitation email
     sendEmailNotification({
       toEmail: user.email,
-      subject: `[InsightHub Access Granted] Administrator has authorized your account`,
+      subject: `[InsightHub Access Granted] Administrator has authorized your ${user.userType} account`,
       htmlBody: inviteEmailHtml
     });
 
     res.json({
       success: true,
-      message: `Access granted to ${user.email}! An invitation email has been sent.`,
+      message: `Access granted to ${user.email} (${user.userType} - ${user.rebmArea})! An invitation email has been sent.`,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
+        userType: user.userType,
+        rebmArea: user.rebmArea,
+        serviceNumber: user.serviceNumber,
+        mobileNumber: user.mobileNumber,
         status: user.status,
         role: user.role
       }
