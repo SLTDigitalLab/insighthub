@@ -298,6 +298,7 @@ const Dashboard = () => {
   const [results, setResults] = useState(null);
   const [error, setError] = useState(null);
   const [emailSending, setEmailSending] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   const [showKBModal, setShowKBModal] = useState(false);
   const [kbDocuments, setKbDocuments] = useState([]);
@@ -447,6 +448,71 @@ const Dashboard = () => {
       }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleLoadMore = async () => {
+    if (!prompt || loadingMore || !results) return;
+    setLoadingMore(true);
+
+    try {
+      // Collect up to 20 already displayed business names to avoid duplicates
+      const existingNames = results
+        .map(r => r['Company Name'] || r['Product'] || r['Section'] || '')
+        .filter(Boolean)
+        .slice(0, 20);
+
+      const exclusionText = existingNames.length > 0
+        ? ` (IMPORTANT: Exclude already discovered businesses: ${existingNames.join(', ')})`
+        : '';
+      const morePrompt = `${prompt}. Discover 5 additional new distinct businesses or results${exclusionText}.`;
+
+      console.log(`[InsightHub Gateway] Loading more results for "${activeAgent.name}" with prompt: "${morePrompt}"`);
+
+      let responseData = null;
+      if (activeAgent.id === 'allResults') {
+        responseData = await fetchAllSearchResults(morePrompt);
+      } else if (activeAgent.id === 'lead') {
+        responseData = await fetchLeadDiscovery(morePrompt);
+      } else if (activeAgent.id === 'newBusinesses') {
+        responseData = await fetchFindNewBusinesses(morePrompt);
+      } else if (activeAgent.id === 'research') {
+        responseData = await fetchCustomerResearch(morePrompt);
+      } else if (activeAgent.id === 'product') {
+        responseData = await fetchProductRecommendations(morePrompt);
+      } else if (activeAgent.id === 'meeting') {
+        responseData = await fetchMeetingPreparation(morePrompt);
+      } else if (activeAgent.id === 'improve') {
+        responseData = await fetchHelpImproveService(morePrompt);
+      }
+
+      const newItems = Array.isArray(responseData?.results)
+        ? responseData.results
+        : Array.isArray(responseData)
+        ? responseData
+        : [];
+
+      if (newItems.length > 0) {
+        const existingKeys = new Set(
+          results.map(r => (r['Company Name'] || r['Product'] || JSON.stringify(r)).toLowerCase().trim())
+        );
+
+        const uniqueItems = newItems.filter(item => {
+          const key = (item['Company Name'] || item['Product'] || JSON.stringify(item)).toLowerCase().trim();
+          return !existingKeys.has(key);
+        });
+
+        const itemsToAdd = uniqueItems.length > 0 ? uniqueItems : newItems;
+        setResults(prev => [...(prev || []), ...itemsToAdd]);
+        showToast(`Loaded ${itemsToAdd.length} more results! (${(results?.length || 0) + itemsToAdd.length} total)`, 'success');
+      } else {
+        showToast('No more additional results found for this query.', 'info');
+      }
+    } catch (err) {
+      console.error('[Load More Error]', err);
+      showToast(err.response?.data?.error || err.message || 'Failed to load more results. Try again.', 'error');
+    } finally {
+      setLoadingMore(false);
     }
   };
 
@@ -1166,6 +1232,55 @@ const Dashboard = () => {
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Load More Button */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '1.5rem 1rem 0.5rem 1rem',
+              borderTop: '1px solid #f1f5f9',
+              marginTop: '1rem',
+              gap: '0.5rem'
+            }}>
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.6rem',
+                  padding: '0.75rem 2rem',
+                  borderRadius: '0.75rem',
+                  fontSize: '0.92rem',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  background: 'linear-gradient(135deg, #0066FF 0%, #0052cc 100%)',
+                  border: 'none',
+                  cursor: loadingMore ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 4px 14px rgba(0, 102, 255, 0.25)',
+                  transition: 'all 0.2s ease',
+                  opacity: loadingMore ? 0.75 : 1
+                }}
+              >
+                {loadingMore ? (
+                  <>
+                    <Loader2 size={18} className="spin" />
+                    Fetching Next Batch via Apify...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={18} />
+                    Load More Results (+5 More)
+                  </>
+                )}
+              </button>
+              <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                Showing <strong>{results.length}</strong> results. Click to fetch the next batch without exceeding token limits.
+              </span>
             </div>
           </div>
         )}

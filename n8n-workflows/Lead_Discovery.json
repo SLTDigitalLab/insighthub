@@ -65,7 +65,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
         "placeholderDefinitions": {
           "values": [
             {
@@ -94,12 +94,12 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "https://api.apify.com/v2/acts/compass~google-maps-extractor/run-sync-get-dataset-items",
+        "url": "https://api.apify.com/v2/acts/compass~google-maps-extractor/run-sync-get-dataset-items?fields=title,phone,website,street,city,totalScore,categoryName",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"searchStringsArray\": [\"{query}\"],\n  \"locationQuery\": \"Sri Lanka\",\n  \"maxCrawledPlacesPerSearch\": 20,\n  \"maxReviews\": 0,\n  \"maxImages\": 0,\n  \"language\": \"en\"\n}",
+        "jsonBody": "{\n  \"searchStringsArray\": [\"{query}\"],\n  \"locationQuery\": \"Sri Lanka\",\n  \"maxCrawledPlacesPerSearch\": 5,\n  \"maxReviews\": 0,\n  \"maxImages\": 0,\n  \"language\": \"en\"\n}",
         "placeholderDefinitions": {
           "values": [
             {
@@ -133,7 +133,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 20\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
         "placeholderDefinitions": {
           "values": [
             {
