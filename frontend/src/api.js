@@ -133,4 +133,33 @@ export const sendResultsEmail = async (emailData) => {
   return response.data;
 };
 
+/**
+ * Search History APIs
+ */
+export const saveSearchHistory = async (payload) => {
+  const response = await axios.post('/api/search-history/save', payload, { timeout: 15000 });
+  return response.data;
+};
+
+export const fetchUserSearchHistory = async (email) => {
+  const response = await axios.get(`/api/search-history?email=${encodeURIComponent(email || 'guest')}`, { timeout: 15000 });
+  return response.data;
+};
+
+export const fetchSearchHistoryDetails = async (id, email) => {
+  const response = await axios.get(`/api/search-history/${id}?email=${encodeURIComponent(email || 'guest')}`, { timeout: 15000 });
+  return response.data;
+};
+
+export const deleteSearchHistoryItem = async (id, email) => {
+  const response = await axios.delete(`/api/search-history/${id}?email=${encodeURIComponent(email || 'guest')}`, { timeout: 15000 });
+  return response.data;
+};
+
+export const clearAllSearchHistory = async (email) => {
+  const response = await axios.delete(`/api/search-history?email=${encodeURIComponent(email || 'guest')}`, { timeout: 15000 });
+  return response.data;
+};
+
+
 

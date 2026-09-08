@@ -6,6 +6,7 @@ import BusinessDetail from './pages/BusinessDetail';
 import RequestAccess from './pages/RequestAccess';
 import AdminPortal from './pages/AdminPortal';
 import ApprovalAction from './pages/ApprovalAction';
+import SearchHistory from './pages/SearchHistory';
 import './index.css';
 
 function App() {
@@ -19,6 +20,7 @@ function App() {
         <Route path="/admin" element={<AdminPortal />} />
         <Route path="/approval-action" element={<ApprovalAction />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/search-history" element={<SearchHistory />} />
         <Route path="/business/:companyName" element={<BusinessDetail />} />
         <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>

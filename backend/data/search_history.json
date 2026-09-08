@@ -1,0 +1,26 @@
+[
+  {
+    "id": "sh_1788849115574_mb7czg",
+    "userEmail": "dineshpi@slt.com.lk",
+    "agentId": "allResults",
+    "agentName": "All Search Results (All Scores)",
+    "prompt": "hotels in galle",
+    "resultsCount": 2,
+    "results": [
+      {
+        "Company Name": "Jetwing Lighthouse",
+        "Location": "Galle",
+        "Customer Rating": "4.6",
+        "Lead Score": "High"
+      },
+      {
+        "Company Name": "Amangalla",
+        "Location": "Galle Fort",
+        "Customer Rating": "4.8",
+        "Lead Score": "High"
+      }
+    ],
+    "timestamp": "2026-09-08T06:31:55.568Z",
+    "updatedAt": "2026-09-08T06:31:55.568Z"
+  }
+]

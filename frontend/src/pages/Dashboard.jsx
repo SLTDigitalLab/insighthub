@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles, Compass, Filter, ShieldCheck } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles, Compass, Filter, ShieldCheck, History } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -18,7 +18,8 @@ import {
   fetchCustomerResearch,
   fetchHelpImproveService,
   fetchAllSearchResults,
-  sendResultsEmail
+  sendResultsEmail,
+  saveSearchHistory
 } from '../api';
 
 
@@ -378,6 +379,7 @@ const Dashboard = () => {
   const [scoreFilter, setScoreFilter] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const userEmail = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
   const isAdmin =
     localStorage.getItem('insightHub_adminAuth') === 'true' ||
@@ -387,6 +389,21 @@ const Dashboard = () => {
     userEmail.includes('lahirus') ||
     userEmail.includes('shalikahathurusinghe') ||
     userEmail.includes('admin');
+
+  // Handle re-run or load from Search History page
+  useEffect(() => {
+    if (location.state?.reRunPrompt) {
+      setPrompt(location.state.reRunPrompt);
+      if (location.state.reRunAgentId) {
+        const matchingAgent = agents.find(a => a.id === location.state.reRunAgentId);
+        if (matchingAgent) setActiveAgent(matchingAgent);
+      }
+      if (location.state.cachedResults && Array.isArray(location.state.cachedResults)) {
+        setResults(location.state.cachedResults);
+        showToast('Loaded saved results from search history!', 'info');
+      }
+    }
+  }, [location.state]);
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -429,12 +446,23 @@ const Dashboard = () => {
         responseData = await fetchHelpImproveService(prompt);
       }
 
-      if (responseData && responseData.results && Array.isArray(responseData.results)) {
-        setResults(responseData.results);
-      } else if (Array.isArray(responseData)) {
-        setResults(responseData);
-      } else {
-        setResults([]);
+      const finalItems = (responseData && responseData.results && Array.isArray(responseData.results))
+        ? responseData.results
+        : Array.isArray(responseData)
+        ? responseData
+        : [];
+
+      setResults(finalItems);
+
+      // Auto-save search session to server-backed Search History
+      if (finalItems.length > 0) {
+        saveSearchHistory({
+          userEmail: userEmail || 'guest',
+          agentId: activeAgent.id,
+          agentName: activeAgent.name,
+          prompt: prompt,
+          results: finalItems
+        }).catch(err => console.warn('[Auto-Save History Warning]', err.message));
       }
     } catch (err) {
       console.error('[Dashboard Search Error]', err);
@@ -503,8 +531,18 @@ const Dashboard = () => {
         });
 
         const itemsToAdd = uniqueItems.length > 0 ? uniqueItems : newItems;
-        setResults(prev => [...(prev || []), ...itemsToAdd]);
-        showToast(`Loaded ${itemsToAdd.length} more results! (${(results?.length || 0) + itemsToAdd.length} total)`, 'success');
+        const updatedResults = [...(results || []), ...itemsToAdd];
+        setResults(updatedResults);
+        showToast(`Loaded ${itemsToAdd.length} more results! (${updatedResults.length} total)`, 'success');
+
+        // Update saved search in server history with expanded batch
+        saveSearchHistory({
+          userEmail: userEmail || 'guest',
+          agentId: activeAgent.id,
+          agentName: activeAgent.name,
+          prompt: prompt,
+          results: updatedResults
+        }).catch(err => console.warn('[Auto-Save History Warning]', err.message));
       } else {
         showToast('No more additional results found for this query.', 'info');
       }
@@ -711,6 +749,41 @@ const Dashboard = () => {
           )}
 
           <button
+            onClick={() => navigate('/search-history')}
+            id="btn-search-history-sidebar"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.6rem',
+              color: '#0f172a',
+              background: '#f8fafc',
+              width: '100%',
+              padding: '0.65rem 0.85rem',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              borderRadius: '0.65rem',
+              border: '1.5px solid #e2e8f0',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              boxShadow: '0 1px 4px rgba(0, 0, 0, 0.04)'
+            }}
+            onMouseOver={(e) => {
+              e.currentTarget.style.background = '#eff6ff';
+              e.currentTarget.style.borderColor = '#93c5fd';
+              e.currentTarget.style.color = '#0066FF';
+            }}
+            onMouseOut={(e) => {
+              e.currentTarget.style.background = '#f8fafc';
+              e.currentTarget.style.borderColor = '#e2e8f0';
+              e.currentTarget.style.color = '#0f172a';
+            }}
+          >
+            <History size={18} color="#0066FF" />
+            <span style={{ flex: 1, textAlign: 'left' }}>Search History</span>
+            <ChevronRight size={15} color="#94a3b8" />
+          </button>
+
+          <button
             onClick={() => navigate('/admin')}
             id="btn-admin-panel-sidebar"
             style={{
@@ -779,6 +852,31 @@ const Dashboard = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+            <button
+              onClick={() => navigate('/search-history')}
+              id="btn-search-history-header"
+              style={{
+                display: 'flex', alignItems: 'center', gap: '0.5rem',
+                background: '#ffffff', color: '#0f172a',
+                border: '1.5px solid #e2e8f0',
+                padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
+                cursor: 'pointer', transition: 'all 0.2s'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.borderColor = '#0066FF';
+                e.currentTarget.style.color = '#0066FF';
+                e.currentTarget.style.background = '#eff6ff';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.color = '#0f172a';
+                e.currentTarget.style.background = '#ffffff';
+              }}
+            >
+              <History size={17} color="#0066FF" /> Search History
+            </button>
+
             <button
               onClick={() => navigate('/admin')}
               id="btn-admin-panel-header"

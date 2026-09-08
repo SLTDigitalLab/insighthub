@@ -11,6 +11,7 @@ const storageService = require('./services/storageService');
 const { extractText, chunkText } = require('./services/documentProcessor');
 const chromaService = require('./services/chromaService');
 const userService = require('./services/userService');
+const searchHistoryService = require('./services/searchHistoryService');
 
 const app = express();
 const PORT = process.env.PORT || 5005;
@@ -1229,6 +1230,82 @@ app.post('/api/admin/user-action', async (req, res) => {
     }
   } catch (err) {
     console.error('[Admin Action Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// ============================================================
+// 7. USER SEARCH HISTORY ENDPOINTS
+// ============================================================
+
+// Save or update a search session
+app.post('/api/search-history/save', (req, res) => {
+  try {
+    const { userEmail, agentId, agentName, prompt, results } = req.body;
+    if (!prompt) {
+      return res.status(400).json({ success: false, error: 'Prompt is required.' });
+    }
+    const saved = searchHistoryService.saveSearch({
+      userEmail,
+      agentId,
+      agentName,
+      prompt,
+      results
+    });
+    res.json({ success: true, search: saved });
+  } catch (err) {
+    console.error('[Search History Save Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get all search history for a user
+app.get('/api/search-history', (req, res) => {
+  try {
+    const userEmail = req.query.email || 'guest';
+    const history = searchHistoryService.getUserHistory(userEmail);
+    res.json({ success: true, count: history.length, history });
+  } catch (err) {
+    console.error('[Search History Get Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Get a single saved search with full leads
+app.get('/api/search-history/:id', (req, res) => {
+  try {
+    const userEmail = req.query.email || 'guest';
+    const item = searchHistoryService.getSearchById(userEmail, req.params.id);
+    if (!item) {
+      return res.status(404).json({ success: false, error: 'Search history item not found.' });
+    }
+    res.json({ success: true, search: item });
+  } catch (err) {
+    console.error('[Search History Detail Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Delete a single saved search
+app.delete('/api/search-history/:id', (req, res) => {
+  try {
+    const userEmail = req.query.email || 'guest';
+    const deleted = searchHistoryService.deleteSearch(userEmail, req.params.id);
+    res.json({ success: deleted });
+  } catch (err) {
+    console.error('[Search History Delete Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Clear all search history for a user
+app.delete('/api/search-history', (req, res) => {
+  try {
+    const userEmail = req.query.email || 'guest';
+    searchHistoryService.clearUserHistory(userEmail);
+    res.json({ success: true, message: 'All search history cleared.' });
+  } catch (err) {
+    console.error('[Search History Clear Error]', err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
