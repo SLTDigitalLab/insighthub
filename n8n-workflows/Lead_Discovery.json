@@ -23,8 +23,8 @@
         "promptType": "define",
         "text": "={{ $json.body.prompt }}",
         "options": {
-          "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find business leads STRICTLY AND EXCLUSIVELY extracted from live Apify web search results (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`).\n\n**100% LIVE APIFY SCRAPING DIRECTIVE:**\n\n1. Call search tools (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`) to query live web sources.\n\n2. Parse and extract ONLY the real company names, ratings, contact numbers, and website URLs found directly inside the scraped Apify search result snippets.\n\n3. **DO NOT USE PRELOADED LISTS, MOCK DATA, OR INTERNAL KNOWLEDGE DEFAULTS.** If Apify returns 0 scraped results, output an empty array `[]`.\n\n**FIELD MAPPING FROM APIFY BOOKING & DIRECTORY SEARCH (Google Maps data):**\n\nWhen extracting from the Apify Booking & Directory Search tool results, use this exact mapping:\n- \"Customer Rating\" ← extract from the \"totalScore\" field in the scraped result (e.g. totalScore: 3.1 → Customer Rating: \"3.1\").\n- \"Company Name\" ← extract from the \"title\" field.\n- \"Contact Number\" ← extract from the \"phone\" field.\n- \"Location\" ← combine the \"street\" and \"city\" fields.\n- \"Website\" ← extract from the \"website\" field.\n- Do NOT output \"N/A\" for Customer Rating if a \"totalScore\" value exists anywhere in the scraped data for that company — only use \"N/A\" if totalScore is genuinely missing/null in the raw result.\n\n4. Populate the JSON array for EVERY scraped company item with these keys:\n\n   - \"Company Name\": The real business name from the scraped snippet.\n\n   - \"Industry\": The industry category matching the prompt.\n\n   - \"Size\": \"Enterprise\" or \"Medium\" or \"SMB\".\n\n   - \"Location\": The exact Sri Lankan city/address from snippet.\n\n   - \"Contact Number\": Verified phone number from snippet (or N/A).\n\n   - \"Customer Rating\": The real totalScore value from the scraped Apify Maps data (e.g. 4.6, 3.1), or \"N/A\" only if genuinely absent from the raw data.\n\n   - \"Lead Score\": Leave this as null. Do not calculate or guess this value — it is calculated separately in a later processing step using the real Size and Customer Rating values.\n\n   - \"LinkedIn URL\": Real LinkedIn URL from search snippet.\n\n   - \"Website\": Real website domain from search snippet.\n\n   - \"Reason\": Mobitel B2B sales recommendation based on the company profile.\n\n5. Output ALL scraped search result entities in a valid JSON array only.\n\n6. Include EVERY scraped company in the output regardless of its Lead Score — do not filter out, hide, or exclude any companies. All scraped entities must appear in the final JSON array.",
-          "maxIterations": 3
+          "systemMessage": "You are the Lead Discovery & Prospecting AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour job is to find business leads STRICTLY AND EXCLUSIVELY extracted from live Apify web search results (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`, `booking_com_search`).\n\n**100% LIVE APIFY SCRAPING DIRECTIVE:**\n\n1. Call search tools (`google_search`, `apify_directory_booking_search`, `apify_linkedin_search`, `booking_com_search`) to query live web sources.\n\n**HOTEL & ACCOMMODATION DIRECTIVE:**\nIf the search prompt is looking for hotels, resorts, villas, guest houses, lodges, or tourist accommodations (e.g. 'hotels in Kandy', 'resorts in Galle'), you MUST call `booking_com_search`.\n\n2. Parse and extract ONLY the real company names, ratings, contact numbers, and website URLs found directly inside the scraped Apify search result snippets.\n\n3. **DO NOT USE PRELOADED LISTS, MOCK DATA, OR INTERNAL KNOWLEDGE DEFAULTS.** If Apify returns 0 scraped results, output an empty array `[]`.\n\n**FIELD MAPPING FROM APIFY BOOKING.COM SEARCH (`booking_com_search`):**\nWhen extracting from `booking_com_search`:\n- \"Company Name\" ← extract from \"name\".\n- \"Customer Rating\" ← extract from \"rating\" (e.g., 8.5/10 or 4.5) or \"reviewScore\".\n- \"Location\" ← extract from \"address\" or \"city\".\n- \"Website\" ← extract from \"url\".\n- \"Contact Number\" ← \"N/A\" (Booking.com does not publish direct phone numbers in summary listings).\n\n**FIELD MAPPING FROM APIFY MAPS & DIRECTORY SEARCH (Google Maps data):**\nWhen extracting from Google Maps / Directory Search tool results:\n- \"Customer Rating\" ← extract from the \"totalScore\" field in the scraped result (e.g. totalScore: 3.1 → Customer Rating: \"3.1\").\n- \"Company Name\" ← extract from the \"title\" field.\n- \"Contact Number\" ← extract from the \"phone\" field.\n- \"Location\" ← combine the \"street\" and \"city\" fields.\n- \"Website\" ← extract from the \"website\" field.\n- Do NOT output \"N/A\" for Customer Rating if a \"totalScore\" value exists anywhere in the scraped data for that company.\n\n4. Populate the JSON array for EVERY scraped company item with these keys:\n\n   - \"Company Name\": The real business name from the scraped snippet.\n\n   - \"Industry\": The industry category matching the prompt (e.g. \"Hospitality\", \"Banking\", \"IT\").\n\n   - \"Size\": \"Enterprise\" or \"Medium\" or \"SMB\".\n\n   - \"Location\": The exact Sri Lankan city/address from snippet.\n\n   - \"Contact Number\": Verified phone number from snippet (or N/A).\n\n   - \"Customer Rating\": The real rating from the scraped data, or \"N/A\" if genuinely absent.\n\n   - \"Lead Score\": Leave this as null. Do not calculate or guess this value — it is calculated separately in a later processing step.\n\n   - \"LinkedIn URL\": Real LinkedIn URL from search snippet (or N/A).\n\n   - \"Website\": Real website domain from search snippet.\n\n   - \"Reason\": Mobitel B2B sales recommendation based on the company profile.\n\n5. Output ALL scraped search result entities in a valid JSON array only.\n\n6. Include EVERY scraped company in the output regardless of its Lead Score — do not filter out, hide, or exclude any companies. All scraped entities must appear in the final JSON array.",
+          "maxIterations": 4
         }
       },
       "id": "2188a0f7-b96a-40c1-816e-8f557f9f048c",
@@ -161,6 +161,41 @@
     },
     {
       "parameters": {
+        "toolDescription": "Search Booking.com for hotels, resorts, villas, guest houses, and tourist accommodations in Sri Lanka. Use this tool whenever searching for hotels or lodging.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/voyager~booking-scraper/run-sync-get-dataset-items?fields=name,url,rating,reviews,address,price,stars",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"search\": \"{query}\",\n  \"destType\": \"city\",\n  \"maxPages\": 1,\n  \"sortBy\": \"popularity\"\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The destination city or hotel name in Sri Lanka (e.g. 'Kandy', 'Colombo', 'Galle')",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "7b8e1920-5c31-4e78-9f12-9c3f4e5a6b7c",
+      "name": "booking_com_search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        736,
+        224
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "51tnt1hoAIQQXqOL",
+          "name": "Header Auth account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
         "jsCode": "// Parse AI Agent output into structured JSON for the frontend without any limit\nconst output = String($input.first().json.output || '');\n// Grabs the raw text output from the AI Agent node\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Response\": output }];\n  }\n\n  results = results.map(item => {\n    const size = String(item[\"Size\"] || \"\").trim().toLowerCase();\n    const rating = parseFloat(item[\"Customer Rating\"]);\n    let leadScore = \"Low\";\n\n    if (!isNaN(rating)) {\n      // Rating exists — score using Size + Rating together\n      if (size === \"enterprise\" && rating >= 4.0) {\n        leadScore = \"High\";\n      } else if (\n        size === \"medium\" ||\n        (size === \"enterprise\" && rating < 4.0) ||\n        (rating >= 3.0 && rating < 4.0)\n      ) {\n        leadScore = \"Medium\";\n      } else if (size === \"smb\" || rating < 3.0) {\n        leadScore = \"Low\";\n      }\n    } else {\n      // No rating available (N/A) — fall back to Size-only scoring\n      if (size === \"enterprise\") {\n        leadScore = \"Medium\";\n      } else if (size === \"medium\") {\n        leadScore = \"Medium\";\n      } else {\n        leadScore = \"Low\";\n      }\n    }\n\n    return { ...item, \"Lead Score\": leadScore };\n  });\n\n} catch (e) {\n  results = [{ \"Response\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Lead Discovery\", resultsCount: results.length, results: results } }];"
       },
       "id": "6bcd2c85-1ba2-481a-a3e5-b51057802337",
@@ -231,6 +266,17 @@
       ]
     },
     "Apify LinkedIn Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "booking_com_search": {
       "ai_tool": [
         [
           {
