@@ -65,7 +65,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}",
         "placeholderDefinitions": {
           "values": [
             {
@@ -99,7 +99,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"searchStringsArray\": [\"{query}\"],\n  \"locationQuery\": \"Sri Lanka\",\n  \"maxCrawledPlacesPerSearch\": 5,\n  \"maxReviews\": 0,\n  \"maxImages\": 0,\n  \"language\": \"en\"\n}",
+        "jsonBody": "{\n  \"searchStringsArray\": [\"{query}\"],\n  \"locationQuery\": \"Sri Lanka\",\n  \"maxCrawledPlacesPerSearch\": 15,\n  \"maxReviews\": 0,\n  \"maxImages\": 0,\n  \"language\": \"en\"\n}",
         "placeholderDefinitions": {
           "values": [
             {
@@ -133,7 +133,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 15\n}",
         "placeholderDefinitions": {
           "values": [
             {
@@ -168,7 +168,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"search\": \"{{ $fromAI('city', 'The destination city in Sri Lanka only, e.g. Kandy, Colombo, Galle - DO NOT include words like hotels', 'string') }}\",\n  \"maxItems\": 5,\n  \"sortBy\": \"bayesian_review_score\",\n  \"proxyConfiguration\": {\n    \"useApifyProxy\": true\n  }\n}",
+        "jsonBody": "{\n  \"search\": \"{{ $fromAI('city', 'The destination city in Sri Lanka only, e.g. Kandy, Colombo, Galle - DO NOT include words like hotels', 'string') }}\",\n  \"maxItems\": 15,\n  \"sortBy\": \"bayesian_review_score\",\n  \"proxyConfiguration\": {\n    \"useApifyProxy\": true\n  }\n}",
         "placeholderDefinitions": {
           "values": [
             {

@@ -456,16 +456,16 @@ const Dashboard = () => {
     setLoadingMore(true);
 
     try {
-      // Collect up to 20 already displayed business names to avoid duplicates
+      // Collect up to 40 already displayed business names to avoid duplicates
       const existingNames = results
         .map(r => r['Company Name'] || r['Product'] || r['Section'] || '')
         .filter(Boolean)
-        .slice(0, 20);
+        .slice(0, 40);
 
       const exclusionText = existingNames.length > 0
         ? ` (IMPORTANT: Exclude already discovered businesses: ${existingNames.join(', ')})`
         : '';
-      const morePrompt = `${prompt}. Discover 5 additional new distinct businesses or results${exclusionText}.`;
+      const morePrompt = `${prompt}. Discover 15 additional new distinct businesses or results${exclusionText}.`;
 
       console.log(`[InsightHub Gateway] Loading more results for "${activeAgent.name}" with prompt: "${morePrompt}"`);
 
@@ -1274,7 +1274,7 @@ const Dashboard = () => {
                 ) : (
                   <>
                     <Sparkles size={18} />
-                    Load More Results (+5 More)
+                    Load More Results (+15 More)
                   </>
                 )}
               </button>
