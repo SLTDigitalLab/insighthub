@@ -168,7 +168,7 @@
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "{\n  \"search\": \"{query}\",\n  \"destType\": \"city\",\n  \"maxPages\": 1,\n  \"sortBy\": \"popularity\"\n}",
+        "jsonBody": "{\n  \"search\": \"{{ $fromAI('city', 'The destination city in Sri Lanka only, e.g. Kandy, Colombo, Galle - DO NOT include words like hotels', 'string') }}\",\n  \"maxItems\": 5,\n  \"sortBy\": \"bayesian_review_score\",\n  \"proxyConfiguration\": {\n    \"useApifyProxy\": true\n  }\n}",
         "placeholderDefinitions": {
           "values": [
             {
