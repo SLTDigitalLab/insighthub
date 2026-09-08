@@ -230,6 +230,14 @@ const SearchHistory = () => {
     return history.reduce((acc, curr) => acc + (curr.resultsCount || (curr.results ? curr.results.length : 0)), 0);
   }, [history]);
 
+  const handleBack = () => {
+    if (window.opener && !window.opener.closed) {
+      window.close();
+    } else {
+      navigate('/dashboard');
+    }
+  };
+
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc', fontFamily: 'Inter, -apple-system, sans-serif' }}>
       {/* Toast Notification */}
@@ -270,7 +278,7 @@ const SearchHistory = () => {
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={handleBack}
               style={{
                 display: 'inline-flex',
                 alignItems: 'center',

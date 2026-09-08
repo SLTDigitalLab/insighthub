@@ -749,7 +749,7 @@ const Dashboard = () => {
           )}
 
           <button
-            onClick={() => navigate('/search-history')}
+            onClick={() => window.open('/search-history', '_blank')}
             id="btn-search-history-sidebar"
             style={{
               display: 'flex',
@@ -853,7 +853,7 @@ const Dashboard = () => {
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
             <button
-              onClick={() => navigate('/search-history')}
+              onClick={() => window.open('/search-history', '_blank')}
               id="btn-search-history-header"
               style={{
                 display: 'flex', alignItems: 'center', gap: '0.5rem',
