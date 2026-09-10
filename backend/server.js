@@ -16,7 +16,13 @@ const searchHistoryService = require('./services/searchHistoryService');
 const app = express();
 const PORT = process.env.PORT || 5005;
 const N8N_BASE_URL = process.env.N8N_WEBHOOK_BASE || 'https://sltrnddigitallab.app.n8n.cloud/webhook';
-const ADMIN_EMAIL = process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk';
+const ADMIN_EMAILS = [
+  'dineshpi@slt.com.lk',
+  '020601@intranet.slt.com.lk',
+  (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim(),
+  'shalikahathurusinghe3584@gmail.com'
+];
+const ADMIN_EMAIL = ADMIN_EMAILS[0];
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://insighthub.raccoon-ai.io';
 
 
@@ -943,11 +949,13 @@ app.post('/api/auth/request-access', async (req, res) => {
       </div>
     `;
 
-    // Dispatch email to Admin
-    sendEmailNotification({
-      toEmail: ADMIN_EMAIL,
-      subject: `[Access Request] New InsightHub Access Request: ${user.name} (${user.userType} - ${user.rebmArea})`,
-      htmlBody: adminEmailHtml
+    // Dispatch email to all Admins
+    ADMIN_EMAILS.forEach(adminEmail => {
+      sendEmailNotification({
+        toEmail: adminEmail,
+        subject: `[Access Request] New InsightHub Access Request: ${user.name} (${user.userType} - ${user.rebmArea})`,
+        htmlBody: adminEmailHtml
+      });
     });
 
     res.json({
@@ -968,9 +976,27 @@ app.post('/api/auth/request-access', async (req, res) => {
   }
 });
 
+// Helper to verify admin authorization for API calls
+const verifyAdminRequest = (req) => {
+  const requesterEmail = (
+    req.headers['x-user-email'] ||
+    req.query.requesterEmail ||
+    req.body?.requesterEmail ||
+    ''
+  ).trim().toLowerCase();
+
+  if (!requesterEmail) return false;
+  if (ADMIN_EMAILS.includes(requesterEmail)) return true;
+  const verified = userService.verifyAccess(requesterEmail);
+  return !!(verified.approved && verified.role === 'admin');
+};
+
 // 3. Admin Pre-Authorizes / Invites User
 app.post('/api/admin/invite-user', async (req, res) => {
   try {
+    if (!verifyAdminRequest(req)) {
+      return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
+    }
     const { email, name, userType, rebmArea, serviceNumber, mobileNumber, role, invitedBy } = req.body;
 
     if (!email) {
@@ -1153,6 +1179,9 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
 // 5. Admin Portal: Get All Registered & Authorized Users
 app.get('/api/admin/users', (req, res) => {
   try {
+    if (!verifyAdminRequest(req)) {
+      return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
+    }
     const users = userService.getAllUsers();
     res.json({
       success: true,
@@ -1168,6 +1197,9 @@ app.get('/api/admin/users', (req, res) => {
 // 6. Admin Portal: User Action (Approve / Decline / Revoke from Admin Dashboard)
 app.post('/api/admin/user-action', async (req, res) => {
   try {
+    if (!verifyAdminRequest(req)) {
+      return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
+    }
     const { userId, action, reason } = req.body;
     const clientOrigin = req.headers.origin || APP_BASE_URL;
 

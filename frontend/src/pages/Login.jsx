@@ -36,21 +36,32 @@ const Login = () => {
                 setStatusMessage(`Authorizing ${email}...`);
               }
 
-              localStorage.setItem('userEmail', email);
-              localStorage.setItem('userName', name);
-
               const res = await axios.post('/api/auth/verify-access', { email });
               if (!isMounted) return;
 
               if (res.data.success && res.data.approved) {
-                if (res.data.role === 'admin') localStorage.setItem('insightHub_adminAuth', 'true');
+                if (res.data.role === 'admin') {
+                  localStorage.setItem('insightHub_adminAuth', 'true');
+                } else {
+                  localStorage.removeItem('insightHub_adminAuth');
+                }
+                localStorage.setItem('userRole', res.data.role || 'user');
+                localStorage.setItem('userEmail', email);
+                localStorage.setItem('userName', name);
                 navigate('/dashboard', { replace: true });
                 return;
               } else if (res.data.status === 'declined') {
+                localStorage.removeItem('userEmail');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('insightHub_adminAuth');
                 setError('Your access request was declined by the administrator. Please contact your department head.');
                 setCheckingAuth(false);
                 return;
               } else {
+                localStorage.removeItem('insightHub_adminAuth');
+                localStorage.setItem('userEmail', email);
+                localStorage.setItem('userName', name);
                 navigate('/request-access', { replace: true });
                 return;
               }
@@ -77,18 +88,30 @@ const Login = () => {
             if (exchangeRes.data.success) {
               const email = exchangeRes.data.email;
               const name = exchangeRes.data.name;
-              localStorage.setItem('userEmail', email);
-              localStorage.setItem('userName', name);
 
               if (exchangeRes.data.approved) {
-                if (exchangeRes.data.role === 'admin') localStorage.setItem('insightHub_adminAuth', 'true');
+                if (exchangeRes.data.role === 'admin') {
+                  localStorage.setItem('insightHub_adminAuth', 'true');
+                } else {
+                  localStorage.removeItem('insightHub_adminAuth');
+                }
+                localStorage.setItem('userRole', exchangeRes.data.role || 'user');
+                localStorage.setItem('userEmail', email);
+                localStorage.setItem('userName', name);
                 navigate('/dashboard', { replace: true });
                 return;
               } else if (exchangeRes.data.status === 'declined') {
+                localStorage.removeItem('userEmail');
+                localStorage.removeItem('userName');
+                localStorage.removeItem('userRole');
+                localStorage.removeItem('insightHub_adminAuth');
                 setError('Your access request was declined by the administrator.');
                 setCheckingAuth(false);
                 return;
               } else {
+                localStorage.removeItem('insightHub_adminAuth');
+                localStorage.setItem('userEmail', email);
+                localStorage.setItem('userName', name);
                 navigate('/request-access', { replace: true });
                 return;
               }
@@ -110,14 +133,24 @@ const Login = () => {
           if (!isMounted) return;
 
           if (res.data.success && res.data.approved) {
-            if (res.data.role === 'admin') localStorage.setItem('insightHub_adminAuth', 'true');
+            if (res.data.role === 'admin') {
+              localStorage.setItem('insightHub_adminAuth', 'true');
+            } else {
+              localStorage.removeItem('insightHub_adminAuth');
+            }
+            localStorage.setItem('userRole', res.data.role || 'user');
             navigate('/dashboard', { replace: true });
             return;
           } else if (res.data.status === 'declined') {
+            localStorage.removeItem('userEmail');
+            localStorage.removeItem('userName');
+            localStorage.removeItem('userRole');
+            localStorage.removeItem('insightHub_adminAuth');
             setError('Your access request was declined by the administrator.');
             setCheckingAuth(false);
             return;
           } else {
+            localStorage.removeItem('insightHub_adminAuth');
             navigate('/request-access', { replace: true });
             return;
           }
@@ -311,7 +344,7 @@ const Login = () => {
           )}
         </button>
 
-        {/* Footer Info & Admin Portal Quicklink */}
+        {/* Footer Info */}
         <div style={{
           marginTop: '2rem',
           paddingTop: '1.5rem',
@@ -323,19 +356,7 @@ const Login = () => {
           color: '#94a3b8'
         }}>
           <span>SLT-Mobitel Digital Labs</span>
-          <Link
-            to="/admin"
-            style={{
-              color: '#0066FF',
-              textDecoration: 'none',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.3rem'
-            }}
-          >
-            <Lock size={13} /> Administrator Portal
-          </Link>
+          <span>Enterprise Access Control</span>
         </div>
       </div>
     </div>

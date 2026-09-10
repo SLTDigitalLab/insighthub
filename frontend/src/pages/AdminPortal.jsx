@@ -47,25 +47,57 @@ const AdminPortal = () => {
   };
 
   useEffect(() => {
-    const isAuth = localStorage.getItem('insightHub_adminAuth');
-    const storedEmail = (localStorage.getItem('userEmail') || '').toLowerCase();
-    if (
-      isAuth === 'true' ||
-      storedEmail.includes('dinesh') ||
-      storedEmail.includes('020601') ||
-      storedEmail.includes('lahirus@slt.com.lk') ||
-      storedEmail.includes('shalikahathurusinghe') ||
-      storedEmail.includes('admin')
-    ) {
-      setIsAuthenticated(true);
-      fetchUsers();
-    }
-  }, []);
+    const checkAdminPermission = async () => {
+      const storedEmail = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+      const adminList = [
+        'dineshpi@slt.com.lk',
+        '020601@intranet.slt.com.lk',
+        'lahirus@slt.com.lk',
+        'shalikahathurusinghe3584@gmail.com'
+      ];
 
-  const fetchUsers = async () => {
+      if (!storedEmail) {
+        setIsAuthenticated(false);
+        navigate('/login', { replace: true });
+        return;
+      }
+
+      const cachedRole = localStorage.getItem('userRole');
+      const isCandidate = adminList.includes(storedEmail) || cachedRole === 'admin';
+
+      if (!isCandidate) {
+        console.warn('[Admin Security] Non-admin access attempt prevented:', storedEmail);
+        localStorage.removeItem('insightHub_adminAuth');
+        navigate('/dashboard', { replace: true });
+        return;
+      }
+
+      try {
+        const verifyRes = await axios.post('/api/auth/verify-access', { email: storedEmail });
+        if (verifyRes.data?.success && verifyRes.data?.approved && verifyRes.data?.role === 'admin') {
+          setIsAuthenticated(true);
+          localStorage.setItem('insightHub_adminAuth', 'true');
+          fetchUsers(storedEmail);
+        } else {
+          localStorage.removeItem('insightHub_adminAuth');
+          navigate('/dashboard', { replace: true });
+        }
+      } catch (err) {
+        console.error('Admin permission verification error:', err);
+        navigate('/dashboard', { replace: true });
+      }
+    };
+
+    checkAdminPermission();
+  }, [navigate]);
+
+  const fetchUsers = async (adminEmailOverride) => {
     setLoading(true);
     try {
-      const res = await axios.get('/api/admin/users');
+      const email = (adminEmailOverride || localStorage.getItem('userEmail') || '').toLowerCase().trim();
+      const res = await axios.get(`/api/admin/users?requesterEmail=${encodeURIComponent(email)}`, {
+        headers: { 'x-user-email': email }
+      });
       if (res.data.success) {
         setUsers(res.data.users || []);
       }
@@ -95,7 +127,8 @@ const AdminPortal = () => {
         setIsAuthenticated(true);
         localStorage.setItem('insightHub_adminAuth', 'true');
         localStorage.setItem('userEmail', cleanEmail);
-        fetchUsers();
+        localStorage.setItem('userRole', 'admin');
+        fetchUsers(cleanEmail);
         return;
       }
 
@@ -109,7 +142,12 @@ const AdminPortal = () => {
 
   const handleAdminLogout = () => {
     localStorage.removeItem('insightHub_adminAuth');
+    localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('msalUser');
     setIsAuthenticated(false);
+    navigate('/login');
   };
 
   const handleInviteUser = async (e) => {
@@ -133,16 +171,22 @@ const AdminPortal = () => {
 
     setInviteLoading(true);
     try {
-      const res = await axios.post('/api/admin/invite-user', {
-        email: inviteEmail.trim(),
-        name: inviteFullName.trim(),
-        userType: inviteUserType,
-        rebmArea: inviteRebmArea,
-        serviceNumber: inviteServiceNumber.trim(),
-        mobileNumber: inviteMobileNumber.trim(),
-        role: inviteRole,
-        invitedBy: 'Administrator'
-      });
+      const currentAdmin = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+      const res = await axios.post(
+        '/api/admin/invite-user',
+        {
+          email: inviteEmail.trim(),
+          name: inviteFullName.trim(),
+          userType: inviteUserType,
+          rebmArea: inviteRebmArea,
+          serviceNumber: inviteServiceNumber.trim(),
+          mobileNumber: inviteMobileNumber.trim(),
+          role: inviteRole,
+          invitedBy: currentAdmin || 'Administrator',
+          requesterEmail: currentAdmin
+        },
+        { headers: { 'x-user-email': currentAdmin } }
+      );
 
       if (res.data.success) {
         showToast(res.data.message || `Access granted to ${inviteEmail}! Invitation email sent.`, 'success');
@@ -165,11 +209,17 @@ const AdminPortal = () => {
   const handleUserAction = async (userId, action, reason = '') => {
     setActionLoading(true);
     try {
-      const res = await axios.post('/api/admin/user-action', {
-        userId,
-        action,
-        reason
-      });
+      const currentAdmin = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+      const res = await axios.post(
+        '/api/admin/user-action',
+        {
+          userId,
+          action,
+          reason,
+          requesterEmail: currentAdmin
+        },
+        { headers: { 'x-user-email': currentAdmin } }
+      );
 
       if (res.data.success) {
         showToast(res.data.message, 'success');

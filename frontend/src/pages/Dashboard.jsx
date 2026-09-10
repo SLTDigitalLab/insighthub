@@ -382,13 +382,11 @@ const Dashboard = () => {
   const location = useLocation();
   const userEmail = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
   const isAdmin =
-    localStorage.getItem('insightHub_adminAuth') === 'true' ||
     localStorage.getItem('userRole') === 'admin' ||
-    userEmail.includes('dinesh') ||
-    userEmail.includes('020601') ||
-    userEmail.includes('lahirus') ||
-    userEmail.includes('shalikahathurusinghe') ||
-    userEmail.includes('admin');
+    userEmail === 'dineshpi@slt.com.lk' ||
+    userEmail === '020601@intranet.slt.com.lk' ||
+    userEmail === 'lahirus@slt.com.lk' ||
+    userEmail === 'shalikahathurusinghe3584@gmail.com';
 
   // Handle re-run or load from Search History page
   useEffect(() => {
@@ -412,6 +410,10 @@ const Dashboard = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('userEmail');
+    localStorage.removeItem('userName');
+    localStorage.removeItem('userRole');
+    localStorage.removeItem('insightHub_adminAuth');
+    localStorage.removeItem('msalUser');
     navigate('/login');
   };
 
@@ -783,40 +785,42 @@ const Dashboard = () => {
             <ChevronRight size={15} color="#94a3b8" />
           </button>
 
-          <button
-            onClick={() => navigate('/admin')}
-            id="btn-admin-panel-sidebar"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              color: '#0066FF',
-              background: '#eff6ff',
-              width: '100%',
-              padding: '0.65rem 0.85rem',
-              fontSize: '0.85rem',
-              fontWeight: 700,
-              borderRadius: '0.65rem',
-              border: '1.5px solid #bfdbfe',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              boxShadow: '0 2px 8px rgba(0, 102, 255, 0.08)'
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.background = '#dbeafe';
-              e.currentTarget.style.borderColor = '#93c5fd';
-              e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 102, 255, 0.15)';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.background = '#eff6ff';
-              e.currentTarget.style.borderColor = '#bfdbfe';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 102, 255, 0.08)';
-            }}
-          >
-            <ShieldCheck size={18} color="#0066FF" />
-            <span style={{ flex: 1, textAlign: 'left' }}>Admin Panel</span>
-            <ChevronRight size={15} color="#0066FF" />
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => navigate('/admin')}
+              id="btn-admin-panel-sidebar"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.6rem',
+                color: '#0066FF',
+                background: '#eff6ff',
+                width: '100%',
+                padding: '0.65rem 0.85rem',
+                fontSize: '0.85rem',
+                fontWeight: 700,
+                borderRadius: '0.65rem',
+                border: '1.5px solid #bfdbfe',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(0, 102, 255, 0.08)'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = '#dbeafe';
+                e.currentTarget.style.borderColor = '#93c5fd';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 102, 255, 0.15)';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = '#eff6ff';
+                e.currentTarget.style.borderColor = '#bfdbfe';
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 102, 255, 0.08)';
+              }}
+            >
+              <ShieldCheck size={18} color="#0066FF" />
+              <span style={{ flex: 1, textAlign: 'left' }}>Admin Panel</span>
+              <ChevronRight size={15} color="#0066FF" />
+            </button>
+          )}
 
           <button
             onClick={handleLogout}
@@ -877,28 +881,30 @@ const Dashboard = () => {
               <History size={17} color="#0066FF" /> Search History
             </button>
 
-            <button
-              onClick={() => navigate('/admin')}
-              id="btn-admin-panel-header"
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: '#ffffff', color: '#0066FF',
-                border: '1.5px solid #0066FF',
-                padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
-                boxShadow: '0 2px 10px rgba(0, 102, 255, 0.1)',
-                cursor: 'pointer', transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#eff6ff';
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 102, 255, 0.2)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = '#ffffff';
-                e.currentTarget.style.boxShadow = '0 2px 10px rgba(0, 102, 255, 0.1)';
-              }}
-            >
-              <ShieldCheck size={17} color="#0066FF" /> Admin Panel
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => navigate('/admin')}
+                id="btn-admin-panel-header"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  background: '#ffffff', color: '#0066FF',
+                  border: '1.5px solid #0066FF',
+                  padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
+                  boxShadow: '0 2px 10px rgba(0, 102, 255, 0.1)',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#eff6ff';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 102, 255, 0.2)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(0, 102, 255, 0.1)';
+                }}
+              >
+                <ShieldCheck size={17} color="#0066FF" /> Admin Panel
+              </button>
+            )}
 
             <button
               onClick={() => setShowKBModal(true)}
