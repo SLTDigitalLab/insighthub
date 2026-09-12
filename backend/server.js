@@ -297,7 +297,7 @@ app.post('/api/vector/search', async (req, res) => {
             text: docText,
             fileName: metadata.fileName || 'Knowledge Base Document',
             category: metadata.category || 'General',
-            product: metadata.product || 'Mobitel Solution'
+            product: metadata.product || 'SLT-Mobitel Solution'
           });
         });
       }
@@ -520,7 +520,7 @@ app.post('/api/meeting-prep', async (req, res) => {
           .replace(/\s+/g, ' ')
           .trim();
 
-        return `${idx + 1}. **${prodName}** [Pillar: ${pillar}]:\n- **Why Recommended**: Custom-tailored for ${cleanPrompt} to resolve infrastructure bottlenecks.\n- **Core Features**: ${cleanDesc}\n- **Sales Pitch Question**: 'How are you currently managing ${prodName.toLowerCase()} performance and uptime across your operations?'\n- **Expected Value**: High availability SLA with dedicated 24/7 Mobitel engineering support.`;
+        return `${idx + 1}. **${prodName}** [Pillar: ${pillar}]:\n- **Why Recommended**: Custom-tailored for ${cleanPrompt} to resolve infrastructure bottlenecks.\n- **Core Features**: ${cleanDesc}\n- **Sales Pitch Question**: 'How are you currently managing ${prodName.toLowerCase()} performance and uptime across your operations?'\n- **Expected Value**: High availability SLA with dedicated 24/7 SLT-Mobitel engineering support.`;
       }).join('\n\n');
     }
 

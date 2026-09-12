@@ -35,18 +35,30 @@ const StarRating = ({ rating }) => {
 };
 
 const KNOWN_LABELS = [
-  'Problem Solved',
+  'Why Recommended',
   'Key Features from Knowledge Base',
   'Key Features',
-  'Expected Value',
-  'Why Recommended',
   'Core Features',
   'Sales Pitch Question',
   'Expected ROI & Value',
+  'Expected ROI',
+  'Expected Value',
+  'Problem Solved',
+  'Business Problem Solved',
   'Potential Pain Points',
+  'Key People to Meet',
+  'Employees Found',
   'Current Technology',
   'Recent Developments',
-  'Social Media Presence'
+  'Social Media Presence',
+  'Company Insights',
+  'Discussion Points & SLT-Mobitel Product Pitch',
+  'Discussion Points & Mobitel Product Pitch',
+  'Objection Handling',
+  'Competitor Analysis',
+  'Service Improvement Recommendations',
+  'Key Complaints',
+  'Overall Sentiment'
 ];
 
 // Rich text formatter for meeting prep, customer research, and product recommendations
@@ -82,12 +94,12 @@ const renderFormattedText = (rawText, accentColor = '#0066FF') => {
           const renderedRest = parts.map((part, pIdx) => {
             if (part.startsWith('**') && part.endsWith('**')) {
               const boldContent = part.slice(2, -2);
-              const isSubLabel = boldContent.trim().endsWith(':') || KNOWN_LABELS.some(l => boldContent.includes(l));
+              const isSubLabel = boldContent.trim().endsWith(':') || KNOWN_LABELS.some(l => boldContent.toLowerCase().includes(l.toLowerCase()));
               return (
                 <strong
                   key={pIdx}
                   style={{
-                    color: isSubLabel ? '#0f172a' : accentColor,
+                    color: isSubLabel ? '#0f172a' : (accentColor === '#f59e0b' ? '#d97706' : accentColor),
                     fontWeight: 700,
                     marginRight: '0.25rem'
                   }}
@@ -235,7 +247,7 @@ const BusinessDetail = () => {
     // Header
     doc.setFontSize(18);
     doc.setTextColor(59, 130, 246);
-    doc.text('InsightHub - Mobitel Sales Intelligence', 14, 15);
+    doc.text('InsightHub - SLT-Mobitel Sales Intelligence', 14, 15);
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
     doc.text(`${sectionName} — ${decodedName}`, 14, 25);
@@ -269,7 +281,7 @@ const BusinessDetail = () => {
       }, {}),
     });
 
-    doc.save(`Mobitel_${decodedName.replace(/\s+/g, '_')}_${sectionName.replace(/\s+/g, '_')}.pdf`);
+    doc.save(`SLT_Mobitel_${decodedName.replace(/\s+/g, '_')}_${sectionName.replace(/\s+/g, '_')}.pdf`);
   };
 
   const toggleSection = (section) => {
@@ -397,7 +409,7 @@ const BusinessDetail = () => {
           <h1>{business['Company Name'] || decodedName}</h1>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: '1rem', marginTop: '0.25rem' }}>
-          {business['Reason'] || 'Enterprise prospect for Mobitel B2B solutions'}
+          {business['Reason'] || 'Enterprise prospect for SLT-Mobitel B2B solutions'}
         </p>
         <div className="business-meta">
           <div className="business-meta-item">

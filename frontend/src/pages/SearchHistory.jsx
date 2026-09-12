@@ -773,7 +773,7 @@ const SearchHistory = () => {
                                 <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Rating</th>
                                 <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Lead Score</th>
                                 <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Website</th>
-                                <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Mobitel Sales Pitch</th>
+                                <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>SLT-Mobitel Sales Pitch</th>
                                 <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Action</th>
                               </tr>
                             </thead>

@@ -44,7 +44,7 @@ const agents = [
     id: 'newBusinesses',
     name: 'Find New Businesses',
     icon: Sparkles,
-    desc: 'Discover newly registered companies from Sunday Observer monthly lists and match with SLTMobitel B2B solutions.',
+    desc: 'Discover newly registered companies from Sunday Observer monthly lists and match with SLT-Mobitel B2B solutions.',
     placeholder: 'e.g. "Find newly registered logistics companies in Colombo" or "List new businesses registered this month"',
     color: '#06b6d4'
   },
@@ -156,17 +156,37 @@ const PriorityBadge = ({ priority }) => {
 };
 
 const KNOWN_LABELS = [
-  'Problem Solved',
-  'Key Features',
-  'Expected Value',
   'Why Recommended',
+  'Key Features from Knowledge Base',
+  'Key Features',
   'Core Features',
   'Sales Pitch Question',
-  'Expected ROI & Value'
+  'Expected ROI & Value',
+  'Expected ROI',
+  'Expected Value',
+  'Problem Solved',
+  'Business Problem Solved',
+  'Potential Pain Points',
+  'Key People to Meet',
+  'Employees Found',
+  'Current Technology',
+  'Recent Developments',
+  'Social Media Presence',
+  'Company Insights',
+  'Discussion Points & SLT-Mobitel Product Pitch',
+  'Discussion Points & Mobitel Product Pitch',
+  'Objection Handling',
+  'Competitor Analysis',
+  'Service Improvement Recommendations',
+  'Key Complaints',
+  'Overall Sentiment'
 ];
 
-const renderFormattedText = (rawText, accentColor = '#6366f1') => {
+const renderFormattedText = (rawText, accentColor = '#0066FF') => {
   if (typeof rawText !== 'string') return rawText;
+
+  // Ensure accentColor is dark enough to read with high contrast against white backgrounds
+  const contrastColor = (accentColor === '#ffffff' || !accentColor) ? '#0066FF' : (accentColor === '#f59e0b' ? '#d97706' : accentColor);
 
   const lines = rawText
     .split(/(?:\r?\n|(?=\d+\.\s+\*\*))/g)
@@ -180,9 +200,9 @@ const renderFormattedText = (rawText, accentColor = '#6366f1') => {
         const isNewProduct = /^\d+\.\s+\*\*/.test(trimmed);
 
         const renderLineContent = (str) => {
-          // Detect a leading "Label:" as plain text (no ** needed) and force it bold white
+          // Detect a leading "Label:" as plain text (no ** needed) and force it bold dark slate (#0f172a)
           const labelMatch = KNOWN_LABELS
-            .map(label => ({ label, re: new RegExp(`^(${label}:)\\s*`) }))
+            .map(label => ({ label, re: new RegExp(`^(${label}:?)\\s*`, 'i') }))
             .find(({ re }) => re.test(str));
 
           let prefix = null;
@@ -197,13 +217,14 @@ const renderFormattedText = (rawText, accentColor = '#6366f1') => {
           const renderedRest = parts.map((part, pIdx) => {
             if (part.startsWith('**') && part.endsWith('**')) {
               const boldContent = part.slice(2, -2);
-              const isSubLabel = boldContent.trim().endsWith(':');
+              const isSubLabel = boldContent.trim().endsWith(':') || KNOWN_LABELS.some(l => boldContent.toLowerCase().includes(l.toLowerCase()));
               return (
                 <strong
                   key={pIdx}
                   style={{
-                    color: isSubLabel ? '#ffffff' : accentColor,
-                    fontWeight: 700
+                    color: isSubLabel ? '#0f172a' : contrastColor,
+                    fontWeight: 700,
+                    marginRight: '0.2rem'
                   }}
                 >
                   {boldContent}
@@ -228,20 +249,20 @@ const renderFormattedText = (rawText, accentColor = '#6366f1') => {
                 if (!href.startsWith('http')) href = 'https://' + href;
                 return (
                   <React.Fragment key={uIdx}>
-                    <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'underline' }}>
+                    <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: '#0066FF', textDecoration: 'underline', fontWeight: 600 }}>
                       {displayHref}
                     </a>
                     {suffix}
                   </React.Fragment>
                 );
               }
-              return subPart;
+              return <span key={uIdx} style={{ color: '#334155' }}>{subPart}</span>;
             });
           });
 
           return (
             <>
-              {prefix && <strong style={{ color: '#ffffff', fontWeight: 700 }}>{prefix} </strong>}
+              {prefix && <strong style={{ color: '#0f172a', fontWeight: 700 }}>{prefix} </strong>}
               {renderedRest}
             </>
           );
@@ -253,7 +274,7 @@ const renderFormattedText = (rawText, accentColor = '#6366f1') => {
               <hr
                 style={{
                   border: 'none',
-                  borderTop: '1px solid var(--border-color)',
+                  borderTop: '1px solid #e2e8f0',
                   margin: '0.5rem 0'
                 }}
               />
@@ -473,7 +494,7 @@ const Dashboard = () => {
         setError("n8n Cloud Webhook Timeout (524): n8n Cloud is running deep scrapers & knowledge base queries. The workflow is processing. Please wait a moment and click Search again.");
       } else {
         setError(
-          rawError || `Failed to connect to live n8n ${activeAgent.name} Agent.`
+          rawError || `Failed to connect to SLT-Mobitel ${activeAgent.name} Agent.`
         );
       }
     } finally {
@@ -588,7 +609,7 @@ const Dashboard = () => {
     const worksheet = XLSX.utils.json_to_sheet(results);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, activeAgent.name.substring(0, 31));
-    XLSX.writeFile(workbook, `Mobitel_${activeAgent.id}_results.xlsx`);
+    XLSX.writeFile(workbook, `SLT_Mobitel_${activeAgent.id}_results.xlsx`);
   };
 
   const exportToPDF = () => {
@@ -597,7 +618,7 @@ const Dashboard = () => {
 
     doc.setFontSize(18);
     doc.setTextColor(59, 130, 246);
-    doc.text('InsightHub - Mobitel Sales Intelligence', 14, 15);
+    doc.text('InsightHub - SLT-Mobitel Sales Intelligence', 14, 15);
     doc.setFontSize(14);
     doc.setTextColor(0, 0, 0);
     doc.text(`${activeAgent.name} Report`, 14, 25);
@@ -623,7 +644,7 @@ const Dashboard = () => {
       }, {}),
     });
 
-    doc.save(`Mobitel_${activeAgent.id}_report.pdf`);
+    doc.save(`SLT_Mobitel_${activeAgent.id}_report.pdf`);
   };
 
   const isLeadResults = Boolean(results && Array.isArray(results) && results.length > 0 && results[0] && results[0]['Company Name']);
@@ -906,22 +927,24 @@ const Dashboard = () => {
               </button>
             )}
 
-            <button
-              onClick={() => setShowKBModal(true)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: 'linear-gradient(135deg, #0066FF 0%, #10b981 100%)', color: 'white',
-                padding: '0.75rem 1.4rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 'bold',
-                boxShadow: '0 4px 18px rgba(0, 102, 255, 0.35)',
-                border: 'none', cursor: 'pointer', transition: 'all 0.2s'
-              }}
-            >
-              <Database size={16} /> Knowledge Base & Vector DB
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => setShowKBModal(true)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  background: 'linear-gradient(135deg, #0066FF 0%, #10b981 100%)', color: 'white',
+                  padding: '0.75rem 1.4rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 'bold',
+                  boxShadow: '0 4px 18px rgba(0, 102, 255, 0.35)',
+                  border: 'none', cursor: 'pointer', transition: 'all 0.2s'
+                }}
+              >
+                <Database size={16} /> Knowledge Base & Vector DB
+              </button>
+            )}
           </div>
         </div>
 
-        {activeAgent.id === 'newBusinesses' && (
+        {isAdmin && activeAgent.id === 'newBusinesses' && (
           <div className="animate-fade-in" style={{
             maxWidth: '680px',
             background: '#ffffff',
@@ -954,7 +977,7 @@ const Dashboard = () => {
                   Sunday Observer Registry Matcher
                 </p>
                 <p style={{ fontSize: '0.76rem', color: '#64748b', marginTop: '0.1rem' }}>
-                  Upload monthly company lists (PDF/Excel) to discover leads & match Mobitel products.
+                  Upload monthly company lists (PDF/Excel) to discover leads & match SLT-Mobitel products.
                 </p>
               </div>
             </div>
@@ -1027,8 +1050,8 @@ const Dashboard = () => {
           }}>
             <div className="spin" style={{ width: '48px', height: '48px', border: `3px solid var(--border-color)`, borderTop: `3px solid ${activeAgent.color}`, borderRadius: '50%' }}></div>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', textAlign: 'center' }}>
-              ⚡ <strong>Live n8n AI Chat Agent</strong> is executing real-time web scraping & analysis...<br/>
-              <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>Fetching real-time business data via Apify & Mobitel Knowledge Base (this may take 20–60s)...</span>
+              ⚡ <strong>SLT-Mobitel B2B Agent</strong> is executing real-time web scraping & analysis...<br/>
+              <span style={{ fontSize: '0.8rem', opacity: 0.75 }}>Fetching real-time business data via Apify & SLT-Mobitel Knowledge Base (this may take 20–60s)...</span>
             </p>
           </div>
         )}
@@ -1401,14 +1424,14 @@ const Dashboard = () => {
             </p>
             <p style={{ fontSize: '0.88rem', maxWidth: '480px', textAlign: 'center', lineHeight: 1.5 }}>
               {results && results.length === 0
-                ? "The live n8n AI Agent finished its execution on n8n Cloud but scraped 0 items for this prompt. Try refining your query (e.g. 'private hospitals sri lanka' or 'hotels in kandy')."
-                : "Connected to live n8n AI Agent gateway & local vector store."}
+                ? "The SLT-Mobitel B2B Agent finished its execution but scraped 0 items for this prompt. Try refining your query (e.g. 'private hospitals sri lanka' or 'hotels in kandy')."
+                : "Connected to SLT-Mobitel B2B Agent gateway & local vector store."}
             </p>
           </div>
         )}
       </div>
 
-      {showKBModal && (
+      {isAdmin && showKBModal && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
           background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(4px)',
