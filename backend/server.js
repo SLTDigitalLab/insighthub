@@ -19,8 +19,7 @@ const N8N_BASE_URL = process.env.N8N_WEBHOOK_BASE || 'https://sltrnddigitallab.a
 const ADMIN_EMAILS = [
   'dineshpi@slt.com.lk',
   '020601@intranet.slt.com.lk',
-  (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim(),
-  'shalikahathurusinghe3584@gmail.com'
+  (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim()
 ];
 const ADMIN_EMAIL = ADMIN_EMAILS[0];
 const APP_BASE_URL = process.env.APP_BASE_URL || 'https://insighthub.raccoon-ai.io';

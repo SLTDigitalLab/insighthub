@@ -44,8 +44,7 @@ class UserService {
     const adminEmails = [
       (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim(),
       'dineshpi@slt.com.lk',
-      '020601@intranet.slt.com.lk',
-      'shalikahathurusinghe3584@gmail.com'
+      '020601@intranet.slt.com.lk'
     ];
 
     adminEmails.forEach(email => {
@@ -308,8 +307,7 @@ class UserService {
     const adminEmails = [
       (process.env.ADMIN_EMAIL || 'lahirus@slt.com.lk').toLowerCase().trim(),
       'dineshpi@slt.com.lk',
-      '020601@intranet.slt.com.lk',
-      'shalikahathurusinghe3584@gmail.com'
+      '020601@intranet.slt.com.lk'
     ];
 
     // Auto-approve Master Admins

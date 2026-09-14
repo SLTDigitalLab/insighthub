@@ -406,8 +406,7 @@ const Dashboard = () => {
     localStorage.getItem('userRole') === 'admin' ||
     userEmail === 'dineshpi@slt.com.lk' ||
     userEmail === '020601@intranet.slt.com.lk' ||
-    userEmail === 'lahirus@slt.com.lk' ||
-    userEmail === 'shalikahathurusinghe3584@gmail.com';
+    userEmail === 'lahirus@slt.com.lk';
 
   // Handle re-run or load from Search History page
   useEffect(() => {

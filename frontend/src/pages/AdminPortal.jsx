@@ -69,8 +69,7 @@ const AdminPortal = () => {
       const adminList = [
         'dineshpi@slt.com.lk',
         '020601@intranet.slt.com.lk',
-        'lahirus@slt.com.lk',
-        'shalikahathurusinghe3584@gmail.com'
+        'lahirus@slt.com.lk'
       ];
 
       if (!storedEmail) {
@@ -138,7 +137,6 @@ const AdminPortal = () => {
         (cleanEmail === 'dineshpi@slt.com.lk' && adminPassword === 'Admin@Mobitel2026!') ||
         (cleanEmail === '020601@intranet.slt.com.lk' && adminPassword === 'Admin@Mobitel2026!') ||
         (cleanEmail === 'lahirus@slt.com.lk' && adminPassword === 'Admin@Mobitel2026!') ||
-        (cleanEmail === 'shalikahathurusinghe3584@gmail.com' && adminPassword === 'Admin@Mobitel2026!') ||
         (cleanEmail.includes('admin') && adminPassword === 'Admin@Mobitel2026!')
       ) {
         setIsAuthenticated(true);
