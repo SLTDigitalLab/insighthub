@@ -7,9 +7,24 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-export const REBM_AREAS = [
+export const ENTERPRISE_SECTIONS = [
+  'Enterprise Large',
+  'Enterprise Medium',
+  'Government',
+  'Carrier business',
+  'REBM'
+];
+
+export const REBM_SUB_SECTIONS = [
   'CPN', 'CPS', 'EP', 'NCP', 'NP', 'NWPE', 'NWPW', 'SAB', 'SPE', 'SPW',
   'UVA', 'WPC1', 'WPC2', 'WPE', 'WPN', 'WPNE', 'WPS', 'WPSE', 'WPSW'
+];
+
+export const REBM_AREAS = REBM_SUB_SECTIONS;
+
+export const DESIGNATIONS = [
+  'Account Manager',
+  'Section Manager'
 ];
 
 const AdminPortal = () => {
@@ -25,12 +40,14 @@ const AdminPortal = () => {
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('invite'); // 'invite' | 'pending' | 'approved' | 'declined' | 'all'
   const [searchTerm, setSearchTerm] = useState('');
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [areaFilter, setAreaFilter] = useState('all');
+  const [sectionFilter, setSectionFilter] = useState('all');
+  const [subSectionFilter, setSubSectionFilter] = useState('all');
+  const [designationFilter, setDesignationFilter] = useState('all');
 
-  // Structured Invite User Form State
-  const [inviteUserType, setInviteUserType] = useState('Account manager'); // 'Account manager' | 'REBM manager'
-  const [inviteRebmArea, setInviteRebmArea] = useState('CPN');
+  // Structured Invite User Form State (5 Enterprise Sections & 19 REBM Sub-Sections)
+  const [inviteSection, setInviteSection] = useState('Enterprise Large');
+  const [inviteSubSection, setInviteSubSection] = useState('WPC1');
+  const [inviteDesignation, setInviteDesignation] = useState('Account Manager');
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteServiceNumber, setInviteServiceNumber] = useState('');
   const [inviteMobileNumber, setInviteMobileNumber] = useState('');
@@ -177,8 +194,13 @@ const AdminPortal = () => {
         {
           email: inviteEmail.trim(),
           name: inviteFullName.trim(),
-          userType: inviteUserType,
-          rebmArea: inviteRebmArea,
+          section: inviteSection,
+          subSection: inviteSection === 'REBM' ? inviteSubSection : '',
+          designation: inviteDesignation,
+          userType: inviteSection === 'REBM'
+            ? `REBM - ${inviteSubSection} (${inviteDesignation})`
+            : `${inviteSection} (${inviteDesignation})`,
+          rebmArea: inviteSection === 'REBM' ? inviteSubSection : '',
           serviceNumber: inviteServiceNumber.trim(),
           mobileNumber: inviteMobileNumber.trim(),
           role: inviteRole,
@@ -345,19 +367,31 @@ const AdminPortal = () => {
       activeTab === 'approved' ? u.status === 'approved' :
       activeTab === 'declined' ? u.status === 'declined' : true;
 
-    const matchesType = typeFilter === 'all' || u.userType === typeFilter;
-    const matchesArea = areaFilter === 'all' || u.rebmArea === areaFilter;
+    // Resolve Section & Designation for matching
+    const rawSection = u.section || (u.userType && u.userType.includes('REBM') ? 'REBM' : (u.department || ''));
+    const isRebm = rawSection === 'REBM' || rawSection.includes('REBM') || !!u.rebmArea;
+    const resolvedSection = isRebm ? 'REBM' : rawSection;
+    const matchesSection = sectionFilter === 'all' || resolvedSection === sectionFilter;
+
+    const rawSubSection = u.subSection || u.rebmArea || '';
+    const matchesSubSection = subSectionFilter === 'all' || rawSubSection === subSectionFilter;
+
+    const resolvedDesignation = u.designation || ((u.userType && u.userType.toLowerCase().includes('section')) ? 'Section Manager' : 'Account Manager');
+    const matchesDesignation = designationFilter === 'all' || resolvedDesignation === designationFilter;
 
     const matchesSearch =
       (u.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.serviceNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.mobileNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.section || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.subSection || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.designation || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.rebmArea || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.userType || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (u.department || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    return matchesTab && matchesType && matchesArea && matchesSearch;
+    return matchesTab && matchesSection && matchesSubSection && matchesDesignation && matchesSearch;
   });
 
   return (
@@ -510,32 +544,55 @@ const AdminPortal = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            {/* User Type Filter */}
+            {/* Section Filter */}
             <select
-              value={typeFilter}
-              onChange={(e) => setTypeFilter(e.target.value)}
+              value={sectionFilter}
+              onChange={(e) => {
+                setSectionFilter(e.target.value);
+                if (e.target.value !== 'REBM') {
+                  setSubSectionFilter('all');
+                }
+              }}
               style={{
                 padding: '0.55rem 0.85rem', fontSize: '0.85rem', fontWeight: 600,
                 border: '1px solid #cbd5e1', borderRadius: '0.6rem', outline: 'none', background: '#ffffff', color: '#334155'
               }}
             >
-              <option value="all">All User Types</option>
-              <option value="Account manager">Account manager</option>
-              <option value="REBM manager">REBM manager</option>
+              <option value="all">All Sections</option>
+              {ENTERPRISE_SECTIONS.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
             </select>
 
-            {/* REBM Area Filter */}
+            {/* REBM Sub-Section Filter */}
+            {(sectionFilter === 'all' || sectionFilter === 'REBM') && (
+              <select
+                value={subSectionFilter}
+                onChange={(e) => setSubSectionFilter(e.target.value)}
+                style={{
+                  padding: '0.55rem 0.85rem', fontSize: '0.85rem', fontWeight: 600,
+                  border: '1px solid #cbd5e1', borderRadius: '0.6rem', outline: 'none', background: '#ffffff', color: '#334155'
+                }}
+              >
+                <option value="all">All REBM Sub-Sections</option>
+                {REBM_SUB_SECTIONS.map(a => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            )}
+
+            {/* Designation Filter */}
             <select
-              value={areaFilter}
-              onChange={(e) => setAreaFilter(e.target.value)}
+              value={designationFilter}
+              onChange={(e) => setDesignationFilter(e.target.value)}
               style={{
                 padding: '0.55rem 0.85rem', fontSize: '0.85rem', fontWeight: 600,
                 border: '1px solid #cbd5e1', borderRadius: '0.6rem', outline: 'none', background: '#ffffff', color: '#334155'
               }}
             >
-              <option value="all">All REBM Areas</option>
-              {REBM_AREAS.map(a => (
-                <option key={a} value={a}>{a}</option>
+              <option value="all">All Designations</option>
+              {DESIGNATIONS.map(d => (
+                <option key={d} value={d}>{d}</option>
               ))}
             </select>
 
@@ -578,52 +635,74 @@ const AdminPortal = () => {
                 Pre-Authorize & Add User
               </h3>
               <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                Select whether the user is an <strong>Account manager</strong> or <strong>REBM manager</strong>, assign their <strong>REBM area</strong>, and fill in their employee credentials.
+                Select the user's <strong>Enterprise Section</strong>, <strong>REBM Sub-Section</strong> (if applicable), <strong>Status / Designation</strong> (Section Manager or Account Manager), and employee credentials.
               </p>
             </div>
 
             <form onSubmit={handleInviteUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', alignItems: 'flex-end' }}>
-              {/* 1. User Type Dropdown */}
+              {/* 1. Section Dropdown */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
-                  User Type *
+                  Section *
                 </label>
                 <select
-                  value={inviteUserType}
-                  onChange={(e) => setInviteUserType(e.target.value)}
+                  value={inviteSection}
+                  onChange={(e) => setInviteSection(e.target.value)}
                   style={{
                     width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem', fontWeight: 600,
                     border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
                   }}
                 >
-                  <option value="Account manager">Account manager</option>
-                  <option value="REBM manager">REBM manager</option>
-                </select>
-              </div>
-
-              {/* 2. REBM Area Dropdown */}
-              <div>
-                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
-                  REBM Area *
-                </label>
-                <select
-                  value={inviteRebmArea}
-                  onChange={(e) => setInviteRebmArea(e.target.value)}
-                  style={{
-                    width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem', fontWeight: 600,
-                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
-                  }}
-                >
-                  {REBM_AREAS.map(area => (
-                    <option key={area} value={area}>{area}</option>
+                  {ENTERPRISE_SECTIONS.map(sec => (
+                    <option key={sec} value={sec}>{sec}</option>
                   ))}
                 </select>
               </div>
 
-              {/* 3. Full Name of the User */}
+              {/* 2. REBM Sub-Section Dropdown (Only shown if Section is REBM) */}
+              {inviteSection === 'REBM' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                    REBM Sub-Section (19 Areas) *
+                  </label>
+                  <select
+                    value={inviteSubSection}
+                    onChange={(e) => setInviteSubSection(e.target.value)}
+                    style={{
+                      width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem', fontWeight: 600,
+                      border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
+                    }}
+                  >
+                    {REBM_SUB_SECTIONS.map(area => (
+                      <option key={area} value={area}>{area}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* 3. Status / Designation */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
-                  Full Name of the User *
+                  Status / Designation *
+                </label>
+                <select
+                  value={inviteDesignation}
+                  onChange={(e) => setInviteDesignation(e.target.value)}
+                  style={{
+                    width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem', fontWeight: 600,
+                    border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
+                  }}
+                >
+                  {DESIGNATIONS.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 4. Full Name of the User */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  Full Name *
                 </label>
                 <input
                   type="text"
@@ -638,7 +717,7 @@ const AdminPortal = () => {
                 />
               </div>
 
-              {/* 4. Service Number */}
+              {/* 5. Service Number */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
                   Service Number *
@@ -656,7 +735,7 @@ const AdminPortal = () => {
                 />
               </div>
 
-              {/* 5. Mobile Number */}
+              {/* 6. Mobile Number */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
                   Mobile Number *
@@ -674,7 +753,7 @@ const AdminPortal = () => {
                 />
               </div>
 
-              {/* 6. Email */}
+              {/* 7. Email */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
                   Email (@slt.com.lk) *
@@ -695,7 +774,7 @@ const AdminPortal = () => {
                 </div>
               </div>
 
-              {/* 7. Access Role */}
+              {/* 8. Access Role */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
                   Platform Access Role
@@ -708,7 +787,7 @@ const AdminPortal = () => {
                     border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
                   }}
                 >
-                  <option value="user">Standard User ({inviteUserType})</option>
+                  <option value="user">Standard User ({inviteDesignation})</option>
                   <option value="admin">Administrator (Full Access)</option>
                 </select>
               </div>
@@ -742,8 +821,8 @@ const AdminPortal = () => {
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
                 <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>User / Full Name</th>
                 <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Work Email</th>
-                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>User Type</th>
-                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>REBM Area</th>
+                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Section / Unit</th>
+                <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Designation</th>
                 <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Mobile Number</th>
                 <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>Access Status</th>
                 <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700, textAlign: 'right' }}>Actions</th>
@@ -761,8 +840,13 @@ const AdminPortal = () => {
                   const isApproved = u.status === 'approved';
                   const isPending = u.status === 'pending_approval';
                   const isDeclined = u.status === 'declined';
-                  const isAccountMgr = (u.userType || '').toLowerCase().includes('account');
-                  const isRebmMgr = (u.userType || '').toLowerCase().includes('rebm');
+                  const isSectionMgr = (u.designation && u.designation.toLowerCase().includes('section')) ||
+                                       (u.userType && u.userType.toLowerCase().includes('section'));
+                  const displayDesignation = isSectionMgr ? 'Section Manager' : 'Account Manager';
+                  const isRebm = u.section === 'REBM' || (u.userType && u.userType.includes('REBM')) || !!u.rebmArea;
+                  const displaySection = isRebm
+                    ? `REBM - ${u.subSection || u.rebmArea || ''}`
+                    : (u.section || u.department || 'Enterprise Large');
 
                   return (
                     <tr key={u.id || u.email} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
@@ -794,37 +878,32 @@ const AdminPortal = () => {
                         )}
                       </td>
 
+                      {/* Section / Unit */}
                       <td style={{ padding: '1rem 1.25rem' }}>
-                        {u.userType ? (
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center',
-                            fontSize: '0.75rem', fontWeight: 700,
-                            padding: '0.25rem 0.65rem', borderRadius: '0.4rem',
-                            background: isAccountMgr ? '#eff6ff' : isRebmMgr ? '#f0fdf4' : '#f1f5f9',
-                            color: isAccountMgr ? '#1d4ed8' : isRebmMgr ? '#15803d' : '#334155',
-                            border: `1px solid ${isAccountMgr ? '#bfdbfe' : isRebmMgr ? '#bbf7d0' : '#e2e8f0'}`
-                          }}>
-                            {u.userType}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Standard</span>
-                        )}
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center',
+                          fontSize: '0.75rem', fontWeight: 700,
+                          padding: '0.25rem 0.65rem', borderRadius: '0.4rem',
+                          background: isRebm ? '#f0fdf4' : '#f8fafc',
+                          color: isRebm ? '#166534' : '#0f172a',
+                          border: `1px solid ${isRebm ? '#bbf7d0' : '#cbd5e1'}`
+                        }}>
+                          {displaySection}
+                        </span>
                       </td>
 
+                      {/* Designation */}
                       <td style={{ padding: '1rem 1.25rem' }}>
-                        {u.rebmArea ? (
-                          <span style={{
-                            display: 'inline-flex', alignItems: 'center',
-                            fontSize: '0.75rem', fontWeight: 800,
-                            padding: '0.25rem 0.6rem', borderRadius: '0.4rem',
-                            background: '#f8fafc', color: '#0f172a',
-                            border: '1px solid #cbd5e1'
-                          }}>
-                            {u.rebmArea}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>—</span>
-                        )}
+                        <span style={{
+                          display: 'inline-flex', alignItems: 'center',
+                          fontSize: '0.75rem', fontWeight: 700,
+                          padding: '0.25rem 0.65rem', borderRadius: '0.4rem',
+                          background: isSectionMgr ? '#dcfce7' : '#eff6ff',
+                          color: isSectionMgr ? '#15803d' : '#1d4ed8',
+                          border: `1px solid ${isSectionMgr ? '#86efac' : '#bfdbfe'}`
+                        }}>
+                          {displayDesignation}
+                        </span>
                       </td>
 
                       <td style={{ padding: '1rem 1.25rem', color: '#334155', fontSize: '0.85rem' }}>

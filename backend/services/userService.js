@@ -99,13 +99,52 @@ class UserService {
   }
 
   /**
+   * Helper to format section, sub-section, and designation
+   */
+  formatUserHierarchy({ section, subSection, designation, userType, rebmArea }) {
+    const validSections = ['Enterprise Large', 'Enterprise Medium', 'Government', 'Carrier business', 'REBM'];
+    const resolvedSection = validSections.includes(section) ? section : (section || 'Enterprise Large');
+
+    let resolvedSubSection = '';
+    if (resolvedSection === 'REBM') {
+      resolvedSubSection = subSection || rebmArea || 'WPC1';
+    }
+
+    const resolvedDesignation = (designation && designation.toLowerCase().includes('section'))
+      ? 'Section Manager'
+      : (designation || 'Account Manager');
+
+    let compositeUserType = '';
+    let department = '';
+
+    if (resolvedSection === 'REBM') {
+      compositeUserType = `REBM - ${resolvedSubSection} (${resolvedDesignation})`;
+      department = `REBM - ${resolvedSubSection}`;
+    } else {
+      compositeUserType = `${resolvedSection} (${resolvedDesignation})`;
+      department = resolvedSection;
+    }
+
+    return {
+      section: resolvedSection,
+      subSection: resolvedSubSection,
+      designation: resolvedDesignation,
+      userType: compositeUserType,
+      department: department
+    };
+  }
+
+  /**
    * Admin pre-authorizes / invites an SLT email address
    */
   inviteUser({
     email,
     name,
-    userType = 'Account manager',
-    rebmArea = 'WPC1',
+    section,
+    subSection,
+    designation,
+    userType,
+    rebmArea,
     serviceNumber = '',
     mobileNumber = '',
     role = 'user',
@@ -117,17 +156,27 @@ class UserService {
       throw new Error('Please provide a valid email address.');
     }
 
+    const hierarchy = this.formatUserHierarchy({
+      section: section || (userType && userType.includes('REBM') ? 'REBM' : 'Enterprise Large'),
+      subSection: subSection || rebmArea,
+      designation: designation || (userType && userType.includes('Section') ? 'Section Manager' : 'Account Manager'),
+      userType,
+      rebmArea
+    });
+
     let user = this.getUserByEmail(cleanEmail);
 
     if (user) {
       // Re-activate or update existing user
       user.name = name?.trim() || user.name || cleanEmail.split('@')[0];
-      user.userType = userType || user.userType || 'Account manager';
-      user.rebmArea = rebmArea || user.rebmArea || '';
+      user.section = hierarchy.section;
+      user.subSection = hierarchy.subSection;
+      user.designation = hierarchy.designation;
+      user.userType = hierarchy.userType;
+      user.department = hierarchy.department;
+      user.rebmArea = hierarchy.subSection;
       user.serviceNumber = serviceNumber?.trim() || user.serviceNumber || '';
       user.mobileNumber = mobileNumber?.trim() || user.mobileNumber || '';
-      user.department = `${user.userType} - ${user.rebmArea}`;
-      user.designation = user.userType;
       user.role = role || user.role || 'user';
       user.status = 'approved';
       user.invitedAt = new Date().toISOString();
@@ -142,12 +191,14 @@ class UserService {
       id: 'usr-' + crypto.randomUUID(),
       name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
-      userType: userType || 'Account manager',
-      rebmArea: rebmArea || '',
+      section: hierarchy.section,
+      subSection: hierarchy.subSection,
+      designation: hierarchy.designation,
+      userType: hierarchy.userType,
+      department: hierarchy.department,
+      rebmArea: hierarchy.subSection,
       serviceNumber: serviceNumber?.trim() || '',
       mobileNumber: mobileNumber?.trim() || '',
-      department: `${userType || 'Account manager'} - ${rebmArea || 'WPC1'}`,
-      designation: userType || 'Account manager',
       status: 'approved',
       role: role || 'user',
       createdAt: new Date().toISOString(),
@@ -169,8 +220,11 @@ class UserService {
   requestAccess({
     name,
     email,
-    userType = 'Account manager',
-    rebmArea = 'WPC1',
+    section,
+    subSection,
+    designation,
+    userType,
+    rebmArea,
     serviceNumber = '',
     mobileNumber = '',
     note = ''
@@ -182,18 +236,28 @@ class UserService {
       return { alreadyApproved: true, user };
     }
 
+    const hierarchy = this.formatUserHierarchy({
+      section: section || (userType && userType.includes('REBM') ? 'REBM' : 'Enterprise Large'),
+      subSection: subSection || rebmArea,
+      designation: designation || (userType && userType.includes('Section') ? 'Section Manager' : 'Account Manager'),
+      userType,
+      rebmArea
+    });
+
     const approvalToken = crypto.randomBytes(24).toString('hex');
     const declineToken = crypto.randomBytes(24).toString('hex');
 
     if (user) {
       // Update pending or re-request after decline
       user.name = name?.trim() || user.name || cleanEmail.split('@')[0];
-      user.userType = userType || user.userType || 'Account manager';
-      user.rebmArea = rebmArea || user.rebmArea || '';
+      user.section = hierarchy.section;
+      user.subSection = hierarchy.subSection;
+      user.designation = hierarchy.designation;
+      user.userType = hierarchy.userType;
+      user.department = hierarchy.department;
+      user.rebmArea = hierarchy.subSection;
       user.serviceNumber = serviceNumber?.trim() || user.serviceNumber || '';
       user.mobileNumber = mobileNumber?.trim() || user.mobileNumber || '';
-      user.department = `${user.userType} - ${user.rebmArea}`;
-      user.designation = user.userType;
       user.note = note?.trim() || '';
       user.status = 'pending_approval';
       user.approvalToken = approvalToken;
@@ -207,12 +271,14 @@ class UserService {
       id: 'usr-' + crypto.randomUUID(),
       name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
-      userType: userType || 'Account manager',
-      rebmArea: rebmArea || '',
+      section: hierarchy.section,
+      subSection: hierarchy.subSection,
+      designation: hierarchy.designation,
+      userType: hierarchy.userType,
+      department: hierarchy.department,
+      rebmArea: hierarchy.subSection,
       serviceNumber: serviceNumber?.trim() || '',
       mobileNumber: mobileNumber?.trim() || '',
-      department: `${userType || 'Account manager'} - ${rebmArea || 'WPC1'}`,
-      designation: userType || 'Account manager',
       note: note?.trim() || '',
       status: 'pending_approval',
       role: 'user',

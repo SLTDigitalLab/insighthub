@@ -3,9 +3,24 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Mail, User, Building, Briefcase, FileText, ArrowRight, CheckCircle, Clock, AlertCircle, Loader2, LogOut } from 'lucide-react';
 import axios from 'axios';
 
-const REBM_AREAS = [
+export const ENTERPRISE_SECTIONS = [
+  'Enterprise Large',
+  'Enterprise Medium',
+  'Government',
+  'Carrier business',
+  'REBM'
+];
+
+export const REBM_SUB_SECTIONS = [
   'CPN', 'CPS', 'EP', 'NCP', 'NP', 'NWPE', 'NWPW', 'SAB', 'SPE', 'SPW',
   'UVA', 'WPC1', 'WPC2', 'WPE', 'WPN', 'WPNE', 'WPS', 'WPSE', 'WPSW'
+];
+
+export const REBM_AREAS = REBM_SUB_SECTIONS;
+
+export const DESIGNATIONS = [
+  'Account Manager',
+  'Section Manager'
 ];
 
 const RequestAccess = () => {
@@ -13,8 +28,9 @@ const RequestAccess = () => {
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
-  const [userType, setUserType] = useState('Account manager'); // 'Account manager' | 'REBM manager'
-  const [rebmArea, setRebmArea] = useState('WPC1');
+  const [section, setSection] = useState('Enterprise Large');
+  const [subSection, setSubSection] = useState('WPC1');
+  const [designation, setDesignation] = useState('Account Manager');
   const [serviceNumber, setServiceNumber] = useState('');
   const [mobileNumber, setMobileNumber] = useState('');
   const [note, setNote] = useState('');
@@ -74,8 +90,13 @@ const RequestAccess = () => {
       const res = await axios.post('/api/auth/request-access', {
         name: name.trim(),
         email: email.trim(),
-        userType,
-        rebmArea,
+        section,
+        subSection: section === 'REBM' ? subSection : '',
+        designation,
+        userType: section === 'REBM'
+          ? `REBM - ${subSection} (${designation})`
+          : `${section} (${designation})`,
+        rebmArea: section === 'REBM' ? subSection : '',
         serviceNumber: serviceNumber.trim(),
         mobileNumber: mobileNumber.trim(),
         note: note.trim()
@@ -239,40 +260,64 @@ const RequestAccess = () => {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                User Type *
+                Enterprise Section *
               </label>
               <div style={{ position: 'relative' }}>
                 <Briefcase size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                 <select
-                  value={userType}
-                  onChange={(e) => setUserType(e.target.value)}
+                  value={section}
+                  onChange={(e) => setSection(e.target.value)}
                   style={{
                     width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', fontSize: '0.88rem', fontWeight: 600,
                     border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none', background: '#ffffff', color: '#0f172a'
                   }}
                 >
-                  <option value="Account manager">Account manager</option>
-                  <option value="REBM manager">REBM manager</option>
+                  {ENTERPRISE_SECTIONS.map(s => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
                 </select>
               </div>
             </div>
 
+            {section === 'REBM' && (
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                  REBM Sub-Section (19 Areas) *
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <Building size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <select
+                    value={subSection}
+                    onChange={(e) => setSubSection(e.target.value)}
+                    style={{
+                      width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', fontSize: '0.88rem', fontWeight: 600,
+                      border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none', background: '#ffffff', color: '#0f172a'
+                    }}
+                  >
+                    {REBM_SUB_SECTIONS.map(area => (
+                      <option key={area} value={area}>{area}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                REBM Area *
+                Status / Designation *
               </label>
               <div style={{ position: 'relative' }}>
-                <Building size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                <ShieldCheck size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                 <select
-                  value={rebmArea}
-                  onChange={(e) => setRebmArea(e.target.value)}
+                  value={designation}
+                  onChange={(e) => setDesignation(e.target.value)}
                   style={{
                     width: '100%', padding: '0.75rem 1rem 0.75rem 2.5rem', fontSize: '0.88rem', fontWeight: 600,
                     border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none', background: '#ffffff', color: '#0f172a'
                   }}
                 >
-                  {REBM_AREAS.map(area => (
-                    <option key={area} value={area}>{area}</option>
+                  {DESIGNATIONS.map(d => (
+                    <option key={d} value={d}>{d}</option>
                   ))}
                 </select>
               </div>

@@ -845,7 +845,7 @@ app.post('/api/auth/verify-access', (req, res) => {
 // 2. Self-Service Access Request (From Microsoft Authenticated User)
 app.post('/api/auth/request-access', async (req, res) => {
   try {
-    const { name, email, userType, rebmArea, serviceNumber, mobileNumber, note } = req.body;
+    const { name, email, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, note } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -857,8 +857,11 @@ app.post('/api/auth/request-access', async (req, res) => {
     const result = userService.requestAccess({
       name: name || email.split('@')[0],
       email: email,
-      userType: userType || 'Account manager',
-      rebmArea: rebmArea || 'WPC1',
+      section: section || 'Enterprise Large',
+      subSection: subSection || rebmArea || '',
+      designation: designation || 'Account Manager',
+      userType,
+      rebmArea,
       serviceNumber: serviceNumber || '',
       mobileNumber: mobileNumber || '',
       note: note || ''
@@ -893,12 +896,18 @@ app.post('/api/auth/request-access', async (req, res) => {
 
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
             <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569; width: 35%; border-bottom: 1px solid #e2e8f0;">User Type:</td>
-              <td style="padding: 12px 16px; color: #0066FF; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.userType || 'Account manager'}</td>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; width: 35%; border-bottom: 1px solid #e2e8f0;">Section:</td>
+              <td style="padding: 12px 16px; color: #0066FF; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.section || 'Enterprise Large'}</td>
             </tr>
+            ${user.section === 'REBM' && user.subSection ? `
             <tr>
-              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">REBM Area:</td>
-              <td style="padding: 12px 16px; color: #0f172a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.rebmArea || 'N/A'}</td>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">REBM Sub-Section:</td>
+              <td style="padding: 12px 16px; color: #0f172a; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.subSection}</td>
+            </tr>
+            ` : ''}
+            <tr>
+              <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Designation / Status:</td>
+              <td style="padding: 12px 16px; color: #10b981; font-weight: bold; border-bottom: 1px solid #e2e8f0;">${user.designation || 'Account Manager'}</td>
             </tr>
             <tr>
               <td style="padding: 12px 16px; font-weight: bold; color: #475569; border-bottom: 1px solid #e2e8f0;">Full Name:</td>
@@ -997,7 +1006,7 @@ app.post('/api/admin/invite-user', async (req, res) => {
     if (!verifyAdminRequest(req)) {
       return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
     }
-    const { email, name, userType, rebmArea, serviceNumber, mobileNumber, role, invitedBy } = req.body;
+    const { email, name, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, role, invitedBy } = req.body;
 
     if (!email) {
       return res.status(400).json({ success: false, error: 'Email address is required.' });
@@ -1006,6 +1015,9 @@ app.post('/api/admin/invite-user', async (req, res) => {
     const { user, isNew } = userService.inviteUser({
       email,
       name,
+      section: section || 'Enterprise Large',
+      subSection: subSection || rebmArea || '',
+      designation: designation || 'Account Manager',
       userType,
       rebmArea,
       serviceNumber,
@@ -1017,6 +1029,10 @@ app.post('/api/admin/invite-user', async (req, res) => {
     const clientOrigin = req.headers.origin || APP_BASE_URL;
     const loginUrl = `${clientOrigin}/login`;
 
+    const sectionDisplay = user.section === 'REBM'
+      ? `REBM (${user.subSection})`
+      : user.section;
+
     const inviteEmailHtml = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
         <div style="background: linear-gradient(135deg, #0066FF 0%, #10b981 100%); padding: 28px 36px;">
@@ -1026,7 +1042,7 @@ app.post('/api/admin/invite-user', async (req, res) => {
         <div style="padding: 28px 36px;">
           <h2 style="color: #0f172a; margin: 0 0 12px; font-size: 18px;">Hello ${user.name},</h2>
           <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-            An administrator has granted you access to <strong>InsightHub</strong> as a <strong>${user.userType}</strong> (${user.rebmArea} Area). You can now sign in using your official SLT Microsoft Work Account (<code>${user.email}</code>) to complete your registration and start discovering high-converting enterprise leads.
+            An administrator has granted you access to <strong>InsightHub</strong> as a <strong>${user.designation || 'Account Manager'}</strong> in <strong>${sectionDisplay}</strong>. You can now sign in using your official SLT Microsoft Work Account (<code>${user.email}</code>) to access lead discovery and sales intelligence tools.
           </p>
           <div style="text-align: center; margin: 28px 0;">
             <a href="${loginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
@@ -1047,19 +1063,22 @@ app.post('/api/admin/invite-user', async (req, res) => {
     // Dispatch invitation email
     sendEmailNotification({
       toEmail: user.email,
-      subject: `[InsightHub Access Granted] Administrator has authorized your ${user.userType} account`,
+      subject: `[InsightHub Access Granted] Administrator has authorized your ${user.designation || 'Account Manager'} account`,
       htmlBody: inviteEmailHtml
     });
 
     res.json({
       success: true,
-      message: `Access granted to ${user.email} (${user.userType} - ${user.rebmArea})! An invitation email has been sent.`,
+      message: `Access granted to ${user.email} (${user.userType})! An invitation email has been sent.`,
       user: {
         id: user.id,
         name: user.name,
         email: user.email,
+        section: user.section,
+        subSection: user.subSection,
+        designation: user.designation,
         userType: user.userType,
-        rebmArea: user.rebmArea,
+        department: user.department,
         serviceNumber: user.serviceNumber,
         mobileNumber: user.mobileNumber,
         status: user.status,
