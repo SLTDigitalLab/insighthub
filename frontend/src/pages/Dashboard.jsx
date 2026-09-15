@@ -506,16 +506,16 @@ const Dashboard = () => {
     setLoadingMore(true);
 
     try {
-      // Collect up to 40 already displayed business names to avoid duplicates
+      // Collect up to 25 already displayed business names to avoid duplicates and prevent token bloat
       const existingNames = results
         .map(r => r['Company Name'] || r['Product'] || r['Section'] || '')
         .filter(Boolean)
-        .slice(0, 40);
+        .slice(0, 25);
 
       const exclusionText = existingNames.length > 0
         ? ` (IMPORTANT: Exclude already discovered businesses: ${existingNames.join(', ')})`
         : '';
-      const morePrompt = `${prompt}. Discover 15 additional new distinct businesses or results${exclusionText}.`;
+      const morePrompt = `${prompt}. Discover 10 additional new distinct businesses or results${exclusionText}.`;
 
       console.log(`[InsightHub Gateway] Loading more results for "${activeAgent.name}" with prompt: "${morePrompt}"`);
 
@@ -1400,12 +1400,12 @@ const Dashboard = () => {
                 ) : (
                   <>
                     <Sparkles size={18} />
-                    Load More Results (+15 More)
+                    Load More Results (+10 More)
                   </>
                 )}
               </button>
               <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                Showing <strong>{results.length}</strong> results. Click to fetch the next batch without exceeding token limits.
+                Showing <strong>{results.length}</strong> results. Click to fetch the next 10 results without exceeding token limits.
               </span>
             </div>
           </div>
