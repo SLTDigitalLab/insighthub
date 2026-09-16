@@ -734,14 +734,20 @@ const kycUpload = multer({
 // Generic Email Dispatcher
 const sendEmailNotification = async ({ toEmail, subject, htmlBody }) => {
   try {
+    const fromEmail = process.env.SMTP_FROM_EMAIL || 'insighthub-noreply@slt.com.lk';
     const payload = {
       email: toEmail,
       toEmail: toEmail,
+      recipientEmail: toEmail,
+      fromEmail: fromEmail,
       subject: subject,
       htmlBody: htmlBody,
       html: htmlBody,
       body: {
         email: toEmail,
+        toEmail: toEmail,
+        recipientEmail: toEmail,
+        fromEmail: fromEmail,
         subject: subject,
         htmlBody: htmlBody
       }
