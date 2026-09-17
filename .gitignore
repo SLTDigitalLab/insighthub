@@ -4,4 +4,7 @@ build/
 .env
 .DS_Store
 backend/uploads/
-backend/data/vector_store.json
+backend/data/*.json
+!backend/data/users.default.json
+*.backup
+*.bak

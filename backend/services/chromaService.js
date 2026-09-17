@@ -51,7 +51,8 @@ const DEFAULT_MOBITEL_CATALOG = [
   }
 ];
 
-const LOCAL_STORE_FILE = path.join(__dirname, '..', 'data', 'vector_store.json');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+const LOCAL_STORE_FILE = path.join(DATA_DIR, 'vector_store.json');
 
 // Helper to save and load local vector store
 function loadLocalStore() {

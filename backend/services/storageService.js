@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-const UPLOADS_DIR = path.join(__dirname, '..', 'uploads');
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const UPLOADS_DIR = process.env.UPLOADS_DIR || path.join(__dirname, '..', 'uploads');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const METADATA_FILE = path.join(DATA_DIR, 'documents.json');
 
 // Ensure required directories exist

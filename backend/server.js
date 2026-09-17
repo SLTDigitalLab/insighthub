@@ -712,7 +712,7 @@ app.post(['/api/send-results-email', '/api/n8n/send-results-email'], async (req,
 });
 
 // Multer Storage Configuration for KYC Images (NIC + Face)
-const KYC_UPLOADS_DIR = path.join(__dirname, 'uploads', 'kyc');
+const KYC_UPLOADS_DIR = process.env.KYC_UPLOADS_DIR || (process.env.UPLOADS_DIR ? path.join(process.env.UPLOADS_DIR, 'kyc') : path.join(__dirname, 'uploads', 'kyc'));
 if (!fs.existsSync(KYC_UPLOADS_DIR)) {
   fs.mkdirSync(KYC_UPLOADS_DIR, { recursive: true });
 }
@@ -1097,10 +1097,69 @@ app.post('/api/admin/invite-user', async (req, res) => {
 });
 
 // 4. Email 1-Click Action Handler (Approve / Decline from Admin Email)
-app.get('/api/auth/action/:action/:token', async (req, res) => {
+// 4a. Read-Only Action Preview (Safe for Email Crawlers & Pre-Fetchers)
+app.get('/api/auth/action-preview/:action/:token', (req, res) => {
   try {
     const { action, token } = req.params;
+    if (!token || !action) {
+      return res.status(400).json({ success: false, error: 'Action and token are required.' });
+    }
+
+    let user = null;
+    if (action === 'approve') {
+      user = userService.getUserByApprovalToken(token);
+    } else if (action === 'decline') {
+      user = userService.getUserByDeclineToken(token);
+    } else {
+      return res.status(400).json({ success: false, error: 'Invalid action type.' });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: 'This action link is invalid, expired, or has already been completed.'
+      });
+    }
+
+    const alreadyHandled = user.status === 'approved' || user.status === 'declined';
+
+    return res.json({
+      success: true,
+      alreadyHandled,
+      action,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        section: user.section || 'Enterprise Large',
+        subSection: user.subSection || user.rebmArea || '',
+        designation: user.designation || 'Account Manager',
+        userType: user.userType || `${user.section} (${user.designation})`,
+        serviceNumber: user.serviceNumber || '',
+        mobileNumber: user.mobileNumber || '',
+        note: user.note || '',
+        status: user.status,
+        requestedAt: user.requestedAt || user.createdAt,
+        handledAt: user.approvedAt || user.declinedAt || null,
+        handledBy: user.approvedBy || user.declinedBy || null,
+        declineReason: user.declineReason || null
+      }
+    });
+  } catch (err) {
+    console.error('[Action Preview Error]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// 4b. Explicit Administrator Action Execution (Requires POST with Confirmation)
+app.post('/api/auth/action-execute', async (req, res) => {
+  try {
+    const { action, token, reason } = req.body;
     const clientOrigin = req.headers.origin || APP_BASE_URL;
+
+    if (!action || !token) {
+      return res.status(400).json({ success: false, error: 'Action and token are required.' });
+    }
 
     if (action === 'approve') {
       const user = userService.getUserByApprovalToken(token);
@@ -1111,7 +1170,17 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
         });
       }
 
-      userService.approveUser(user, 'Email 1-Click Action');
+      if (user.status === 'approved') {
+        return res.json({
+          success: true,
+          action: 'approved',
+          alreadyApproved: true,
+          message: `User ${user.name} (${user.email}) is already approved.`,
+          user: { name: user.name, email: user.email, status: user.status }
+        });
+      }
+
+      userService.approveUser(user, 'Email Confirmation Action');
 
       // Send confirmation email to the user
       const loginUrl = `${clientOrigin}/login`;
@@ -1160,7 +1229,17 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
         });
       }
 
-      userService.declineUser(user, 'Declined via Email 1-Click Action');
+      if (user.status === 'declined') {
+        return res.json({
+          success: true,
+          action: 'declined',
+          alreadyDeclined: true,
+          message: `Access request for ${user.name} (${user.email}) was already declined.`,
+          user: { name: user.name, email: user.email, status: user.status }
+        });
+      }
+
+      userService.declineUser(user, reason || 'Registration declined by administrator', 'Email Confirmation Action');
 
       const userDeclinedEmailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
@@ -1172,7 +1251,8 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
             <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 16px;">
               Your access request for InsightHub could not be approved at this time.
             </p>
-            <p style="color: #64748b; font-size: 13px; line-height: 1.5;">
+            ${reason ? `<p style="color: #334155; font-size: 13px; background: #f1f5f9; padding: 12px; border-radius: 6px; border-left: 3px solid #ef4444;"><strong>Reason:</strong> ${reason}</p>` : ''}
+            <p style="color: #64748b; font-size: 13px; line-height: 1.5; margin-top: 16px;">
               If you believe this was in error, please contact your internal system administrator or department head.
             </p>
           </div>
@@ -1195,9 +1275,16 @@ app.get('/api/auth/action/:action/:token', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Invalid action.' });
     }
   } catch (err) {
-    console.error('[Action Error]', err);
+    console.error('[Action Execute Error]', err);
     res.status(500).json({ success: false, error: err.message });
   }
+});
+
+// 4c. Safe Browser Redirect for Direct Link Clicks (Safe against automated link scanners)
+app.get('/api/auth/action/:action/:token', (req, res) => {
+  const { action, token } = req.params;
+  const clientOrigin = req.headers.origin || APP_BASE_URL;
+  return res.redirect(`${clientOrigin}/approval-action?action=${encodeURIComponent(action)}&token=${encodeURIComponent(token)}`);
 });
 
 // 5. Admin Portal: Get All Registered & Authorized Users

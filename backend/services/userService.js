@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 
 // Ensure data directory exists
@@ -23,7 +23,16 @@ class UserService {
         const raw = fs.readFileSync(USERS_FILE, 'utf8');
         this.users = JSON.parse(raw);
       } else {
-        this.users = [];
+        const defaultTemplate = path.join(__dirname, '..', 'data', 'users.default.json');
+        if (fs.existsSync(defaultTemplate)) {
+          try {
+            this.users = JSON.parse(fs.readFileSync(defaultTemplate, 'utf8'));
+          } catch (e) {
+            this.users = [];
+          }
+        } else {
+          this.users = [];
+        }
         this.saveUsers();
       }
     } catch (err) {
@@ -89,12 +98,12 @@ class UserService {
 
   getUserByApprovalToken(token) {
     if (!token) return null;
-    return this.users.find(u => u.approvalToken === token);
+    return this.users.find(u => u.approvalToken === token || u.lastApprovalToken === token);
   }
 
   getUserByDeclineToken(token) {
     if (!token) return null;
-    return this.users.find(u => u.declineToken === token);
+    return this.users.find(u => u.declineToken === token || u.lastDeclineToken === token);
   }
 
   /**
@@ -389,6 +398,8 @@ class UserService {
     user.status = 'approved';
     user.approvedAt = new Date().toISOString();
     user.approvedBy = approvedBy;
+    if (user.approvalToken) user.lastApprovalToken = user.approvalToken;
+    if (user.declineToken) user.lastDeclineToken = user.declineToken;
     user.approvalToken = null;
     user.declineToken = null;
 
@@ -404,6 +415,8 @@ class UserService {
     user.declineReason = reason;
     user.declinedAt = new Date().toISOString();
     user.declinedBy = declinedBy;
+    if (user.approvalToken) user.lastApprovalToken = user.approvalToken;
+    if (user.declineToken) user.lastDeclineToken = user.declineToken;
     user.approvalToken = null;
     user.declineToken = null;
 
