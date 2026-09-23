@@ -503,6 +503,7 @@ const Dashboard = () => {
 
   const handleLoadMore = async () => {
     if (!prompt || loadingMore || !results) return;
+    if (activeAgent.id !== 'lead' && activeAgent.id !== 'allResults') return;
     setLoadingMore(true);
 
     try {
@@ -524,16 +525,6 @@ const Dashboard = () => {
         responseData = await fetchAllSearchResults(morePrompt);
       } else if (activeAgent.id === 'lead') {
         responseData = await fetchLeadDiscovery(morePrompt);
-      } else if (activeAgent.id === 'newBusinesses') {
-        responseData = await fetchFindNewBusinesses(morePrompt);
-      } else if (activeAgent.id === 'research') {
-        responseData = await fetchCustomerResearch(morePrompt);
-      } else if (activeAgent.id === 'product') {
-        responseData = await fetchProductRecommendations(morePrompt);
-      } else if (activeAgent.id === 'meeting') {
-        responseData = await fetchMeetingPreparation(morePrompt);
-      } else if (activeAgent.id === 'improve') {
-        responseData = await fetchHelpImproveService(morePrompt);
       }
 
       const newItems = Array.isArray(responseData?.results)
@@ -1360,54 +1351,56 @@ const Dashboard = () => {
               </table>
             </div>
 
-            {/* Load More Button */}
-            <div style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '1.5rem 1rem 0.5rem 1rem',
-              borderTop: '1px solid #f1f5f9',
-              marginTop: '1rem',
-              gap: '0.5rem'
-            }}>
-              <button
-                type="button"
-                onClick={handleLoadMore}
-                disabled={loadingMore}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  padding: '0.75rem 2rem',
-                  borderRadius: '0.75rem',
-                  fontSize: '0.92rem',
-                  fontWeight: 700,
-                  color: '#ffffff',
-                  background: 'linear-gradient(135deg, #0066FF 0%, #0052cc 100%)',
-                  border: 'none',
-                  cursor: loadingMore ? 'not-allowed' : 'pointer',
-                  boxShadow: '0 4px 14px rgba(0, 102, 255, 0.25)',
-                  transition: 'all 0.2s ease',
-                  opacity: loadingMore ? 0.75 : 1
-                }}
-              >
-                {loadingMore ? (
-                  <>
-                    <Loader2 size={18} className="spin" />
-                    Fetching Next Batch via Apify...
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={18} />
-                    Load More Results (+10 More)
-                  </>
-                )}
-              </button>
-              <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                Showing <strong>{results.length}</strong> results. Click to fetch the next 10 results without exceeding token limits.
-              </span>
-            </div>
+            {/* Load More Button - Strictly for Lead Discovery and Prospecting, and All Search Results */}
+            {(activeAgent.id === 'lead' || activeAgent.id === 'allResults') && results && results.length > 0 && (
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1.5rem 1rem 0.5rem 1rem',
+                borderTop: '1px solid #f1f5f9',
+                marginTop: '1rem',
+                gap: '0.5rem'
+              }}>
+                <button
+                  type="button"
+                  onClick={handleLoadMore}
+                  disabled={loadingMore}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.6rem',
+                    padding: '0.75rem 2rem',
+                    borderRadius: '0.75rem',
+                    fontSize: '0.92rem',
+                    fontWeight: 700,
+                    color: '#ffffff',
+                    background: 'linear-gradient(135deg, #0066FF 0%, #0052cc 100%)',
+                    border: 'none',
+                    cursor: loadingMore ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(0, 102, 255, 0.25)',
+                    transition: 'all 0.2s ease',
+                    opacity: loadingMore ? 0.75 : 1
+                  }}
+                >
+                  {loadingMore ? (
+                    <>
+                      <Loader2 size={18} className="spin" />
+                      Fetching Next Batch via Apify...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={18} />
+                      Load More Results (+10 More)
+                    </>
+                  )}
+                </button>
+                <span style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                  Showing <strong>{results.length}</strong> results. Click to fetch the next 10 results without exceeding token limits.
+                </span>
+              </div>
+            )}
           </div>
         )}
 
