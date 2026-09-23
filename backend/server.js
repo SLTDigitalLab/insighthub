@@ -116,6 +116,32 @@ const queryN8nWebhook = async (webhookEndpoint, prompt) => {
   return parsed;
 };
 
+/**
+ * Recursively formats nested JSON object/array data from n8n into clean readable string markdown
+ * for proper display in dashboard tables and PDF/Excel exports.
+ */
+function formatDetailsValue(val) {
+  if (typeof val === 'string') return val;
+  if (Array.isArray(val)) {
+    return val.map(item => (typeof item === 'object' ? formatDetailsValue(item) : `- ${item}`)).join('\n');
+  }
+  if (typeof val === 'object' && val !== null) {
+    return Object.entries(val)
+      .map(([k, v]) => {
+        const formattedK = k.replace(/([a-z])([A-Z])/g, '$1 $2').trim();
+        if (Array.isArray(v)) {
+          return `**${formattedK}:**\n` + v.map(sub => (typeof sub === 'object' ? Object.entries(sub).map(([sk, sv]) => `  - **${sk}:** ${sv}`).join('\n') : `  - ${sub}`)).join('\n');
+        }
+        if (typeof v === 'object' && v !== null) {
+          return `**${formattedK}:**\n` + Object.entries(v).map(([sk, sv]) => `  - **${sk}:** ${sv}`).join('\n');
+        }
+        return `**${formattedK}:** ${v}`;
+      })
+      .join('\n\n');
+  }
+  return String(val || '');
+}
+
 // ============================================================
 // HEALTH CHECK
 // ============================================================
@@ -411,13 +437,37 @@ app.post('/api/customer-research', async (req, res) => {
     }
 
     console.log(`[Customer Research] Requesting live n8n scrape for: "${prompt}"`);
-    const n8nResults = await queryN8nWebhook('customer-research', prompt);
+
+    // Enrich query with complete corporate intelligence instructions
+    // to ensure n8n AI produces the full multi-category report rather than a brief conversational summary
+    const enrichedPrompt = `Perform a comprehensive in-depth corporate intelligence research on: "${prompt}". Execute Google search to find leadership, LinkedIn profiles, executives, and company background in Sri Lanka. Return a full intelligence dossier covering:
+1. Company Overview (industry, history, operations, scale)
+2. Key Decision Makers (names, roles, LinkedIn URLs)
+3. Employees & Leadership Team
+4. Social Media Presence & Official Website
+5. Recent News & Developments
+6. Current Technology & Infrastructure
+7. Potential Pain Points & SLT-Mobitel Enterprise Opportunities.
+Return a structured JSON array with "Category" and "Details" for each section.`;
+
+    const n8nResults = await queryN8nWebhook('customer-research', enrichedPrompt);
+
+    // Format any nested object/array Details into clean readable strings for table rendering
+    const formattedResults = (n8nResults || []).map(item => {
+      if (item && item.Category && item.Details) {
+        return {
+          Category: String(item.Category),
+          Details: typeof item.Details === 'string' ? item.Details : formatDetailsValue(item.Details)
+        };
+      }
+      return item;
+    });
 
     return res.json({
       success: true,
       agent: "Customer Research (Live n8n Cloud)",
-      resultsCount: n8nResults ? n8nResults.length : 0,
-      results: n8nResults || []
+      resultsCount: formattedResults ? formattedResults.length : 0,
+      results: formattedResults || []
     });
   } catch (err) {
     console.error('[Customer Research Proxy Error]', err.message);
@@ -438,13 +488,24 @@ app.post('/api/help-improve-service', async (req, res) => {
     }
 
     console.log(`[Help Improve Service] Requesting live n8n analysis for: "${prompt}"`);
-    const n8nResults = await queryN8nWebhook('help-improve-service', prompt);
+    const enrichedPrompt = `Analyze customer feedback, online reviews (Google, Facebook), complaints, and employee profiles for: "${prompt}". Identify common customer pain points, negative sentiment areas, and recommend concrete service improvements, IT/telecom solutions, and key personnel. Return a clean JSON array with Category and Details.`;
+    const n8nResults = await queryN8nWebhook('help-improve-service', enrichedPrompt);
+
+    const formattedResults = (n8nResults || []).map(item => {
+      if (item && item.Category && item.Details) {
+        return {
+          Category: String(item.Category),
+          Details: typeof item.Details === 'string' ? item.Details : formatDetailsValue(item.Details)
+        };
+      }
+      return item;
+    });
 
     return res.json({
       success: true,
       agent: "Help Improve Service (Live n8n Cloud)",
-      resultsCount: n8nResults ? n8nResults.length : 0,
-      results: n8nResults || []
+      resultsCount: formattedResults ? formattedResults.length : 0,
+      results: formattedResults || []
     });
   } catch (err) {
     console.error('[Help Improve Service Proxy Error]', err.message);
@@ -471,14 +532,24 @@ app.post('/api/meeting-prep', async (req, res) => {
     }
 
     console.log(`[Meeting Prep] Requesting live n8n brief for: "${prompt}"`);
+    const enrichedPrompt = `Prepare a comprehensive executive B2B sales meeting brief for: "${prompt}". Research company background, key leadership executives to meet, business pain points, discussion talking points, and tailored SLT-Mobitel Enterprise connectivity and cloud solutions. Return a structured JSON array with Category and Details.`;
     try {
-      const n8nResults = await queryN8nWebhook('meeting-prep', prompt);
+      const n8nResults = await queryN8nWebhook('meeting-prep', enrichedPrompt);
       if (n8nResults && n8nResults.length > 0) {
+        const formattedResults = n8nResults.map(item => {
+          if (item && item.Category && item.Details) {
+            return {
+              Category: String(item.Category),
+              Details: typeof item.Details === 'string' ? item.Details : formatDetailsValue(item.Details)
+            };
+          }
+          return item;
+        });
         return res.json({
           success: true,
           agent: "Meeting Preparation (Live n8n Cloud)",
-          resultsCount: n8nResults.length,
-          results: n8nResults
+          resultsCount: formattedResults.length,
+          results: formattedResults
         });
       }
     } catch (n8nErr) {

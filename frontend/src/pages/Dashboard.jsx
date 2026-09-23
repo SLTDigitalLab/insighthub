@@ -1302,9 +1302,12 @@ const Dashboard = () => {
                           <td key={j} style={{
                             padding: '0.85rem 0.75rem',
                             fontSize: '0.9rem',
-                            lineHeight: '1.5',
-                            maxWidth: '400px',
-                            color: '#334155'
+                            lineHeight: '1.6',
+                            maxWidth: (col === 'Details' || col === 'Response') ? 'none' : '400px',
+                            width: col === 'Category' ? '220px' : 'auto',
+                            fontWeight: col === 'Category' ? 700 : 'normal',
+                            color: col === 'Category' ? '#0f172a' : '#334155',
+                            verticalAlign: 'top'
                           }}>
                             {col === 'Customer Rating' ? (
                               <StarRating rating={row[col]} />
