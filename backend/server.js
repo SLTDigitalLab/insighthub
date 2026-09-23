@@ -488,7 +488,14 @@ app.post('/api/help-improve-service', async (req, res) => {
     }
 
     console.log(`[Help Improve Service] Requesting live n8n analysis for: "${prompt}"`);
-    const enrichedPrompt = `Analyze customer feedback, online reviews (Google, Facebook), complaints, and employee profiles for: "${prompt}". Identify common customer pain points, negative sentiment areas, and recommend concrete service improvements, IT/telecom solutions, and key personnel. Return a clean JSON array with Category and Details.`;
+    const enrichedPrompt = `Perform a comprehensive in-depth customer experience (CX), service improvement, and operational intelligence research on: "${prompt}". Execute Google, Facebook, and LinkedIn searches to discover customer reviews, operational complaints, branch service friction, and key CX/IT/Operations leadership in Sri Lanka. Also query the SLT-Mobitel Knowledge Base for tailored enterprise solutions. Return a complete multi-category intelligence report covering:
+1. Executive Summary & Sentiment Analysis (sentiment rating, Google & Facebook review breakdown)
+2. Key Complaints & Operational Bottlenecks (5-7 specific issues, root cause analysis, customer friction)
+3. Identified Leadership & CX Decision Makers (LinkedIn & Facebook executive profiles, titles, relevance)
+4. Technology & Infrastructure Gap Analysis (contact center, connectivity, cloud, cybersecurity)
+5. SLT-Mobitel Service Improvement Roadmap & Product Solutions (4-6 specific SLT-Mobitel products with Pillar, problem solved, technical capabilities, and measurable SLA impact)
+6. Strategic Account Pitch & Engagement Plan (pitch angle, recommended pilot/POC, stakeholder outreach).
+Return a structured JSON array with "Category" and "Details" for each section.`;
     const n8nResults = await queryN8nWebhook('help-improve-service', enrichedPrompt);
 
     const formattedResults = (n8nResults || []).map(item => {

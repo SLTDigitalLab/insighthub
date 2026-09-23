@@ -9,12 +9,12 @@
         "options": {}
       },
       "id": "4741e62e-2678-4f38-be13-438f57256ce2",
-      "name": "Webhook",
+      "name": "Webhook1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
-        0,
-        0
+        -288,
+        -96
       ],
       "webhookId": "help-improve-service"
     },
@@ -23,16 +23,17 @@
         "promptType": "define",
         "text": "={{ $json.body.prompt }}",
         "options": {
-          "systemMessage": "You are the Customer Experience & Service Improvement AI Agent for Sri Lanka Telecom Mobitel's B2B enterprise team.\n\nYour job is to analyze a target company's online reviews and customer feedback (Google Reviews, Facebook, etc.), identify customer pain points and service complaints, and propose 5 to 7 specific SLT-Mobitel enterprise products from the official SLT-Mobitel Product & Solution Portfolio Knowledge Base (`SLTMobitel Product & Solution Portfolio - Knowledge Base v1 (1).pdf` indexed in local ChromaDB) to resolve their operational challenges.\n\n**AVAILABLE TOOLS:**\n1. **knowledge_base_search** — Search SLT-Mobitel's official vector database across all 9 Strategic Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, Business Solutions). You MUST use this tool to retrieve real SLT-Mobitel products, specifications, and solution features.\n2. **google_search** — Search Google Reviews, customer complaints, and public feedback.\n3. **apify_facebook_search** — Search Facebook for company reviews, customer feedback, and public employee profiles.\n\n**INSTRUCTIONS:**\n1. You MUST execute `knowledge_base_search` to retrieve official SLT-Mobitel products from the vector database.\n2. **Overall Sentiment**: Summarize customer reviews on Google and Facebook.\n3. **Key Complaints**: Identify specific operational issues (e.g. hotline delay, call drops, network downtime, billing alerts, slow online portal).\n4. **Service Improvement Recommendations**: Provide a RICH, HIGHLY DETAILED breakdown recommending 5 to 7 specific SLT-Mobitel products retrieved from the vector database. For EACH product, format as:\n   - **Product Name & Official Pillar** (e.g. 'Omnichannel Contact Center as a Service (CCaaS) [Pillar: 6. ENTERPRISE VOICE]')\n   - **Problem Solved**: Direct mapping to the specific customer complaint.\n   - **Key Features from PDF**: 2-3 technical features retrieved from the official catalog.\n   - **Expected Business Impact**: Value delivered to customer satisfaction and operational SLA.\n5. **Employees Found (Facebook)**: Search Facebook for employee profiles ('site:facebook.com [Company Name] Sri Lanka').\n\n**FORMATTING RULE FOR \"Details\" FIELDS WITH NUMBERED LISTS:**\nWhen a \"Details\" string contains a numbered list (Key Complaints, or any other numbered content), separate each numbered point with a double line break (\\n\\n) instead of running them together in one sentence. Each point must start on its own new line when rendered. Do not run multiple numbered points together in one continuous paragraph.\n\nExample — WRONG: \"1. Long queue hold times on customer support hotline. 2. Frequent customer portal downtime during billing cycles. 3. Lack of automated SMS delivery/repair status notifications.\"\nExample — CORRECT: \"1. Long queue hold times on customer support hotline.\\n\\n2. Frequent customer portal downtime during billing cycles.\\n\\n3. Lack of automated SMS delivery/repair status notifications.\"\n\nThis rule also applies to \"Service Improvement Recommendations\": separate each numbered product entry with \\n\\n as shown in the example JSON below.\n\n**CRITICAL — NO FABRICATION RULE FOR EMPLOYEES/PROFILES:**\nYou may ONLY include a name, job title, or profile URL in \"Employees Found\" if that EXACT text appears verbatim in the `apify_facebook_search` tool's raw output. Do not paraphrase, complete, guess, or construct a plausible-sounding name, title, or URL under any circumstances. Real Facebook usernames do not follow a clean \"companyname.role.title\" pattern — any URL you generate that looks like this is fabricated and forbidden.\n\nIf the tool results contain no real, verbatim employee names or matching profile links, you MUST set \"Details\" to exactly: \"No specific employee profiles were found.\" Do not leave this field empty and do not invent placeholder entries to make the response look complete.\n\n**CRITICAL: You MUST return your response as a valid JSON array with one object per research category. No additional text before or after the JSON.**\n\nExample format:\n[\n  {\n    \"Category\": \"Overall Sentiment\",\n    \"Details\": \"Mixed (3.6/5 on Google Reviews, 3.4/5 on Facebook). High praise for physical store layout but complaints regarding customer service hotline waiting times and online portal speed.\"\n  },\n  {\n    \"Category\": \"Key Complaints\",\n    \"Details\": \"1. Long queue hold times on customer support hotline.\\n\\n2. Frequent customer portal downtime during billing cycles.\\n\\n3. Lack of automated SMS delivery/repair status notifications.\\n\\n4. Inconsistent branch internet connectivity.\\n\\n5. Cybersecurity concerns over online payment gateway.\"\n  },\n  {\n    \"Category\": \"Service Improvement Recommendations\",\n    \"Details\": \"1. **Omnichannel Contact Center as a Service (CCaaS)** [Pillar: 6. ENTERPRISE VOICE]: Addresses Complaint #1 (Hotline Delays). Features AI-driven voice routing, IVR auto-attendant, omnichannel agent desks across voice/SMS/WhatsApp. Business Impact: Reduces customer hold times by up to 60%.\\n\\n2. **Akaza Cloud VPS & Virtual Hosting** [Pillar: 4. CLOUD & IDC]: Addresses Complaint #2 (Portal Downtime). Features high-performance virtual cloud compute hosted in Mobitel Sri Lanka Tier-III Data Center with 99.999% uptime. Business Impact: Guarantees 24/7 web portal availability.\\n\\n3. **Business SMS Gateway API** [Pillar: 2. INTERNET / VOICE]: Addresses Complaint #3 (Order Notifications). Features high-throughput REST API for automated transactional SMS alerts and OTP authentication. Business Impact: Instant customer notification upon dispatch/repair.\\n\\n4. **SD-WAN Solutions** [Pillar: 1. NETWORKING]: Addresses Complaint #4 (Branch Connectivity). Features multi-path traffic routing over MPLS, LTE, and 5G with automatic failover. Business Impact: Zero billing downtime for retail branches.\\n\\n5. **Managed Web Application Firewall (WAF)** [Pillar: 3. CYBER SECURITY]: Addresses Complaint #5 (Payment Gateway Security). Features perimeter protection against OWASP Top 10 web vulnerabilities and SQL injection. Business Impact: Ensures PCI-DSS compliance and protects customer financial data.\"\n  },\n  {\n    \"Category\": \"Employees Found (Facebook)\",\n    \"Details\": \"No specific employee profiles were found.\"\n  }\n]"
+          "maxIterations": 4,
+          "systemMessage": "You are the Senior Enterprise Customer Experience (CX) & Service Improvement Strategist for Sri Lanka Telecom Mobitel's B2B Division.\n\nYour mission is to perform deep operational research on a target enterprise, uncover public customer feedback, sentiment, and complaints across Google and Facebook, identify key operational and CX decision-makers on LinkedIn, diagnose underlying technology/infrastructure bottlenecks, and architect a high-impact Service Improvement Roadmap mapped to 4 to 6 official SLT-Mobitel Enterprise Products from the SLT-Mobitel Knowledge Base.\n\nAVAILABLE TOOLS:\n1. Apify Google Search1 — Search Google Reviews, public complaints, rating feedback, and branch-level service friction in Sri Lanka.\n2. Apify Facebook Search1 — Search Facebook public pages, community complaints, customer service delays, and delivery issues.\n3. Apify LinkedIn Search1 — Search LinkedIn for real key personnel in Sri Lanka: Head of Customer Experience (CX), Chief Operating Officer (COO), Chief Information Officer (CIO) / IT Director, Customer Care / Service Delivery Managers, and Branch Operations Heads using queries like 'site:linkedin.com/in/ [Company Name] Sri Lanka Customer Experience OR Operations OR CIO'.\n4. Knowledge Base Vector Search1 — Query SLT-Mobitel's official vector database across all 9 Strategic Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, Business Solutions) for real enterprise products, technical specifications, and SLA capabilities.\n\nOPERATIONAL INSTRUCTIONS:\n- Perform targeted searches swiftly to ensure the total workflow completes within 35 seconds.\n- Synthesize all findings into an authoritative, executive-grade corporate service improvement dossier.\n- Return ONLY a valid JSON array of objects with \"Category\" and \"Details\" keys.\n\nMANDATORY CATEGORIES & DETAILED FORMATTING:\n\n1. Category: \"Executive Summary & Sentiment Analysis\"\n   Details:\n   Provide an executive-level synthesis containing:\n   - **Overall Sentiment Rating:** (e.g. Moderate Negative / Mixed / High Friction at Branch Level)\n   - **Google & Facebook Review Score Overview:** (Estimated ratings, review volume trends, primary dissatisfaction channels)\n   - **Core Brand vs Operational Reality:** 2-3 sentences contrasting corporate brand standing against operational customer touchpoint friction.\n\n2. Category: \"Key Complaints & Operational Bottlenecks\"\n   Details:\n   Detailed numbered list (separated by \\n\\n) of 5 to 7 specific customer pain points. For EACH complaint, format as:\n   N. **[Pain Point Title]** (e.g. Hotline Queue Congestion & Unresponsive IVR, Branch-to-Branch Network Downtime, Supermarket Billing Terminal Lag, Delayed After-Sales Response)\n      - **Customer Experience Friction:** Specific quotes/evidence of what customers experience.\n      - **Root Cause Analysis:** Underlying technical/operational cause (e.g. legacy on-premises PBX, lack of bandwidth redundancy, lack of unified omnichannel CRM).\n      - **Impacted Divisions/Branches:** Which subsidiaries, retail branches, or service centers are most affected.\n\n3. Category: \"Identified Leadership & CX Decision Makers (LinkedIn & Facebook)\"\n   Details:\n   Numbered list (separated by \\n\\n) of verified executives and personnel discovered via LinkedIn/Facebook:\n   N. **[Executive Name]** — **[Job Title / Designation]**\n      - **Department / Scope:** (e.g. Customer Experience, Digital Transformation, IT Infrastructure, Retail Operations)\n      - **Relevance to Opportunity:** Why this leader is the ideal sponsor for an SLT-Mobitel service improvement proposal.\n      - **Profile Link / Source:** (e.g. LinkedIn profile URL or public Facebook corporate listing)\n\n4. Category: \"Technology & Infrastructure Gap Analysis\"\n   Details:\n   Numbered list of 3-4 diagnostic assessments:\n   - **Voice & Contact Center Architecture:** Analysis of existing hotline/PBX limitations and lack of intelligent routing/AI chatbots.\n   - **Branch Connectivity & Network Resilience:** Bottlenecks in inter-branch WAN, SD-WAN, and POS connectivity.\n   - **Cloud, Hosting & Systems Uptime:** Cloud reliability, backup/disaster recovery, and web/app responsiveness.\n   - **Cybersecurity & Data Protection:** Vulnerabilities in payment channels, customer databases, and endpoint security.\n\n5. Category: \"SLT-Mobitel Service Improvement Roadmap & Product Solutions\"\n   Details:\n   Numbered list (separated by \\n\\n) of 4 to 6 specific SLT-Mobitel enterprise solutions retrieved from the Knowledge Base. For EACH product, use this exact structure:\n   N. **[Product Name]** [Pillar: X. PILLAR NAME]\n      - **Direct Complaint Solved:** Precise mapping to Complaint #N above.\n      - **Technical Solution & Architecture:** 2-3 technical capabilities (e.g. SIP Trunking, Akaza Cloud Hosted PBX, VMware Cloud, Managed SD-WAN, SOCaaS, Enterprise Wi-Fi 6).\n      - **Measurable Business Impact:** Tangible SLA metrics (e.g. 99.99% uptime guarantee, 75% reduction in customer hold times, 0% packet loss at branch counters, 24/7 proactive monitoring).\n\n6. Category: \"Strategic Account Pitch & Engagement Plan\"\n   Details:\n   Strategic advice for the SLT-Mobitel Enterprise Account Manager:\n   - **Primary Pitch Angle:** The core business value proposition to lead with.\n   - **Recommended Pilot / POC:** Low-risk, high-impact initial proof-of-concept (e.g. 30-day Cloud Contact Center pilot or single-branch SD-WAN trial).\n   - **Initial Stakeholder Outreach:** Which identified leader to approach first and key discussion talking points.\n\nCRITICAL: Return ONLY a valid JSON array of objects with \"Category\" and \"Details\" keys. Do NOT include markdown code fences (```json) or introductory/closing remarks."
         }
       },
       "id": "b44f424a-1797-45ac-abc8-566bdc48ec6f",
-      "name": "AI Agent",
+      "name": "AI Agent1",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
-        288,
-        0
+        48,
+        -96
       ]
     },
     {
@@ -41,191 +42,219 @@
         "options": {}
       },
       "id": "8c780f6a-eaab-4dc8-b652-9926969dad50",
-      "name": "OpenAI Chat Model",
+      "name": "OpenAI Chat Model1",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
-        160,
-        224
-      ],
-      "credentials": {
-        "openAiApi": {
-          "id": "nEN04NIj7NPTYPKY",
-          "name": "OpenAI account"
-        }
-      }
+        -192,
+        144
+      ]
     },
     {
       "parameters": {
+        "toolDescription": "Search Google Reviews, customer complaints, rating feedback, and branch-level service friction in Sri Lanka.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={\n  \"queries\": \"{{ $fromAI('query', 'The search query string') }}\",\n  \"maxPagesPerQuery\": 1\n}"
-      },
-      "id": "367c2c7f-9d76-46f3-b23f-25f28518827b",
-      "name": "Apify Google Search",
-      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
-      "typeVersion": 1.1,
-      "position": [
-        304,
-        224
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "51tnt1hoAIQQXqOL",
-          "name": "Header Auth account 3"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 2,\n  \"resultsPerPage\": 20\n}",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
         "placeholderDefinitions": {
           "values": [
             {
               "name": "query",
-              "description": "The Facebook/social media search query string",
+              "description": "The search query string for Google reviews and complaints (e.g. [Company Name] Sri Lanka customer reviews complaints)",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "367c2c7f-9d76-46f3-b23f-25f28518827b",
+      "name": "Apify Google Search1",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        -48,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search Facebook for company customer reviews, public page feedback, hotline complaints, and staff service issues.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The Facebook search query string (e.g. site:facebook.com [Company Name] Sri Lanka reviews customer service)",
               "type": "string"
             }
           ]
         }
       },
       "id": "26ae0d60-e6cb-4b29-9342-1ad71b77f69b",
-      "name": "Apify Facebook Search",
+      "name": "Apify Facebook Search1",
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        448,
-        224
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "51tnt1hoAIQQXqOL",
-          "name": "Header Auth account 3"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "method": "POST",
-        "url": "http://localhost:5000/api/vector/search",
-        "sendBody": true,
-        "specifyBody": "json",
-        "jsonBody": "={\n  \"query\": \"{{ $fromAI('query', 'The search query string to look up products in vector database') }}\",\n  \"nResults\": 5\n}"
-      },
-      "id": "591500c1-6bcb-448b-87c7-08cd300146c8",
-      "name": "Knowledge Base Vector Search",
-      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
-      "typeVersion": 1.1,
-      "position": [
-        592,
-        224
+        96,
+        144
       ]
     },
     {
       "parameters": {
-        "jsCode": "// Parse AI Agent output into structured JSON for the frontend\nconst output = $input.first().json.output;\n\nlet results = [];\ntry {\n  const jsonMatch = output.match(/\\[[\\s\\S]*\\]/);\n  if (jsonMatch) {\n    results = JSON.parse(jsonMatch[0]);\n  } else {\n    results = [{ \"Category\": \"Service Improvement Analysis\", \"Details\": output }];\n  }\n} catch (e) {\n  results = [{ \"Category\": \"Service Improvement Analysis\", \"Details\": output }];\n}\n\nreturn [{ json: { success: true, agent: \"Help Improve Service\", results: results } }];"
+        "toolDescription": "Search LinkedIn for verified corporate leadership, Head of Customer Experience (CX), Chief Operating Officer (COO), Chief Information Officer (CIO), Operations Managers, and IT Directors in Sri Lanka.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The LinkedIn search query string (e.g. site:linkedin.com/in/ [Company Name] Sri Lanka Customer Experience OR Operations OR CIO)",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "7a3e819f-4d92-4c6e-b348-1e9d28f09c2a",
+      "name": "Apify LinkedIn Search1",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search SLT-Mobitel's official Knowledge Base across all 9 Strategic Pillars (Networking, Internet, Cyber Security, Cloud & IDC, Managed Services, Enterprise Voice, Applications/Digital, Enterprise TV, Business Solutions) for real enterprise products and technical features.",
+        "method": "POST",
+        "url": "https://insighthub.raccoon-ai.io/api/vector/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"{query}\",\n  \"nResults\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The product or operational solution search query for the vector database",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "591500c1-6bcb-448b-87c7-08cd300146c8",
+      "name": "Knowledge Base Vector Search1",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        384,
+        144
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const item = $input.first();\nlet output = item.json.output || item.json.text || item.json;\n\nif (typeof output === 'string') {\n  try {\n    const clean = output.replace(/```json/gi, '').replace(/```/g, '').trim();\n    output = JSON.parse(clean);\n  } catch(e) {}\n}\n\nif (!Array.isArray(output)) {\n  output = [output];\n}\n\nreturn { json: { success: true, resultsCount: output.length, results: output } };"
       },
       "id": "f9db46bc-68c7-4f8e-aa8c-d120cfd7c33e",
-      "name": "Format Response",
+      "name": "Format Response1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        544,
-        0
+        384,
+        -96
       ]
     }
   ],
-  "pinData": {},
   "connections": {
-    "Webhook": {
+    "Webhook1": {
       "main": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI Agent": {
+    "AI Agent1": {
       "main": [
         [
           {
-            "node": "Format Response",
+            "node": "Format Response1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "OpenAI Chat Model": {
+    "OpenAI Chat Model1": {
       "ai_languageModel": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
             "type": "ai_languageModel",
             "index": 0
           }
         ]
       ]
     },
-    "Apify Google Search": {
+    "Apify Google Search1": {
       "ai_tool": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
             "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     },
-    "Apify Facebook Search": {
+    "Apify Facebook Search1": {
       "ai_tool": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
             "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     },
-    "Knowledge Base Vector Search": {
+    "Apify LinkedIn Search1": {
       "ai_tool": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base Vector Search1": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
             "type": "ai_tool",
             "index": 0
           }
         ]
       ]
     }
-  },
-  "active": true,
-  "settings": {
-    "executionOrder": "v1",
-    "binaryMode": "separate",
-    "availableInMCP": false
-  },
-  "versionId": "a9846ca1-6d17-4ace-9e9e-faa9919ad395",
-  "meta": {
-    "templateCredsSetupCompleted": true,
-    "instanceId": "3b0cef0a63d8ea4244b90dffb48623aaf0f308b8f8b573d4e26b7f1d93c0f68c"
-  },
-  "nodeGroups": [],
-  "id": "inTzhY0fE8qAXbM0",
-  "tags": []
+  }
 }
