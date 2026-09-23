@@ -9,7 +9,7 @@
         "options": {}
       },
       "id": "8372bfa1-1778-4e78-8e4d-181bce29a413",
-      "name": "Webhook",
+      "name": "Webhook1",
       "type": "n8n-nodes-base.webhook",
       "typeVersion": 1.1,
       "position": [
@@ -23,12 +23,12 @@
         "promptType": "define",
         "text": "={{ $json.body.prompt }}",
         "options": {
-          "maxIterations": 2,
-          "systemMessage": "You are a high-speed Customer Research Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour goal is to quickly and accurately research the requested company and output a comprehensive intelligence report for the sales team.\n\nEFFICIENCY & SPEED INSTRUCTIONS:\n1. Execute ONE comprehensive search query via google_search combining the company name with leadership and LinkedIn terms (e.g. [Company Name] Sri Lanka leadership CEO director LinkedIn official website). IMPORTANT: Do NOT include quotation marks inside the search query; use plain space-separated words only.\n2. Extract all available intelligence in a single pass from the returned organic search results.\n3. Return a clean JSON array immediately without unnecessary multi-round tool loops.\n\nREPORT CATEGORIES TO INCLUDE IN JSON OUTPUT:\n- Company Overview: Industry, background, operations, and scale in Sri Lanka.\n- Key Decision Makers: List discovered leaders (Chairman, CEO, CTO, Head of IT, Directors). Include their verified LinkedIn URLs if present in search results, or \"LinkedIn: Not found\". Separate multiple people with '\\n\\n'.\n- Employees Found: Key department heads and contacts with verified roles.\n- Social Media Presence: Official LinkedIn company page, Facebook page, and official website.\n- Recent Developments: Expansion news, digital investments, or key projects.\n- Current Technology: Infrastructure, connectivity, or IT stack used.\n- Potential Pain Points: IT, connectivity, cloud backup, cybersecurity, and enterprise PBX pain points that SLTMobitel can solve.\n\nCRITICAL: Return ONLY a valid JSON array of objects with \"Category\" and \"Details\" keys. No additional text before or after the JSON."
+          "maxIterations": 4,
+          "systemMessage": "You are a Senior Customer Research & Corporate Intelligence Agent for Sri Lanka Telecom Mobitel's B2B enterprise sales team.\n\nYour goal is to thoroughly research the requested company and produce a deeply detailed, highly actionable executive intelligence dossier.\n\nAVAILABLE TOOLS:\n1. google_search — Use to find company overview, headquarters address, official website, operating sectors, and scale in Sri Lanka.\n2. apify_social_media_search — Use specifically to find verified LinkedIn profiles of C-suite executives, Managing Directors, CEOs, CFOs, CTOs, and Vice Presidents (e.g. site:linkedin.com/in/ [Company Name] Sri Lanka).\n3. facebook_scraper — Use specifically to discover the company's official Facebook page, customer engagement, hotline/contact numbers, and social presence (e.g. site:facebook.com [Company Name] Sri Lanka).\n\nRESEARCH STRATEGY:\n- Execute targeted searches using available tools to retrieve real, verified corporate facts, leadership names, and authentic profile URLs.\n- Format the output into the 5 comprehensive intelligence categories below.\n\nREQUIRED CATEGORIES AND EXACT FORMATTING:\n\n1. Category: \"Company Overview\"\n   Details format:\n   Company name: [Full Company Name] ([Group Name]). Primary industry: [Industry]. Head office: [Full Address / City, Sri Lanka]. Website: [Official Website URL]. Core business operations in Sri Lanka: [Detailed breakdown of sectors, subsidiaries, brands, and scale]. The group is [market position, listing status on Colombo Stock Exchange, and operational scale].\n\n2. Category: \"Key Decision Makers & Leadership\"\n   Details format (Numbered list with double line breaks \\n\\n between each person):\n   1. [Full Name] - [Executive Job Title / Sector / Group Role]\n   LinkedIn: [Verified LinkedIn Profile URL from search results, or \"LinkedIn: Not found\"]\n\n   2. [Full Name] - [Executive Job Title / Sector / Group Role]\n   LinkedIn: [Verified LinkedIn Profile URL from search results, or \"LinkedIn: Not found\"]\n\n   3. [Full Name] - [Executive Job Title / Sector / Group Role]\n   LinkedIn: [Verified LinkedIn Profile URL from search results, or \"LinkedIn: Not found\"]\n\n3. Category: \"Employees Found & Key Personnel\"\n   Details format:\n   Numbered list of senior managers, department heads, and functional leaders (HR, IT, Procurement, Operations) with verified roles and profile links where available.\n\n4. Category: \"Social Media Presence & Official Channels\"\n   Details format:\n   - Official Facebook: [Verified Facebook Page URL and follower/engagement snapshot]\n   - Official LinkedIn: [Verified LinkedIn Company Page URL]\n   - Official Website: [Official Website URL]\n   - Public Contact Info: [Hotline, email, or customer care channels found]\n\n5. Category: \"Potential Pain Points & SLT-Mobitel Opportunities\"\n   Details format (Numbered list with \\n\\n):\n   1. [Operational/IT Challenge]: [Specific explanation of bandwidth, multi-branch MPLS, cloud hosting, cybersecurity, or PBX needs that SLT-Mobitel enterprise solutions solve].\n   2. [Operational/IT Challenge]: [Explanation].\n   3. [Operational/IT Challenge]: [Explanation].\n\nCRITICAL: Return ONLY a valid JSON array of objects with \"Category\" and \"Details\" keys. No additional introductory or conversational text before or after the JSON."
         }
       },
       "id": "6b134ecc-4f4d-4f18-9e56-c2a573bc155a",
-      "name": "AI Agent",
+      "name": "AI Agent1",
       "type": "@n8n/n8n-nodes-langchain.agent",
       "typeVersion": 1.7,
       "position": [
@@ -42,23 +42,17 @@
         "options": {}
       },
       "id": "451be48e-777f-4410-a468-7d57aca7d5a1",
-      "name": "OpenAI Chat Model",
+      "name": "OpenAI Chat Model1",
       "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
       "typeVersion": 1,
       "position": [
         -96,
-        128
-      ],
-      "credentials": {
-        "openAiApi": {
-          "id": "nEN04NIj7NPTYPKY",
-          "name": "OpenAI account"
-        }
-      }
+        144
+      ]
     },
     {
       "parameters": {
-        "toolDescription": "Perform a comprehensive Google web search for company background, leadership, LinkedIn profiles, and contact info in Sri Lanka.",
+        "toolDescription": "Search Google for company background, headquarters address, official website, industry, operations, and scale in Sri Lanka.",
         "method": "POST",
         "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
         "authentication": "genericCredentialType",
@@ -81,22 +75,74 @@
       "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
       "typeVersion": 1.1,
       "position": [
-        160,
+        64,
         144
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "LtuGDw4YjlxuqnxG",
-          "name": "Header Auth account 4"
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search specifically for verified LinkedIn executive profiles, CEO, CFO, Directors, and decision-makers in Sri Lanka. Use queries like 'site:linkedin.com/in/ [Company Name] Sri Lanka CEO'.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The LinkedIn search query string. Do NOT use quotation marks; use plain words only.",
+              "type": "string"
+            }
+          ]
         }
-      }
+      },
+      "id": "e4190eac-aa1a-4b4d-8ed5-f39c1ed6d4eb",
+      "name": "apify_social_media_search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        224,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search specifically for the company's verified Facebook page, public contact numbers, recent customer announcements, and social presence using queries like 'site:facebook.com [Company Name] Sri Lanka'.",
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/apify~google-search-scraper/run-sync-get-dataset-items",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"queries\": \"{query}\",\n  \"maxPagesPerQuery\": 1,\n  \"resultsPerPage\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The Facebook search query string. Do NOT use quotation marks; use plain words only.",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "7d9b8a1c-3e2f-4a5b-8c9d-1e2f3a4b5c6d",
+      "name": "facebook_scraper",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        384,
+        144
+      ]
     },
     {
       "parameters": {
         "jsCode": "const item = $input.first();\nlet output = item.json.output || item.json.text || item.json;\n\nif (typeof output === 'string') {\n  try {\n    const clean = output.replace(/```json/gi, '').replace(/```/g, '').trim();\n    output = JSON.parse(clean);\n  } catch(e) {}\n}\n\nif (!Array.isArray(output)) {\n  output = [output];\n}\n\nreturn { json: { success: true, resultsCount: output.length, results: output } };"
       },
       "id": "b3e34b92-b2fa-48b4-9ceb-7ce5c5ad3829",
-      "name": "Format Response",
+      "name": "Format Response1",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
@@ -106,33 +152,33 @@
     }
   ],
   "connections": {
-    "Webhook": {
+    "Webhook1": {
       "main": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "AI Agent": {
+    "AI Agent1": {
       "main": [
         [
           {
-            "node": "Format Response",
+            "node": "Format Response1",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "OpenAI Chat Model": {
+    "OpenAI Chat Model1": {
       "ai_languageModel": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
             "type": "ai_languageModel",
             "index": 0
           }
@@ -143,7 +189,29 @@
       "ai_tool": [
         [
           {
-            "node": "AI Agent",
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "apify_social_media_search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "facebook_scraper": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent1",
             "type": "ai_tool",
             "index": 0
           }
