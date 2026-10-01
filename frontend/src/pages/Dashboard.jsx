@@ -191,35 +191,49 @@ function formatUserFriendlyError(rawError, promptText = '') {
   }
   const str = String(rawError).toLowerCase();
 
-  // If already a clean user-friendly message, return as is
-  if (
-    !str.includes('n8n') &&
-    !str.includes('webhook') &&
-    !str.includes('status code') &&
-    !str.includes('500') &&
-    !str.includes('axios') &&
-    !str.includes('request failed') &&
-    !str.includes('internal server') &&
-    str.length > 20
-  ) {
-    return rawError;
-  }
-
-  if (str.includes('524') || str.includes('timeout')) {
+  // 1. Timeouts & long-running web scraping
+  if (str.includes('timeout') || str.includes('524') || str.includes('econnaborted') || str.includes('exceeded') || str.includes('ms')) {
     return "This search is taking a little longer than usual while scanning live business directories. Please wait a moment and click Search again.";
   }
-  if (str.includes('429') || str.includes('rate limit') || str.includes('busy')) {
+
+  // 2. Server & Webhook errors (500, n8n, internal server error)
+  if (str.includes('500') || str.includes('webhook') || str.includes('n8n') || str.includes('request failed') || str.includes('internal server') || str.includes('status code')) {
+    if (promptText && promptText.trim().length > 0) {
+      return `We couldn't retrieve results for "${promptText.trim()}" right now. Please click Search again or try slightly different keywords (e.g. "hotels in Kandy Sri Lanka").`;
+    }
+    return "We couldn't retrieve results for this query right now. Please click Search again or try slightly different keywords.";
+  }
+
+  // 3. Rate limiting / Quotas
+  if (str.includes('429') || str.includes('rate limit') || str.includes('busy') || str.includes('too many requests')) {
     return "The search service is temporarily busy handling requests. Please wait a few moments and try again.";
   }
-  if (str.includes('network') || str.includes('connection') || str.includes('econnrefused')) {
+
+  // 4. Network / Connection errors
+  if (str.includes('network') || str.includes('connection') || str.includes('econnrefused') || str.includes('enotfound') || str.includes('offline') || str.includes('failed to fetch')) {
     return "Unable to connect to the search service right now. Please check your internet connection and try again.";
+  }
+
+  // 5. If it's already a clean human-readable sentence without technical code words
+  if (
+    !str.includes('error') &&
+    !str.includes('exception') &&
+    !str.includes('axios') &&
+    !str.includes('object') &&
+    !str.includes('undefined') &&
+    !str.includes('null') &&
+    !str.includes('{') &&
+    !str.includes('}') &&
+    str.length > 25
+  ) {
+    return rawError;
   }
 
   if (promptText && promptText.trim().length > 0) {
     return `We couldn't retrieve results for "${promptText.trim()}" right now. Please click Search again or try slightly different keywords (e.g. "hotels in Kandy Sri Lanka").`;
   }
 
-  return "We couldn't retrieve results for this query right now. Please click Search again or try slightly different keywords.";
+  return "Something went wrong while retrieving your search results. Please click Search again or try slightly different keywords.";
 }
 
 const renderFormattedText = (rawText, accentColor = '#0066FF') => {
