@@ -275,6 +275,7 @@ module.exports = {
   getCollection,
   indexChunks,
   queryVectorStore,
-  deleteDocVectors
+  deleteDocVectors,
+  deleteDocumentChunks: deleteDocVectors
 };
 

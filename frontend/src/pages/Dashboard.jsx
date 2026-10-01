@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles, Compass, Filter, ShieldCheck, History } from 'lucide-react';
+import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Sparkles, Compass, Filter, ShieldCheck, History } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -182,6 +182,46 @@ const KNOWN_LABELS = [
   'Overall Sentiment'
 ];
 
+/**
+ * Translates technical error messages (n8n, Axios 500, timeouts, etc.) into clean, practical, friendly messages.
+ */
+function formatUserFriendlyError(rawError, promptText = '') {
+  if (!rawError) {
+    return "We couldn't retrieve results right now. Please click Search again or refine your keywords.";
+  }
+  const str = String(rawError).toLowerCase();
+
+  // If already a clean user-friendly message, return as is
+  if (
+    !str.includes('n8n') &&
+    !str.includes('webhook') &&
+    !str.includes('status code') &&
+    !str.includes('500') &&
+    !str.includes('axios') &&
+    !str.includes('request failed') &&
+    !str.includes('internal server') &&
+    str.length > 20
+  ) {
+    return rawError;
+  }
+
+  if (str.includes('524') || str.includes('timeout')) {
+    return "This search is taking a little longer than usual while scanning live business directories. Please wait a moment and click Search again.";
+  }
+  if (str.includes('429') || str.includes('rate limit') || str.includes('busy')) {
+    return "The search service is temporarily busy handling requests. Please wait a few moments and try again.";
+  }
+  if (str.includes('network') || str.includes('connection') || str.includes('econnrefused')) {
+    return "Unable to connect to the search service right now. Please check your internet connection and try again.";
+  }
+
+  if (promptText && promptText.trim().length > 0) {
+    return `We couldn't retrieve results for "${promptText.trim()}" right now. Please click Search again or try slightly different keywords (e.g. "hotels in Kandy Sri Lanka").`;
+  }
+
+  return "We couldn't retrieve results for this query right now. Please click Search again or try slightly different keywords.";
+}
+
 const renderFormattedText = (rawText, accentColor = '#0066FF') => {
   if (typeof rawText !== 'string') return rawText;
 
@@ -328,9 +368,6 @@ const Dashboard = () => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
-  const [vectorSearchQuery, setVectorSearchQuery] = useState('');
-  const [vectorSearchResults, setVectorSearchResults] = useState(null);
-  const [searchingVector, setSearchingVector] = useState(false);
 
   const loadKbDocuments = async () => {
     setLoadingDocs(true);
@@ -360,41 +397,29 @@ const Dashboard = () => {
       await uploadKnowledgeBaseDocument(selectedFile, (progress) => {
         setUploadProgress(progress);
       });
-      showToast(`Successfully uploaded "${selectedFile.name}" and indexed to ChromaDB!`, 'success');
+      showToast(`Successfully uploaded "${selectedFile.name}" to server!`, 'success');
       setSelectedFile(null);
       loadKbDocuments();
     } catch (err) {
-      console.error("Local KB upload error:", err);
-      showToast(err.response?.data?.error || err.message || 'Failed to upload document to Local Knowledge Base.', 'error');
+      console.error("Server upload error:", err);
+      showToast(err.response?.data?.error || err.message || 'Failed to upload document to server.', 'error');
     } finally {
       setUploading(false);
     }
   };
 
   const handleDeleteDoc = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}" from local storage and vector store?`)) return;
+    if (!window.confirm(`Are you sure you want to delete "${name}" from server storage and vector store?`)) return;
     try {
       await deleteKnowledgeBaseDocument(id);
-      showToast(`Deleted "${name}"`, 'success');
+      showToast(`Deleted "${name}" from server`, 'success');
       loadKbDocuments();
     } catch (err) {
-      showToast('Failed to delete document', 'error');
+      showToast(err.response?.data?.error || err.message || 'Failed to delete document', 'error');
     }
   };
 
-  const handleVectorSearch = async (e) => {
-    e.preventDefault();
-    if (!vectorSearchQuery) return;
-    setSearchingVector(true);
-    try {
-      const data = await searchKnowledgeBaseVectors(vectorSearchQuery);
-      setVectorSearchResults(data.results);
-    } catch (err) {
-      showToast('Vector search error: ' + (err.response?.data?.error || err.message), 'error');
-    } finally {
-      setSearchingVector(false);
-    }
-  };
+
 
   const [toast, setToast] = useState(null);
   const [scoreFilter, setScoreFilter] = useState('all');
@@ -489,13 +514,7 @@ const Dashboard = () => {
     } catch (err) {
       console.error('[Dashboard Search Error]', err);
       const rawError = err.response?.data?.error || err.response?.data?.message || err.message || '';
-      if (rawError.includes('524') || err.response?.status === 524) {
-        setError("n8n Cloud Webhook Timeout (524): n8n Cloud is running deep scrapers & knowledge base queries. The workflow is processing. Please wait a moment and click Search again.");
-      } else {
-        setError(
-          rawError || `Failed to connect to SLT-Mobitel ${activeAgent.name} Agent.`
-        );
-      }
+      setError(formatUserFriendlyError(rawError, prompt));
     } finally {
       setLoading(false);
     }
@@ -561,7 +580,7 @@ const Dashboard = () => {
       }
     } catch (err) {
       console.error('[Load More Error]', err);
-      showToast(err.response?.data?.error || err.message || 'Failed to load more results. Try again.', 'error');
+      showToast(formatUserFriendlyError(err.response?.data?.error || err.message, prompt), 'error');
     } finally {
       setLoadingMore(false);
     }
@@ -928,7 +947,7 @@ const Dashboard = () => {
                   border: 'none', cursor: 'pointer', transition: 'all 0.2s'
                 }}
               >
-                <Database size={16} /> Knowledge Base & Vector DB
+                <Database size={16} /> B2B Product List
               </button>
             )}
           </div>
@@ -1026,11 +1045,43 @@ const Dashboard = () => {
 
         {error && (
           <div className="animate-fade-in" style={{
-            background: '#dc262615', border: '1px solid #dc262650', borderRadius: '0.75rem',
-            padding: '1rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem'
+            background: '#fef2f2',
+            border: '1px solid #fecaca',
+            borderRadius: '0.75rem',
+            padding: '1rem 1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem',
+            marginBottom: '1rem',
+            flexWrap: 'wrap'
           }}>
-            <AlertCircle size={20} color="#dc2626" />
-            <p style={{ color: '#fca5a5' }}>{error}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: '240px' }}>
+              <AlertCircle size={20} color="#dc2626" style={{ flexShrink: 0 }} />
+              <p style={{ color: '#991b1b', fontSize: '0.92rem', margin: 0, lineHeight: 1.45, fontWeight: 500 }}>
+                {error}
+              </p>
+            </div>
+            <button
+              onClick={handleSearch}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                background: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '0.5rem',
+                padding: '0.45rem 1rem',
+                fontSize: '0.85rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 2px 6px rgba(220, 38, 38, 0.25)',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              <Search size={14} /> Try Again
+            </button>
           </div>
         )}
 
@@ -1447,9 +1498,9 @@ const Dashboard = () => {
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                 <Database size={22} color="#0066FF" />
                 <div>
-                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#0f172a' }}>Local Knowledge Base & Vector Store</h3>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#0f172a' }}>B2B Product List</h3>
                   <p style={{ fontSize: '0.8rem', color: '#64748b' }}>
-                    Local storage & ChromaDB vector database index for n8n RAG workflows
+                    SLT-Mobitel Enterprise product portfolio, solution brochures & corporate registry documents stored on the server
                   </p>
                 </div>
               </div>
@@ -1468,9 +1519,9 @@ const Dashboard = () => {
                 padding: '1.5rem', textAlign: 'center', background: '#f8fafc'
               }}>
                 <UploadCloud size={36} style={{ color: '#0066FF', marginBottom: '0.5rem', opacity: 0.8 }} />
-                <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#0f172a', marginBottom: '0.25rem' }}>Upload Document to Local Vector Store</h4>
+                <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#0f172a', marginBottom: '0.25rem' }}>Upload Document to B2B Product List</h4>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
-                  Supports PDF, Excel (.xlsx/.xls), CSV, Word (.docx), and TXT. Extracted text will be chunked and indexed automatically.
+                  Supports PDF, Excel (.xlsx/.xls), CSV, Word (.docx), and TXT. Uploaded documents are securely saved to the server and indexed for AI agents.
                 </p>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
@@ -1491,7 +1542,7 @@ const Dashboard = () => {
                       boxShadow: '0 1px 3px rgba(0,0,0,0.05)'
                     }}
                   >
-                    {selectedFile ? selectedFile.name : 'Choose Local File'}
+                    {selectedFile ? selectedFile.name : 'Choose File to Upload'}
                   </label>
 
                   <button
@@ -1505,7 +1556,7 @@ const Dashboard = () => {
                       cursor: selectedFile && !uploading ? 'pointer' : 'not-allowed'
                     }}
                   >
-                    {uploading ? <><Loader2 size={16} className="spin" /> Indexing...</> : 'Upload & Vectorize'}
+                    {uploading ? <><Loader2 size={16} className="spin" /> Uploading to Server...</> : 'Upload to Server'}
                   </button>
                 </div>
 
@@ -1516,46 +1567,9 @@ const Dashboard = () => {
                 )}
               </div>
 
-              <div style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: '0.75rem', padding: '1rem' }}>
-                <h4 style={{ fontSize: '0.9rem', fontWeight: '600', color: '#3b82f6', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Layers size={16} /> Test Vector RAG Search (ChromaDB)
-                </h4>
-                <form onSubmit={handleVectorSearch} style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    type="text"
-                    placeholder="Enter query to test vector embedding search (e.g. enterprise wifi products)"
-                    value={vectorSearchQuery}
-                    onChange={(e) => setVectorSearchQuery(e.target.value)}
-                    style={{ flex: 1, padding: '0.5rem 0.75rem', fontSize: '0.85rem' }}
-                  />
-                  <button
-                    type="submit"
-                    disabled={searchingVector || !vectorSearchQuery}
-                    style={{ background: '#3b82f6', color: 'white', border: 'none', borderRadius: '0.5rem', padding: '0 1rem', fontSize: '0.85rem', fontWeight: '600' }}
-                  >
-                    {searchingVector ? <Loader2 size={14} className="spin" /> : 'Query Vector Store'}
-                  </button>
-                </form>
-
-                {vectorSearchResults && (
-                  <div style={{ marginTop: '0.75rem', maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {vectorSearchResults.documents && vectorSearchResults.documents[0] && vectorSearchResults.documents[0].length > 0 ? (
-                      vectorSearchResults.documents[0].map((text, idx) => (
-                        <div key={idx} style={{ background: 'var(--card-bg)', border: '1px solid var(--border-color)', padding: '0.6rem', borderRadius: '0.5rem', fontSize: '0.8rem' }}>
-                          <span style={{ color: '#10b981', fontWeight: 'bold', marginRight: '0.5rem' }}>Chunk #{idx + 1}:</span>
-                          {text}
-                        </div>
-                      ))
-                    ) : (
-                      <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No matching vector chunks found.</p>
-                    )}
-                  </div>
-                )}
-              </div>
-
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                  <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>Indexed Knowledge Base Documents ({kbDocuments.length})</h4>
+                  <h4 style={{ fontSize: '1rem', fontWeight: '600' }}>Indexed B2B Products & Documents ({kbDocuments.length})</h4>
                   <button
                     onClick={loadKbDocuments}
                     style={{ background: 'transparent', border: 'none', color: '#3b82f6', fontSize: '0.8rem', cursor: 'pointer' }}
@@ -1570,7 +1584,7 @@ const Dashboard = () => {
                   </div>
                 ) : kbDocuments.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: '2rem', border: '1px solid var(--border-color)', borderRadius: '0.5rem', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-                    No documents uploaded yet. Upload a PDF or TXT file above to get started.
+                    No documents uploaded yet. Upload a PDF, Excel, or Word file above to get started.
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '250px', overflowY: 'auto' }}>
@@ -1595,11 +1609,13 @@ const Dashboard = () => {
 
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                           <span style={{
-                            padding: '0.2rem 0.6rem', borderRadius: '1rem', fontSize: '0.7rem', fontWeight: 'bold',
-                            background: doc.status === 'indexed_chroma' ? '#10b98120' : '#f59e0b20',
-                            color: doc.status === 'indexed_chroma' ? '#10b981' : '#f59e0b'
+                            padding: '0.25rem 0.65rem', borderRadius: '1rem', fontSize: '0.72rem', fontWeight: 'bold',
+                            background: '#10b98118',
+                            color: '#059669',
+                            border: '1px solid #10b98140',
+                            display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
                           }}>
-                            {doc.status === 'indexed_chroma' ? 'Indexed (ChromaDB)' : 'Stored Locally'}
+                            <CheckCircle size={12} /> Stored on Server
                           </span>
                           <button
                             onClick={() => handleDeleteDoc(doc.id, doc.name)}

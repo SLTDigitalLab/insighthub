@@ -70,5 +70,9 @@ module.exports = {
     const filtered = docs.filter(doc => doc.id !== id);
     writeMetadata(filtered);
     return target;
+  },
+
+  removeDocument: function(id) {
+    return this.deleteDocument(id);
   }
 };

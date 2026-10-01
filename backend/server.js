@@ -142,6 +142,28 @@ function formatDetailsValue(val) {
   return String(val || '');
 }
 
+/**
+ * Converts technical errors (n8n, timeouts, HTTP 500, etc.) into clean, user-friendly, practical messages.
+ */
+function getFriendlyErrorMessage(err, queryPrompt = '') {
+  const status = err.response?.status;
+  const rawMsg = (err.response?.data?.error || err.response?.data?.message || err.message || '').toLowerCase();
+
+  if (status === 524 || rawMsg.includes('524') || rawMsg.includes('timeout')) {
+    return "This search is taking a little longer than usual while scanning live business directories. Please wait a moment and click Search again.";
+  }
+  if (status === 429 || rawMsg.includes('429') || rawMsg.includes('rate limit') || rawMsg.includes('too many requests')) {
+    return "The search service is temporarily busy handling requests. Please wait a few moments and try again.";
+  }
+  if (rawMsg.includes('network') || rawMsg.includes('econnrefused') || rawMsg.includes('enotfound') || rawMsg.includes('connect')) {
+    return "Unable to connect to the search service right now. Please check your internet connection and try again.";
+  }
+  if (queryPrompt && queryPrompt.trim().length > 0) {
+    return `We couldn't retrieve results for "${queryPrompt.trim()}" right now. Please click Search again or try slightly different keywords (e.g. "hotels in Kandy Sri Lanka").`;
+  }
+  return "We couldn't retrieve results for this search right now. Please click Search again or try slightly different keywords.";
+}
+
 // ============================================================
 // HEALTH CHECK
 // ============================================================
@@ -219,22 +241,33 @@ app.delete('/api/documents/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Document not found.' });
     }
 
-    console.log(`[Delete] Removing document "${doc.name}" (ID: ${docId})`);
+    console.log(`[Delete] Removing document "${doc.name}" (ID: ${docId}) from server`);
 
+    // 1. Delete vector entries from vector store
     try {
-      if (fs.existsSync(doc.filePath)) {
-        fs.unlinkSync(doc.filePath);
+      if (typeof chromaService.deleteDocVectors === 'function') {
+        await chromaService.deleteDocVectors(docId);
+      } else if (typeof chromaService.deleteDocumentChunks === 'function') {
+        await chromaService.deleteDocumentChunks(docId);
       }
-    } catch (fsErr) {
-      console.warn(`[Delete Warning] Failed to delete disk file: ${fsErr.message}`);
+    } catch (chromaErr) {
+      console.warn(`[Delete Warning] Failed to delete vector chunks: ${chromaErr.message}`);
     }
 
-    await chromaService.deleteDocumentChunks(docId);
-    storageService.removeDocument(docId);
+    // 2. Delete file from disk and metadata
+    try {
+      if (typeof storageService.deleteDocument === 'function') {
+        storageService.deleteDocument(docId);
+      } else if (typeof storageService.removeDocument === 'function') {
+        storageService.removeDocument(docId);
+      }
+    } catch (storageErr) {
+      console.warn(`[Delete Warning] Failed to delete file metadata: ${storageErr.message}`);
+    }
 
     res.json({
       success: true,
-      message: `Document "${doc.name}" deleted from local store and vector DB.`
+      message: `Document "${doc.name}" successfully deleted from server.`
     });
   } catch (err) {
     console.error('[Delete Error]', err);
@@ -293,10 +326,9 @@ app.post('/api/find-new-businesses', async (req, res) => {
     });
   } catch (err) {
     console.error('[Find New Businesses Proxy Error]', err.message);
-    const errText = err.response?.data?.error || err.message || '';
     return res.status(500).json({
       success: false,
-      error: `Live n8n Webhook Error: ${errText}`
+      error: getFriendlyErrorMessage(err, prompt)
     });
   }
 });
@@ -365,16 +397,10 @@ app.post('/api/lead-discovery', async (req, res) => {
     });
   } catch (err) {
     console.error('[Lead Discovery Proxy Error]', err.message);
-    const errText = err.response?.data?.error || err.message || '';
-    if (err.response?.status === 524 || errText.includes('524')) {
-      return res.status(524).json({
-        success: false,
-        error: "n8n Cloud Webhook Timeout (524): The n8n AI Agent is currently executing deep web scrapers in n8n Cloud (>2.5 min process). Please click Search again to fetch the completed leads."
-      });
-    }
-    return res.status(500).json({
+    const status = err.response?.status === 524 ? 524 : 500;
+    return res.status(status).json({
       success: false,
-      error: `Live n8n Webhook Error: ${errText}`
+      error: getFriendlyErrorMessage(err, prompt)
     });
   }
 });
@@ -414,16 +440,10 @@ app.post('/api/all-search-results', async (req, res) => {
     });
   } catch (err) {
     console.error('[All Search Results Proxy Error]', err.message);
-    const errText = err.response?.data?.error || err.message || '';
-    if (err.response?.status === 524 || errText.includes('524')) {
-      return res.status(524).json({
-        success: false,
-        error: "n8n Cloud Webhook Timeout (524): Deep scraping in progress. Please click Search again to fetch the results."
-      });
-    }
-    return res.status(500).json({
+    const status = err.response?.status === 524 ? 524 : 500;
+    return res.status(status).json({
       success: false,
-      error: `Live n8n Webhook Error: ${errText}`
+      error: getFriendlyErrorMessage(err, prompt)
     });
   }
 });
@@ -471,10 +491,9 @@ Return a structured JSON array with "Category" and "Details" for each section.`;
     });
   } catch (err) {
     console.error('[Customer Research Proxy Error]', err.message);
-    const errText = err.response?.data?.error || err.message || '';
     return res.status(500).json({
       success: false,
-      error: `Live n8n Webhook Error: ${errText}`
+      error: getFriendlyErrorMessage(err, prompt)
     });
   }
 });
@@ -516,16 +535,10 @@ Return a structured JSON array with "Category" and "Details" for each section.`;
     });
   } catch (err) {
     console.error('[Help Improve Service Proxy Error]', err.message);
-    const errText = err.response?.data?.error || err.message || '';
-    if (err.response?.status === 524 || errText.includes('524')) {
-      return res.status(524).json({
-        success: false,
-        error: "n8n Cloud Webhook Timeout (524): The n8n AI Agent is currently analyzing customer reviews and feedback. Please click Search again to fetch the results."
-      });
-    }
-    return res.status(500).json({
+    const status = err.response?.status === 524 ? 524 : 500;
+    return res.status(status).json({
       success: false,
-      error: `Live n8n Webhook Error: ${errText}`
+      error: getFriendlyErrorMessage(err, prompt)
     });
   }
 });
@@ -695,7 +708,7 @@ app.post('/api/recommendations', async (req, res) => {
     });
   } catch (err) {
     console.error('[Recommendation Error]', err.message);
-    return res.status(500).json({ success: false, error: err.message });
+    return res.status(500).json({ success: false, error: getFriendlyErrorMessage(err, prompt) });
   }
 });
 
