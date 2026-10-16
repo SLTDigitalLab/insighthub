@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles, Compass, Filter, ShieldCheck, History } from 'lucide-react';
+import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Layers, Sparkles, Compass, Filter, ShieldCheck, History, ClipboardList } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -21,6 +21,7 @@ import {
   sendResultsEmail,
   saveSearchHistory
 } from '../api';
+import ProposalAgent from '../components/ProposalAgent';
 
 
 const agents = [
@@ -79,6 +80,14 @@ const agents = [
     desc: 'Analyze Google and Facebook reviews to suggest service improvements and find employees.',
     placeholder: 'e.g. "Analyze reviews for Dialog Axiata and find employees"',
     color: '#ec4899'
+  },
+  {
+    id: 'proposal',
+    name: 'Proposal Generator',
+    icon: ClipboardList,
+    desc: 'Search a business, pick SLT-Mobitel products and download a ready-to-send customer proposal.',
+    placeholder: '',
+    color: '#0284c7'
   }
 ];
 
@@ -934,6 +943,13 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {activeAgent.id === 'proposal' ? (
+          <ProposalAgent
+            user={{ name: localStorage.getItem('userName') || '', email: userEmail }}
+            accent={activeAgent.color}
+          />
+        ) : (
+          <>
         {isAdmin && activeAgent.id === 'newBusinesses' && (
           <div className="animate-fade-in" style={{
             maxWidth: '680px',
@@ -1423,6 +1439,8 @@ const Dashboard = () => {
                 : "Connected to SLT-Mobitel B2B Agent gateway & local vector store."}
             </p>
           </div>
+        )}
+          </>
         )}
       </div>
 
