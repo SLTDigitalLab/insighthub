@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Sparkles, Compass, Filter, ShieldCheck, History } from 'lucide-react';
+import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Sparkles, Compass, Filter, ShieldCheck, History, ClipboardList } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -21,6 +21,7 @@ import {
   sendResultsEmail,
   saveSearchHistory
 } from '../api';
+import ProposalAgent from '../components/ProposalAgent';
 
 
 const agents = [
@@ -79,6 +80,14 @@ const agents = [
     desc: 'Analyze Google and Facebook reviews to suggest service improvements and find employees.',
     placeholder: 'e.g. "Analyze reviews for Dialog Axiata and find employees"',
     color: '#ec4899'
+  },
+  {
+    id: 'proposal',
+    name: 'Proposal Generator',
+    icon: ClipboardList,
+    desc: 'Search a business, pick SLT-Mobitel products and download a ready-to-send customer proposal.',
+    placeholder: '',
+    color: '#0284c7'
   }
 ];
 
@@ -441,11 +450,29 @@ const Dashboard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const userEmail = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+  const [proposalUser, setProposalUser] = useState(null);
   const isAdmin =
     localStorage.getItem('userRole') === 'admin' ||
     userEmail === 'dineshpi@slt.com.lk' ||
     userEmail === '020601@intranet.slt.com.lk' ||
     userEmail === 'lahirus@slt.com.lk';
+
+  useEffect(() => {
+    if (activeAgent.id !== 'proposal' || proposalUser || !userEmail) return;
+    axios.post('/api/auth/verify-access', { email: userEmail })
+      .then(res => {
+        const u = (res.data && res.data.approved && res.data.user) || {};
+        const clean = v => String(v || '').trim();
+        setProposalUser({
+          name: clean(u.name) || localStorage.getItem('userName') || '',
+          email: clean(u.email) || userEmail,
+          designation: clean(u.designation),
+          phone: clean(u.mobileNumber),
+          division: clean(u.department) || clean(u.rebmArea),
+        });
+      })
+      .catch(() => { /* keeps name + email from the login; the backend still fills the rest from the account */ });
+  }, [activeAgent.id, proposalUser, userEmail]);
 
   // Handle re-run or load from Search History page
   useEffect(() => {
@@ -967,6 +994,13 @@ const Dashboard = () => {
           </div>
         </div>
 
+        {activeAgent.id === 'proposal' ? (
+          <ProposalAgent
+            user={proposalUser || { name: localStorage.getItem('userName') || '', email: userEmail, designation: '', phone: '', division: '' }}
+            accent={activeAgent.color}
+          />
+        ) : (
+          <>
         {isAdmin && activeAgent.id === 'newBusinesses' && (
           <div className="animate-fade-in" style={{
             maxWidth: '680px',
@@ -1488,6 +1522,8 @@ const Dashboard = () => {
                 : "Connected to SLT-Mobitel B2B Agent gateway & local vector store."}
             </p>
           </div>
+        )}
+          </>
         )}
       </div>
 

@@ -6,5 +6,8 @@ build/
 backend/uploads/
 backend/data/*.json
 !backend/data/users.default.json
+!backend/data/products.json
+backend/data/*.jsonl
+*.lock
 *.backup
 *.bak

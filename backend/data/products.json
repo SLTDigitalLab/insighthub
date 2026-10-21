@@ -1,0 +1,1047 @@
+[
+ {
+  "id": "premium-vpn",
+  "name": "Premium VPN",
+  "pillar": "Networking",
+  "description": "SLT-Mobitel Premium VPN provides high-capacity, site-to-site Virtual Private Network connectivity leveraging Multiprotocol Label Switching (MPLS) technology. It offers dedicated, highly secure, and reliable private bandwidth designed for enterprises, financial institutions, and government bodies requiring seamless multi-branch connectivity with strict Quality of Service (QoS) guarantees across Sri Lanka.",
+  "features": [
+   "Guaranteed bandwidth with stringent Service Level Agreements (SLAs)",
+   "Multi-Class of Service (CoS) prioritization for voice, video, and mission-critical data",
+   "Fully private, end-to-end encrypted IP-MPLS infrastructure",
+   "Proactive 24/7 network performance monitoring and fault resolution"
+  ],
+  "service": "Premium VPN",
+  "accessMedia": "Fibre",
+  "ntu": "Layer 3 PE Router"
+ },
+ {
+  "id": "ssl-vpn",
+  "name": "SSL VPN (Remote VPN)",
+  "pillar": "Networking",
+  "description": "SSL VPN is a streamlined secure networking service tailored for retail chains, distributors, and micro-branches. It enables secure communication between central enterprise servers and widespread retail POS terminals, agent networks, or remote distribution centers, ensuring low-latency transactional data processing.",
+  "features": [
+   "Optimized data routing for point-of-sale (POS) and transactional updates",
+   "Low deployment and maintenance overhead for wide retail footprint",
+   "Centralized security policy management across hundreds of remote locations",
+   "Seamless fallback mechanisms to maintain uninterrupted store operations"
+  ],
+  "service": "SSL VPN",
+  "accessMedia": "Internet",
+  "ntu": "SSL VPN Gateway"
+ },
+ {
+  "id": "apn",
+  "name": "APN (Access Point Name)",
+  "pillar": "Networking",
+  "description": "SLT-Mobitel Enterprise APN delivers a custom corporate gateway on the mobile network, enabling corporate devices to connect directly to the company's internal private network. It isolates enterprise mobile data traffic from the public internet, ensuring maximum data privacy, restricted IP assignment, and precise usage monitoring.",
+  "features": [
+   "Custom corporate APN for isolated mobile traffic management",
+   "Private IP address allocation (Static or Dynamic) per corporate device",
+   "Flexible data pooling and centralized bandwidth capping capabilities",
+   "Enhanced corporate security bypassing public internet exposure"
+  ],
+  "service": "Enterprise APN",
+  "accessMedia": "LTE / 4G",
+  "ntu": "4G Router / Corporate SIM"
+ },
+ {
+  "id": "edl",
+  "name": "EDL (Ethernet Dedicated Line)",
+  "pillar": "Networking",
+  "description": "Ethernet Dedicated Line (EDL) delivers uncompressed, point-to-point fiber-optic connection between enterprise facilities. Operating at Layer 2, EDL delivers transparent bandwidth up to multi-Gigabit speeds with low latency, catering to enterprise data centers, bank mainframes, and high-frequency data transmission demands.",
+  "features": [
+   "Dedicated point-to-point fiber-optic link with 100% throughput guarantees",
+   "Ultra-low latency Layer 2 connection with zero packet congestion",
+   "Protocol-transparent networking supporting customized framing",
+   "High availability with redundant physical fiber routing options"
+  ],
+  "service": "EDL",
+  "accessMedia": "Fibre",
+  "ntu": "Ethernet NTU"
+ },
+ {
+  "id": "sd-wan",
+  "name": "SD-WAN (Software-Defined Wide Area Network)",
+  "pillar": "Networking",
+  "description": "SLT-Mobitel SD-WAN modernizes corporate WAN management by decoupling network control from underlying hardware. It dynamically routes traffic across hybrid connections based on real-time network conditions, significantly lowering WAN operating costs while improving cloud application performance.",
+  "features": [
+   "Centralized cloud controller for instant site deployment and policy enforcement",
+   "Dynamic path selection favoring real-time applications like VoIP and video",
+   "Integrated multi-layer security including next-gen firewall features",
+   "Substantial bandwidth cost optimization by blending Fiber and 4G links"
+  ],
+  "service": "SD-WAN",
+  "accessMedia": "Fibre / LTE",
+  "ntu": "SD-WAN Edge Appliance"
+ },
+ {
+  "id": "data-one",
+  "name": "DATA One",
+  "pillar": "Internet",
+  "description": "DATA One is SLT-Mobitel's benchmark enterprise broadband broadband solution designed for small-to-medium enterprises and corporate offices. Delivered over optical fiber or LTE infrastructure, DATA One provides reliable high-speed internet access packaged with customizable monthly data bucket allocation plans.",
+  "features": [
+   "High-speed fiber connectivity with asymmetrical or symmetrical throughput",
+   "Scalable monthly data bundles tailored for SME operational demands",
+   "Static IP add-on support"
+  ],
+  "service": "DATA One",
+  "accessMedia": "Fibre / LTE",
+  "ntu": "Fibre ONT Router"
+ },
+ {
+  "id": "bil",
+  "name": "BIL (Business Internet Line)",
+  "pillar": "Internet",
+  "description": "Business Internet Line (BIL) is SLT-Mobitel's enterprise-class internet link providing dedicated, symmetrical bandwidth with 1:1 contention ratio. Designed for mission-critical digital operations, BIL guarantees equal upload and download speeds, unthrottled performance, and enterprise SLAs.",
+  "features": [
+   "Guaranteed 1:1 symmetrical bandwidth with zero contention",
+   "SLA-backed uptime guarantees exceeding 99.9%",
+   "Multiple public Static IPv4 and IPv6 block allocations",
+   "Direct routing to global tier-1 IP transit providers"
+  ],
+  "service": "BIL",
+  "accessMedia": "Fibre",
+  "ntu": "Layer 3 Cisco Router"
+ },
+ {
+  "id": "enet",
+  "name": "Enet",
+  "pillar": "Internet",
+  "description": "Enet is SLT-Mobitel's scalable Ethernet-based high-speed internet connectivity product catering to corporate offices requiring bandwidth elasticity. It provides high-throughput internet access over reliable fiber access points, accommodating burstable bandwidth demands for enterprise web services.",
+  "features": [
+   "Flexible bandwidth scaling up to Gigabit capacities on demand",
+   "Ethernet interface for easy integration with internal routers/firewalls",
+   "Robust SLA protection and proactive link health monitoring",
+   "Symmetrical speeds suitable for cloud-heavy enterprise workloads"
+  ],
+  "service": "Enet",
+  "accessMedia": "Fibre",
+  "ntu": "Ethernet Router"
+ },
+ {
+  "id": "integrated-internet-service",
+  "name": "Integrated Internet Service",
+  "pillar": "Internet",
+  "description": "Integrated Internet Service offers a multi-access internet solution combining primary fiber lines with automatic cellular backup (4G/LTE). This dual-path architecture ensures uninterrupted internet continuity for mission-critical enterprise environments like bank branches and healthcare networks.",
+  "features": [
+   "Automatic failover between primary fixed fiber and cellular backup",
+   "Single IP address persistence during automatic link failover",
+   "Unified billing and single SLA management under SLT-Mobitel",
+   "Minimized operational downtime for enterprise transactions"
+  ],
+  "service": "Integrated Internet",
+  "accessMedia": "Fibre + 4G backup",
+  "ntu": "Dual-WAN Router"
+ },
+ {
+  "id": "enterprise-wifi",
+  "name": "Enterprise WiFi",
+  "pillar": "Internet",
+  "description": "Enterprise WiFi is a fully managed wireless networking solution for offices, university campuses, hotels, and public venues. SLT-Mobitel delivers complete design, hardware deployment, guest portal setup, bandwidth shaping, and 24/7 network management.",
+  "features": [
+   "High-density Wi-Fi 6 access points with seamless roaming",
+   "Customizable guest portal with SMS OTP and social authentication",
+   "Centralized cloud controller for real-time policy and bandwidth management",
+   "Integrated security protocols including WPA3 and network isolation"
+  ],
+  "service": "Enterprise WiFi",
+  "accessMedia": "Fibre / Wireless",
+  "ntu": "Wi-Fi Access Points"
+ },
+ {
+  "id": "bizlife",
+  "name": "BizLife",
+  "pillar": "Internet",
+  "description": "BizLife is a specialized bundled internet package tailored for growing small businesses and professional offices. It packages high-speed fiber internet with value-added business digital tools such as cloud storage, email, and voice communication channels at attractive rates.",
+  "features": [
+   "Cost-effective package bundling fixed broadband and cloud tools",
+   "High-speed fiber connectivity with high volume allowances",
+   "Includes enterprise voice lines and digital communication tools",
+   "Simplified single monthly bill for broadband and cloud services"
+  ],
+  "service": "BizLife",
+  "accessMedia": "Fibre",
+  "ntu": "Fibre ONT Router"
+ },
+ {
+  "id": "lte-ftth-unlimited-flash",
+  "name": "LTE/FTTH Unlimited Flash",
+  "pillar": "Internet",
+  "description": "LTE/FTTH Unlimited Flash offers high-speed internet connectivity over SLT- Mobitel's Fiber-to-the-Home (FTTH) and 4G LTE networks, featuring speed-based unlimited data consumption model. Designed for data-heavy business tasks without data capping concerns.",
+  "features": [
+   "Truly unlimited data access without daily volume caps",
+   "Ultra-fast FTTH download speeds reaching up to 1Gbps",
+   "Reliable wireless 4G LTE backup coverage where fiber is unavailable",
+   "Optimal platform for continuous cloud backups and HD video streaming"
+  ],
+  "service": "Unlimited Flash",
+  "accessMedia": "LTE / FTTH",
+  "ntu": "LTE / FTTH Router"
+ },
+ {
+  "id": "managed-firewall",
+  "name": "Managed Firewall",
+  "pillar": "Cyber Security",
+  "description": "SLT-Mobitel Managed Firewall provides perimeter cyber defense for enterprise networks. Delivered as a fully managed service, SLT network security engineers handle installation, rule configuration, policy updates, and 24/7 threat monitoring to safeguard enterprise assets against malware, intrusions, and unauthorized access.",
+  "features": [
+   "Next-Generation Firewall (NGFW) features including IPS and deep packet inspection",
+   "Round-the-clock security event monitoring by SLT Cyber Security Operation Center (SOC)",
+   "Customized firewall policies based on corporate risk compliance",
+   "Automated threat feed updates and emergency patching"
+  ],
+  "service": "Managed Firewall",
+  "accessMedia": "On-premise",
+  "ntu": "Next-Gen Firewall"
+ },
+ {
+  "id": "cloud-firewall",
+  "name": "Cloud Firewall",
+  "pillar": "Cyber Security",
+  "description": "Cloud Firewall is a cloud-native security solution that protects virtual infrastructure, hosted workloads, and enterprise cloud applications hosted with SLT Cloud. It eliminates the need for physical hardware appliances, providing scalable perimeter security for multi-cloud and hybrid cloud deployments.",
+  "features": [
+   "On-demand scaling to protect virtual servers and cloud environments",
+   "Centralized dashboard for multi-cloud security management",
+   "Zero-hardware maintenance with instant provisioning",
+   "Granular access control policies and encrypted tunnel support"
+  ],
+  "service": "Cloud Firewall",
+  "accessMedia": "Cloud",
+  "ntu": "Virtual Firewall"
+ },
+ {
+  "id": "waf",
+  "name": "WAF (Web Application Firewall)",
+  "pillar": "Cyber Security",
+  "description": "SLT WAF shields customer-facing web applications, e-commerce portals, and APIs against OWASP Top 10 vulnerabilities, including SQL injection, cross-site scripting (XSS), and zero-day exploits. It analyzes web traffic before reaching web servers.",
+  "features": [
+   "Real-time protection against OWASP Top 10 application security risks",
+   "Bot management and brute-force attack mitigation",
+   "SSL/TLS offloading and web acceleration features",
+   "Comprehensive web attack reporting and compliance monitoring"
+  ],
+  "service": "WAF",
+  "accessMedia": "Cloud",
+  "ntu": "Web Application Firewall"
+ },
+ {
+  "id": "ddos-protection-service",
+  "name": "DDoS Protection Service",
+  "pillar": "Cyber Security",
+  "description": "DDoS Protection Service safeguards enterprise internet lines and online portals against volumetric and application-layer Distributed Denial of Service attacks. SLT- Mobitel's upstream scrubbing centers automatically intercept and clean malicious traffic spikes before impact.",
+  "features": [
+   "Multi-gigabit volumetric DDoS mitigation capacity at upstream level",
+   "Sub-second automated threat detection and traffic scrubbing redirection",
+   "Zero impact on legitimate user web traffic during active attack mitigation",
+   "Detailed post-incident forensic analytics and mitigation summaries"
+  ],
+  "service": "DDoS Protection",
+  "accessMedia": "SLT Backbone",
+  "ntu": "Scrubbing Centre"
+ },
+ {
+  "id": "cybersight",
+  "name": "Cybersight",
+  "pillar": "Cyber Security",
+  "description": "Cybersight is an advanced cyber threat intelligence and vulnerability assessment and penetration testing service. It continuously scans enterprise digital assets, external domains, and internal endpoints to detect software vulnerabilities, misconfigurations, and credential leaks before hackers exploit them.",
+  "features": [
+   "Continuous vulnerability scanning across corporate external and internal assets",
+   "Dark web monitoring for leaked corporate credentials and data leaks",
+   "Prioritized threat vulnerability scoring based on asset criticality",
+   "Actionable remediation recommendations provided by security specialists"
+  ],
+  "service": "Cybersight",
+  "accessMedia": "Cloud",
+  "ntu": "Scanning Platform"
+ },
+ {
+  "id": "ssl",
+  "name": "SSL (Secure Sockets Layer Certificates)",
+  "pillar": "Cyber Security",
+  "description": "SLT-Mobitel provides enterprise-grade SSL/TLS certificates from trusted global Certificate Authorities (CAs). These certificates encrypt data in transit between web applications and users, building trust and maintaining compliance for transactional applications.",
+  "features": [
+   "Domain Validation (DV), Organization Validation (OV), and Extended Validation (EV) options",
+   "256-bit encryption standards trusted across all major web browsers",
+   "Wildcard and Multi-Domain certificate management",
+   "Simplified renewal and automated certificate deployment support"
+  ],
+  "service": "SSL Certificate",
+  "accessMedia": "N/A",
+  "ntu": "SSL Certificate"
+ },
+ {
+  "id": "edge-defend",
+  "name": "Edge Defend",
+  "pillar": "Cyber Security",
+  "description": "Edge Defend delivers integrated security at the network perimeter and remote branch access points. It combines secure web gateway functions, DNS security, and cloud access security broker (CASB) features to secure remote workers and branch sites.",
+  "features": [
+   "DNS-layer filtering preventing access to malicious domains and phishing sites",
+   "Secure cloud access for distributed branch networks and remote staff",
+   "Real-time threat blocking without impacting internet connectivity speed",
+   "Unified security reporting across all enterprise access locations"
+  ],
+  "service": "Edge Defend",
+  "accessMedia": "Cloud",
+  "ntu": "Edge Security Service"
+ },
+ {
+  "id": "kaspersky-end-point-security",
+  "name": "Kaspersky End Point Security",
+  "pillar": "Cyber Security",
+  "description": "SLT-Mobitel offers Kaspersky Enterprise Endpoint Security as a cloud-managed service. It shields corporate PCs, servers, and mobile devices from malware, ransomware, fileless attacks, and unauthorized device connections.",
+  "features": [
+   "Multi-layered anti-malware and anti-ransomware protection engine",
+   "Device control, web control, and application vulnerability patch management",
+   "Behavioral analysis engine detecting zero-day malware threats"
+  ],
+  "service": "Kaspersky EPS",
+  "accessMedia": "N/A",
+  "ntu": "Endpoint Agent"
+ },
+ {
+  "id": "windows-defender-for-enterprise",
+  "name": "Windows Defender for Enterprise",
+  "pillar": "Cyber Security",
+  "description": "Managed Microsoft Defender for Endpoint delivers enterprise-grade endpoint security integrated with Microsoft ecosystems. SLT-Mobitel assists in deploying, configuring, and monitoring Defender security policies across corporate laptops and servers.",
+  "features": [
+   "Seamless native integration with Microsoft Windows and Microsoft 365",
+   "AI-driven automated endpoint detection and response (EDR)",
+   "Threat and vulnerability management dashboard",
+   "Centralized policy distribution across corporate end-user devices"
+  ],
+  "service": "Defender for Endpoint",
+  "accessMedia": "N/A",
+  "ntu": "Endpoint Agent"
+ },
+ {
+  "id": "mdr",
+  "name": "MDR (Managed Detection and Response)",
+  "pillar": "Cyber Security",
+  "description": "MDR provides 24/7 continuous threat hunting, monitoring, and rapid incident response managed by SLT-Mobitel's Cyber SOC team. It combines SIEM technology with security analysts to isolate and neutralize cyber attacks in real time.",
+  "features": [
+   "24/7 continuous network and endpoint security surveillance",
+   "Proactive threat hunting utilizing global threat intelligence feeds",
+   "Automated containment isolating compromised network assets instantly",
+   "Comprehensive incident response SLA and root-cause analysis reporting"
+  ],
+  "service": "MDR",
+  "accessMedia": "Cloud",
+  "ntu": "SIEM Log Collector"
+ },
+ {
+  "id": "sase",
+  "name": "SASE (Secure Access Service Edge)",
+  "pillar": "Cyber Security",
+  "description": "SASE (Secure Access Service Edge) is a cloud-delivered IT architecture framework that converges networking and security services into a single, unified platform. SASE is designed to replace traditional hardware-heavy, perimeter-based network models that rely on routing traffic through centralized corporate data centers. Instead, it delivers network access and security capabilities directly at the \"edge\" wherever users, devices, or data are located.",
+  "features": [
+   "ZTNA (Zero Trust Network Access): Operates on a \"never trust, always verify\" principle. It grants access to specific applications rather than the entire network based on continuous identity and device posture verification.",
+   "SWG (Secure Web Gateway): Filters web traffic in real time to enforce company policies, block web-based threats (phishing, malware), and prevent unauthorized data transfers.",
+   "CASB (Cloud Access Security Broker): Secures and monitors interactions between users and cloud-based applications (SaaS/IaaS), enforcing security policies and data protection across services like Microsoft 365, Google Workspace, and Salesforce.",
+   "FWaaS (Firewall-as-a-Service): Provides cloud-native, next-generation firewall protection, inspecting all traffic without needing physical hardware at each office or branch location."
+  ],
+  "service": "SASE",
+  "accessMedia": "Internet",
+  "ntu": "SASE Client / Edge"
+ },
+ {
+  "id": "hosting-cub",
+  "name": "Hosting Cub (hostingcub.com)",
+  "pillar": "Cloud & IDC",
+  "description": "Hosting Cub is SLT-Mobitel's self-service web hosting and domain portal. Designed for startups, SMEs, and digital web agencies, it provides reliable Plesk-based web hosting, Linux/Windows virtual plans, and rapid web deployment platforms.",
+  "features": [
+   "Plesk control panel interfaces for intuitive management",
+   "High-speed SSD storage hosting servers located in Sri Lanka",
+   "One-click web installers for WordPress, Joomla, and corporate portals",
+   "99.9% server uptime backed by SLT Tier-3 Data Center infrastructure"
+  ],
+  "service": "Hosting Cub",
+  "accessMedia": "Internet",
+  "ntu": "Web Hosting Server"
+ },
+ {
+  "id": "cub-kit",
+  "name": "Cub Kit",
+  "pillar": "Cloud & IDC",
+  "description": "Cub Kit is a bundled starter web package designed for small businesses establishing their online presence (e-commerce). It combines web domain registration, hosting space, professional email accounts, and essential website building software into a low-cost bundle.",
+  "features": [
+   "All-in-one web starter kit with domain, hosting, and email",
+   "Pre-built mobile-responsive website builder tools",
+   "Automated backup and basic security integration",
+   "Budget-friendly payment plans with zero technical complexity"
+  ],
+  "service": "Cub Kit",
+  "accessMedia": "Internet",
+  "ntu": "Website + Hosting Bundle"
+ },
+ {
+  "id": "eazy-storage",
+  "name": "Eazy Storage",
+  "pillar": "Cloud & IDC",
+  "description": "Eazy Storage is an enterprise cloud file storage and digital sync solution hosted locally in SLT's Akaza cloud. It provides secure, expandable storage for business files, enabling seamless file sharing and team collaboration across devices.",
+  "features": [
+   "Local cloud data sovereignty complying with Sri Lankan regulations",
+   "Cross-device file synchronization (Windows, macOS, Mobile)",
+   "Encrypted file transmission and secure guest sharing links",
+   "Flexible per-GB or per-TB scalable storage tiers"
+  ],
+  "service": "Eazy Storage",
+  "accessMedia": "Internet / VPN",
+  "ntu": "Cloud Storage"
+ },
+ {
+  "id": "dnr-dns-services",
+  "name": "DNR / DNS Services",
+  "pillar": "Cloud & IDC",
+  "description": "Domain Name Registration (DNR) and Managed Domain Name System (DNS) services provide reliable domain management and high-availability name resolution. SLT-Mobitel ensures enterprise web addresses resolve quickly with zero downtime.",
+  "features": [
+   "Official domain registration (.lk, .com, .org, .biz, etc.)",
+   "High-availability geo-redundant enterprise DNS server infrastructure",
+   "Advanced DNS record management (A, CNAME, MX, TXT, SPF, DKIM)",
+   "Built-in protection against DNS spoofing and cache poisoning"
+  ],
+  "service": "DNS Services",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "enterprise-premium-cloud",
+  "name": "Enterprise Premium Cloud (VMware)",
+  "pillar": "Cloud & IDC",
+  "description": "Enterprise Premium Cloud is SLT-Mobitel's flagship Infrastructure-as-a-Service (IaaS) platform powered by VMware virtualization technology. Hosted at SLT's Tier-3 Data Center in Pitipana, it provides high-performance Virtual Data Centers (vDC) for mission-critical corporate applications.",
+  "features": [
+   "VMware vCloud Director portal for full self-service resource management",
+   "Enterprise-grade compute, memory, and high-iops SAN storage scaling",
+   "Multi-tenant isolation or dedicated private cloud host deployments",
+   "Strict SLA compliance with high availability auto-failover clusters"
+  ],
+  "service": "Premium Cloud",
+  "accessMedia": "Internet / VPN",
+  "ntu": "VMware Virtual Machines"
+ },
+ {
+  "id": "cloud-fusion",
+  "name": "Cloud Fusion",
+  "pillar": "Cloud & IDC",
+  "description": "Cloud Fusion is a hybrid multi-cloud management platform connecting SLT Akaza Cloud seamlessly with global public clouds like Huawei Cloud. It enables unified resource management and workload migration across cloud environments.",
+  "features": [
+   "Single-pane dashboard managing hybrid multi-cloud resources",
+   "Low-latency direct interconnects between Akaza cloud and global clouds",
+   "Optimized workload placement balancing performance and costs",
+   "Centralized billing and governance for enterprise cloud infrastructure"
+  ],
+  "service": "Cloud Fusion",
+  "accessMedia": "Internet / VPN",
+  "ntu": "Multi-cloud Platform"
+ },
+ {
+  "id": "cloud-pulse",
+  "name": "Cloud Pulse",
+  "pillar": "Cloud & IDC",
+  "description": "Cloud Pulse is an enterprise cloud monitoring and analytics platform. It gives IT managers real-time visibility into cloud virtual machine health, CPU/RAM utilization, network throughput, and application response times with proactive alerting.",
+  "features": [
+   "Real-time resource utilization tracking across cloud workloads",
+   "Customizable threshold triggers sending automated SMS/Email alerts",
+   "Historical performance reporting for capacity planning",
+   "Application performance monitoring (APM) metrics support"
+  ],
+  "service": "Cloud Pulse",
+  "accessMedia": "Internet",
+  "ntu": "Monitoring Platform"
+ },
+ {
+  "id": "oracle-cloud-infrastructure",
+  "name": "Oracle Cloud Infrastructure (OCI) Partner Service",
+  "pillar": "Cloud & IDC",
+  "description": "SLT-Mobitel provides managed Oracle Cloud Infrastructure solutions, offering dedicated hybrid interconnects and local support for hosting enterprise Oracle ERP, database, and analytics workloads with high efficiency.",
+  "features": [
+   "Direct fast-connect networking to global Oracle Cloud regions",
+   "Optimized database hosting and seamless migration for Oracle enterprise products",
+   "Local enterprise support, architecture design, and billing in LKR",
+   "High-throughput compute and autonomous database integration"
+  ],
+  "service": "OCI Partner",
+  "accessMedia": "Internet / VPN",
+  "ntu": "Oracle Cloud (OCI)"
+ },
+ {
+  "id": "secure-storage",
+  "name": "Secure Storage",
+  "pillar": "Cloud & IDC",
+  "description": "Secure Storage is a specialized encrypted object and block storage service designed for confidential enterprise data, medical records, financial logs, and long-term compliance archives stored inside SLT Akaza Data Centers.",
+  "features": [
+   "AES 256-bit data encryption at rest and in transit",
+   "S3-compliant object storage API compatibility",
+   "Immutable storage options (WORM) for regulatory compliance",
+   "High durability and geo-redundant storage replication"
+  ],
+  "service": "Secure Storage",
+  "accessMedia": "Internet / VPN",
+  "ntu": "Secure Storage"
+ },
+ {
+  "id": "gpu-cloud-computing",
+  "name": "GPU Cloud Computing",
+  "pillar": "Cloud & IDC",
+  "description": "GPU Cloud Computing provides high-performance GPU virtual instances (NVIDIA powered) within SLT's Akaza cloud. It targets artificial intelligence, machine learning training, 3D rendering, video processing, and scientific simulations.",
+  "features": [
+   "NVIDIA enterprise GPU acceleration for heavy computational tasks",
+   "Scalable compute instances on pay-as-you-go or monthly models",
+   "Low-latency connectivity to local enterprise data sources"
+  ],
+  "service": "GPU Cloud",
+  "accessMedia": "Internet / VPN",
+  "ntu": "GPU Compute Nodes"
+ },
+ {
+  "id": "communigate-pro",
+  "name": "CommuniGate Pro",
+  "pillar": "Cloud & IDC",
+  "description": "CommuniGate Pro is an enterprise unified communication platform offering secure cloud email, calendaring, instant messaging, and VoIP communication integrated into a single hosted platform for corporate teams.",
+  "features": [
+   "All-in-one messaging, email, task manager, and IP voice calls",
+   "Ultra-lightweight resource footprint with high server stability",
+   "Seamless Outlook, web, and mobile app synchronization",
+   "Built-in anti-spam and anti-virus filter engines"
+  ],
+  "service": "CommuniGate Pro",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "zoho-mail-enterprise",
+  "name": "Zoho Mail Enterprise",
+  "pillar": "Cloud & IDC",
+  "description": "SLT-Mobitel offers managed Zoho Mail and Zoho Workplace integration for enterprises. It delivers ad-free professional business email accounts with domain integration, shared calendars, document management, and cloud chat.",
+  "features": [
+   "Ad-free business email with custom domain branding",
+   "Integrated online document editor, spreadsheet, and presentation tools",
+   "Migration tools transferring legacy emails with zero data loss",
+   "Robust admin console with e-discovery and compliance policies"
+  ],
+  "service": "Zoho Mail",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "lk-domain-registration",
+  "name": "LK Domain Registration",
+  "pillar": "Cloud & IDC",
+  "description": "SLT-Mobitel acts as an authorized domain registrar for Sri Lanka's country code top-level domain (.lk). It facilitates registration, renewal, and management of .lk web identities for corporate brands.",
+  "features": [
+   "Official Sri Lankan national domain extension (.lk / .com.lk / .edu.lk)",
+   "Brand protection and priority registration management",
+   "Integrated DNS record management tools",
+   "Localized billing and local support assistance"
+  ],
+  "service": ".LK Domain",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "backup-services",
+  "name": "Backup Services",
+  "pillar": "Cloud & IDC",
+  "description": "SLT Cloud Backup Services provide automated, secure data backup and disaster recovery for enterprise servers, databases, and remote user endpoints. Backups are transmitted over encrypted channels to SLT Akaza Data Centers.",
+  "features": [
+   "Automated daily, weekly, or real-time incremental backups",
+   "Deduplication and compression minimizing network bandwidth usage",
+   "Rapid bare-metal and granular file-level recovery capabilities",
+   "Compliance with enterprise disaster recovery (DR) standards"
+  ],
+  "service": "Backup Services",
+  "accessMedia": "Internet / VPN",
+  "ntu": "Backup Vault"
+ },
+ {
+  "id": "akazacontainers",
+  "name": "AkazaContainers",
+  "pillar": "Cloud & IDC",
+  "description": "AkazaContainers is a managed Container-as-a-Service (CaaS) platform based on Kubernetes. It allows DevOps teams to deploy, scale, and manage microservice applications seamlessly within SLT's local cloud infrastructure.",
+  "features": [
+   "Managed Kubernetes clusters with automated orchestration",
+   "DevOps pipeline integration (CI/CD) and container registry support",
+   "Auto-scaling container workloads based on CPU/traffic demand",
+   "Isolated virtual network infrastructure for microservice security"
+  ],
+  "service": "AkazaContainers",
+  "accessMedia": "Internet / VPN",
+  "ntu": "Container Platform"
+ },
+ {
+  "id": "data-center-co-location",
+  "name": "Data Center Co-Location",
+  "pillar": "Cloud & IDC",
+  "description": "Co-Location services allow enterprises to house their proprietary servers, storage, and networking hardware within SLT-Mobitel's Tier-3 Data Centers in Pitipana and Colombo. Clients leverage world-class power, cooling, and multi-gigabit connectivity.",
+  "features": [
+   "Tier-3 certified facility with N+1 redundant power and precision cooling",
+   "Multi-layered physical security including biometric access and 24/7 CCTV",
+   "Direct fiber cross-connects to SLT's nationwide core network backbone",
+   "Full Rack, Half Rack, or Dedicated Private Cage leasing options"
+  ],
+  "service": "Co-Location",
+  "accessMedia": "Fibre",
+  "ntu": "Customer Rack"
+ },
+ {
+  "id": "slt-esiphala",
+  "name": "SLT eSiphala",
+  "pillar": "Managed Services",
+  "description": "SLT eSiphala is a dedicated Cloud Learning Management Platform designed for educational institutes, tuition centers, and corporate training departments. It allows educators to conduct online live classes, sell recorded video courses, conduct online exams, and manage student subscriptions.",
+  "features": [
+   "Integrated virtual classroom and live lecture streaming",
+   "Secure payment gateway integration for automated course monetization",
+   "Online assignment submissions, grading, and automated quiz evaluation"
+  ],
+  "service": "eSiphala",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "cloud-pos",
+  "name": "Cloud POS (Point of Sale)",
+  "pillar": "Managed Services",
+  "description": "Cloud POS is a fully managed cloud-based point-of-sale platform tailored for retail stores, restaurants, and service outlets. It centralizes sales processing, inventory management, customer loyalty programs, and multi-branch accounting into a single browser interface.",
+  "features": [
+   "Real-time inventory tracking across multiple store locations",
+   "Offline transaction support with automatic cloud sync when reconnected",
+   "Detailed sales analytics, product margin reports, and receipt generation",
+   "Integration with barcode scanners, thermal printers, and payment terminals"
+  ],
+  "service": "Cloud POS",
+  "accessMedia": "Internet",
+  "ntu": "POS Terminal"
+ },
+ {
+  "id": "slt-bizchat-chatx",
+  "name": "SLT Bizchat/ChatX",
+  "pillar": "Managed Services",
+  "description": "SLT Bizchat is an omnichannel conversational AI platform for enterprise customer service. It consolidates messages from website live chat, WhatsApp, Facebook Messenger, and SMS into a single dashboard powered by automated AI chatbots.",
+  "features": [
+   "Omnichannel messaging hub unifying WhatsApp, Webchat, and Social Media",
+   "AI-driven chatbots for automated 24/7 customer query resolution",
+   "Seamless live agent handover with complete conversation context",
+   "Analytics dashboard tracking customer response rates and ticket status"
+  ],
+  "service": "BizChat",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "vobox",
+  "name": "VoBox",
+  "pillar": "Enterprise Voice",
+  "description": "VoBox is an low cost PBX solution. It can be integrate wired and wireless SLT Mobitel voice lines",
+  "features": [
+   "Seamless bridge between legacy PSTN equipment and modern SIP networks",
+   "High-definition voice conversion with zero signal distortion",
+   "Compact plug-and-play hardware configuration",
+   "Substantial savings on voice infrastructure upgrades"
+  ],
+  "service": "VoBox",
+  "accessMedia": "Voice lines",
+  "ntu": "VoBox PBX"
+ },
+ {
+  "id": "univo",
+  "name": "Univo",
+  "pillar": "Enterprise Voice",
+  "description": "Univo is SLT-Mobitel's IP-PBX communication platform tailored for business productivity. It delivers enterprise-grade PBX features—such as extension dialing, call forwarding, auto-attendant, and call queuing—directly from SLT cloud without requiring on-premise PBX hardware.",
+  "features": [
+   "Zero capital expenditure cloud PBX with monthly operational pricing",
+   "Rich PBX features: IVR, extension transfer, voicemail-to-email, call recording",
+   "Multi-branch connectivity using unified internal numbering",
+   "Mobile app integration turning smartphones into office extensions"
+  ],
+  "service": "Univo",
+  "accessMedia": "Fibre (SIP)",
+  "ntu": "IP Phones"
+ },
+ {
+  "id": "ip-trunk",
+  "name": "IP Trunk (SIP Trunking)",
+  "pillar": "Enterprise Voice",
+  "description": "SLT IP Trunk delivers direct Session Initiation Protocol (SIP) connectivity over (50–150 words) dedicated fiber lines to an enterprise's IP-PBX. Replacing traditional E1/PRI lines, IP Trunk allows flexible expansion of voice channels to handle hundreds of simultaneous calls.",
+  "features": [
+   "Flexible channel scaling from 8 up to thousands of concurrent calls",
+   "Cost reduction over traditional E1/T1 voice lines",
+   "Direct Inward Dialing (DID) block allocation for individual extensions",
+   "High voice clarity backed by SLT prioritized Quality of Service (QoS)"
+  ],
+  "service": "IP Trunk",
+  "accessMedia": "Fibre (SIP)",
+  "ntu": "SIP Gateway / IP-PBX"
+ },
+ {
+  "id": "ip-end-point",
+  "name": "IP End Point",
+  "pillar": "Enterprise Voice",
+  "description": "IP End Point provides enterprise-grade IP desktop phones, conference phones, and video desk terminals as part of SLT's enterprise voice solutions. Offered with full deployment, configuration, and warranty coverage.",
+  "features": [
+   "HD audio clarity with echo cancellation technologies",
+   "Power over Ethernet (PoE) support reducing desk cabling clutter",
+   "Multi-line display, programmable speed-dial keys, and headset support",
+   "Full compatibility with SLT Univo and enterprise IP-PBX systems"
+  ],
+  "service": "IP End Point",
+  "accessMedia": "LAN",
+  "ntu": "IP Desk Phones"
+ },
+ {
+  "id": "biz-tunes",
+  "name": "Biz Tunes",
+  "pillar": "Enterprise Voice",
+  "description": "Biz Tunes combines Interactive Voice Response menus with customized Corporate Ring-Back Tones (CRBT). When clients call the company line, they hear branded promotional greetings and press keypad digits to reach specific departments.",
+  "features": [
+   "Customized corporate greeting and promotional audio playback during caller hold",
+   "Time-based routing (e.g., business hours vs after-hours announcements)",
+   "Enhances professional corporate image across client call touchpoints"
+  ],
+  "service": "Biz Tunes",
+  "accessMedia": "Voice network",
+  "ntu": "IVR + CRBT Platform"
+ },
+ {
+  "id": "contact-center-solutions",
+  "name": "Contact Center Solutions (Avaya, 3CX, ConneXt)",
+  "pillar": "Enterprise Voice",
+  "description": "SLT-Mobitel offers end-to-end hosted and on-premise contact center solutions built on world-class platforms (Avaya, 3CX, and SLT ConneXt). Designed for call centers, helpdesks, and enterprise support teams requiring advanced call queue management and reporting.",
+  "features": [
+   "Omnichannel queue management (Voice, Email, Webchat, Social)",
+   "Real-time supervisor dashboards, call recording, and agent monitoring",
+   "Automatic Call Distribution (ACD) and skill-based routing",
+   "CRM integration (Salesforce, Zoho, Microsoft Dynamics)"
+  ],
+  "service": "Contact Centre",
+  "accessMedia": "Fibre (SIP)",
+  "ntu": "Contact Centre Platform"
+ },
+ {
+  "id": "voice-unlimited",
+  "name": "Voice Unlimited",
+  "pillar": "Enterprise Voice",
+  "description": "Voice Unlimited provides fixed monthly tariff calling plans for enterprises. It offers flat-rate unlimited fixed-to-fixed voice calls or bundled minute packs, allowing organizations to maintain predictable monthly telephony operational budgets.",
+  "features": [
+   "Flat monthly fee for unlimited local and national fixed calls",
+   "Eliminates variable call charges across high-volume calling offices",
+   "Predictable monthly expenditure for telemarketing and customer support",
+   "Available on SLT Fiber, Megaline, and VoIP voice connections"
+  ],
+  "service": "Voice Unlimited",
+  "accessMedia": "Fibre (SIP)",
+  "ntu": "Voice Gateway"
+ },
+ {
+  "id": "e-campaign-manager",
+  "name": "E-campaign Manager",
+  "pillar": "Enterprise Voice",
+  "description": "E-campaign Manager is a automated voice and SMS broadcasting platform. It allows businesses to send bulk automated voice announcements, event reminders, emergency alerts, or SMS marketing campaigns to customer lists instantly.",
+  "features": [
+   "Web-based portal for uploading audio recordings and scheduling mass campaigns",
+   "Automated bulk SMS and Interactive Voice Broadcast dispatch",
+   "Detailed real-time call delivery, answer rate, and opt-out analytics",
+   "Integration via REST APIs for triggered corporate system alerts"
+  ],
+  "service": "E-campaign",
+  "accessMedia": "Voice / SMS",
+  "ntu": "Campaign Platform"
+ },
+ {
+  "id": "workflow-x",
+  "name": "Workflow X",
+  "pillar": "Applications / Digital",
+  "description": "Workflow X is a digital applications powered by zoho. There are several applications which help SME businesses to digitalization",
+  "features": [
+   "suitable for several business types",
+   "Cost effective",
+   "Easy to add additional modules",
+   "Full audit trail logging for organizational compliance"
+  ],
+  "service": "Workflow X",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "akaza-hr",
+  "name": "Akaza HR",
+  "pillar": "Applications / Digital",
+  "description": "Akaza HR is a cloud-based Human Resource Management System (HRMS) hosted in SLT Akaza cloud. It automates employee onboarding, attendance tracking, leave management, payroll processing, and performance appraisals for enterprises.",
+  "features": [
+   "Comprehensive employee database and document storage portal",
+   "Integrated leave, shift, and biometric attendance management",
+   "Automated payroll calculation complying with Sri Lankan tax laws (EPF/ETF)",
+   "Employee self-service (ESS) portal and mobile application access"
+  ],
+  "service": "Akaza HR",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "akaza-erp",
+  "name": "Akaza ERP",
+  "pillar": "Applications / Digital",
+  "description": "Akaza ERP is a cloud enterprise resource planning suite designed for mid-sized and large businesses. It unifies financial management, procurement, inventory, sales, customer relationships, and supply chain operations into a single operational system.",
+  "features": [
+   "Modular cloud ERP suite covering Finance, Inventory, Sales, and Purchasing",
+   "Real-time financial reporting, P&L statements, and executive dashboards",
+   "Multi-currency and multi-branch consolidation support",
+   "Hosted locally in Sri Lanka ensuring high performance and regulatory compliance"
+  ],
+  "service": "Akaza ERP",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "akaza-lms",
+  "name": "Akaza LMS",
+  "pillar": "Applications / Digital",
+  "description": "Akaza LMS is a cloud digital learning management system built for corporate training, compliance certification, and employee skill development. It enables HR teams to create training pathways, host video courses, and track employee progress.",
+  "features": [
+   "Interactive course creation, SCORM compliance, and video hosting",
+   "Automated quizzes, progress tracking, and certificate generation",
+   "Departmental training assignment and skill matrix reporting",
+   "Cloud-hosted accessibility across desktop and mobile devices"
+  ],
+  "service": "Akaza LMS",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "google-workspace",
+  "name": "Google Workspace",
+  "pillar": "Applications / Digital",
+  "description": "SLT-Mobitel is an authorized Google Cloud Partner, supplying and managing Google Workspace subscription plans (Gmail, Docs, Drive, Meet, Sheets). Enterprise customers receive local currency billing, deployment assistance, and migration support.",
+  "features": [
+   "Business email branding with Gmail custom domains",
+   "Real-time collaborative cloud office tools (Docs, Sheets, Slides)",
+   "Secure video conferencing via Google Meet with recording capability",
+   "Centralized Google Admin console and cloud storage management"
+  ],
+  "service": "Google Workspace",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "robotic-process-automation",
+  "name": "Robotic Process Automation (RPA)",
+  "pillar": "Applications / Digital",
+  "description": "SLT RPA solutions automate high-volume, repetitive software tasks using intelligent software bots. By mimicking human user actions across desktop software and web portals, RPA streamlines operations like data entry, invoice reconciliation, and report generation.",
+  "features": [
+   "Automated bot execution of repetitive, rule-based software tasks",
+   "Works across legacy and modern software platforms without API changes",
+   "24/7 operation with 100% accuracy and reduced operational error",
+   "Frees enterprise staff to focus on higher-value customer tasks"
+  ],
+  "service": "RPA",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "fleet-management-service",
+  "name": "Fleet Management Service",
+  "pillar": "Applications / Digital",
+  "description": "SLT Fleet Management Service is an IoT-driven vehicle tracking and telemetry platform. Designed for logistics companies, corporate vehicle fleets, and transport fleets, it tracks live GPS locations, fuel consumption, driver behavior, and maintenance schedules.",
+  "features": [
+   "Real-time GPS tracking with geofencing alert notifications",
+   "Fuel level monitoring and theft detection sensors",
+   "Driver safety analysis (speeding, harsh braking, idling alerts)",
+   "Automated vehicle maintenance reminders and route optimization"
+  ],
+  "service": "Fleet Management",
+  "accessMedia": "4G / LTE",
+  "ntu": "GPS Tracker"
+ },
+ {
+  "id": "queue-management-system",
+  "name": "Queue Management System",
+  "pillar": "Applications / Digital",
+  "description": "Queue Management System (QMS) is a digital solution that organizes customer flow at service centers, bank branches, and healthcare facilities. It replaces physical queues with token dispensers, digital display screens, and mobile SMS queue tickets.",
+  "features": [
+   "Kiosk token generation and digital media display wall management",
+   "Virtual SMS ticketing allowing customers to wait outside branches",
+   "Real-time supervisor dashboards monitoring service counter efficiency",
+   "Customer service duration and branch performance analytics"
+  ],
+  "service": "Queue Management",
+  "accessMedia": "LAN",
+  "ntu": "QMS Kiosk & Displays"
+ },
+ {
+  "id": "microsoft-365-enterprise",
+  "name": "Microsoft 365 Enterprise",
+  "pillar": "Applications / Digital",
+  "description": "SLT-Mobitel delivers cloud Microsoft 365 licensing, deployment, and ongoing administration services. Enterprises gain full access to Word, Excel, Teams, SharePoint, and Exchange with localized Sri Lankan support and LKR billing.",
+  "features": [
+   "Cloud business email with Microsoft Exchange and Outlook",
+   "Enterprise teamwork platform with Microsoft Teams and SharePoint",
+   "Desktop and cloud Office application suites with automatic updates",
+   "Advanced threat protection, enterprise identity, and access management"
+  ],
+  "service": "Microsoft 365",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "peotv-biz",
+  "name": "PeoTV Biz",
+  "pillar": "Enterprise TV",
+  "description": "PeoTV Biz is SLT-Mobitel's commercial IPTV service designed for SMEs required less than 15 TV points restaurants, corporate lounges, waiting areas, and retail outlets. It provides high-definition television channels, customized promotional channels, and localized news broadcasts.",
+  "features": [
+   "HD commercial IPTV channel packages covering news, sports, and entertainment",
+   "Custom corporate overlay banner support for displaying company notices",
+   "Centralized remote TV set-top box management across multiple venues",
+   "Crystal-clear transmission over SLT high-speed optical fiber"
+  ],
+  "service": "PeoTV Biz",
+  "accessMedia": "Fibre",
+  "ntu": "Set-top Box"
+ },
+ {
+  "id": "enterprise-tv",
+  "name": "Enterprise TV",
+  "pillar": "Enterprise TV",
+  "description": "Enterprise TV is a specialized IPTV platform engineered for hotels, resorts, multi- dwelling units (MDUs), and hospitals. It allows hospitality providers to deliver interactive guest welcome screens, hotel service ordering, and custom TV channel lineups directly into guest rooms.",
+  "features": [
+   "Custom branded interactive guest interface with room-service ordering",
+   "PMS (Property Management System) integration for personalized guest welcomes",
+   "Extensive local and international satellite/IP channel packages",
+   "Video-on-Demand (VOD) and informational hotel service channels"
+  ],
+  "service": "Enterprise TV",
+  "accessMedia": "Fibre",
+  "ntu": "Hospitality STB"
+ },
+ {
+  "id": "peotv-over-wifi",
+  "name": "PeoTV over WiFi",
+  "pillar": "Enterprise TV",
+  "description": "PeoTV over WiFi delivers linear TV channels and video content wirelessly to smart TVs, tablets, and mobile displays within corporate offices or venue premises. It eliminates the requirement for physical coaxial or Ethernet cables to every TV screen.",
+  "features": [
+   "Wireless TV streaming across existing enterprise Wi-Fi networks",
+   "Multi-screen support allowing simultaneous streaming on multiple smart devices",
+   "Flexible display placement without cable installation constraints",
+   "HD picture quality with optimized bandwidth streaming protocols"
+  ],
+  "service": "PeoTV over WiFi",
+  "accessMedia": "Wi-Fi",
+  "ntu": "Wi-Fi Access Points"
+ },
+ {
+  "id": "infrastructure",
+  "name": "Infrastructure (Structured Cabling, LAN & ELV)",
+  "pillar": "Business Solutions",
+  "description": "SLT-Mobitel provides end-to-end design, civil engineering, and installation of physical network infrastructure. Services include Cat6/Cat6A structured copper cabling, optical fiber backbones, LAN switches, Extra Low Voltage (ELV) power systems, and server room design.",
+  "features": [
+   "Standards-compliant structured copper and fiber cabling installation",
+   "Complete Extra Low Voltage (ELV) electrical and network design",
+   "Data center server room raised flooring, rack layout, and UPS power setup",
+   "Certified installation with comprehensive cable testing and labeling"
+  ],
+  "service": "Structured Cabling",
+  "accessMedia": "Copper / Fibre",
+  "ntu": "Network Rack & Switches"
+ },
+ {
+  "id": "communication",
+  "name": "Communication (PABX Systems)",
+  "pillar": "Business Solutions",
+  "description": "SLT-Mobitel delivers, installs, and maintains modern hybrid and IP-PABX hardware switchboards from leading global manufacturers. The solution caters to corporate offices requiring on-premise voice switching, internal extension routing, and system integrations.",
+  "features": [
+   "On-premise IP-PABX and hybrid PBX system hardware deployment",
+   "Scalable architecture supporting small offices to enterprise campuses",
+   "Integration with SLT IP Trunks, ISDN PRI, and conventional lines",
+   "Comprehensive hardware maintenance contracts and on-site support"
+  ],
+  "service": "PABX",
+  "accessMedia": "Voice lines",
+  "ntu": "IP-PABX Switchboard"
+ },
+ {
+  "id": "surveillance-security-solutions",
+  "name": "Surveillance & Security Solutions",
+  "pillar": "Business Solutions",
+  "description": "Comprehensive CCTV and physical security systems tailored for enterprise facilities, manufacturing plants, and branch networks. SLT-Mobitel installs IP cameras, Video Management Software (VMS), thermal security sensors, and biometric access control systems.",
+  "features": [
+   "High-definition IP surveillance cameras with night-vision capabilities",
+   "AI video analytics (facial recognition, perimeter breach, license plate recognition)",
+   "Centralized Video Management Software (VMS) with remote viewing",
+   "Integrated door access control and time-attendance biometric hardware"
+  ],
+  "service": "Surveillance",
+  "accessMedia": "PoE LAN",
+  "ntu": "IP Cameras + NVR"
+ },
+ {
+  "id": "digital-marketing-solutions",
+  "name": "Digital Marketing Solutions",
+  "pillar": "Business Solutions",
+  "description": "SLT Digital Marketing Solutions assist corporate clients in growing their online footprint through targeted bulk SMS campaigns, email marketing, search engine optimization (SEO), social media management, and online banner advertising across SLT portals.",
+  "features": [
+   "Targeted location-based and demographic bulk SMS broadcast tools",
+   "Search Engine Optimization (SEO) and web performance enhancement",
+   "Social media campaign management and performance advertising",
+   "Direct web ad placement on high-traffic SLT network portals"
+  ],
+  "service": "Digital Marketing",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "enterprise-software-development",
+  "name": "Enterprise Software Development",
+  "pillar": "Business Solutions",
+  "description": "SLT Software Solutions division offers custom web application development, mobile app development (iOS/Android), API integrations, and bespoke database software built specifically to digitize enterprise business workflows.",
+  "features": [
+   "Custom software development using modern frameworks (.NET, Java, Python, React)",
+   "Enterprise mobile application design for field operations and consumers",
+   "Seamless API system integrations connecting legacy ERPs with modern cloud apps",
+   "End-to-end software development lifecycle management (SDLC) and support"
+  ],
+  "service": "Software Development",
+  "accessMedia": "Internet",
+  "ntu": "Cloud Platform"
+ },
+ {
+  "id": "pol",
+  "name": "POL (Passive Optical Line / POLAN)",
+  "pillar": "Business Solutions",
+  "description": "Passive Optical LAN (POL) replaces traditional copper-based ethernet cabling inside commercial buildings with optical fiber lines based on GPON technology. POL drastically reduces cable weight, floor space, power consumption, and infrastructure costs.",
+  "features": [
+   "High-density fiber architecture replacing bulky copper cable bundles",
+   "Lower energy consumption and reduced telecommunication room footprint",
+   "Gigabit speed delivery directly to user desk endpoints",
+   "Future-proof infrastructure supporting seamless 10G/40G bandwidth upgrades"
+  ],
+  "service": "POL / POLAN",
+  "accessMedia": "Fibre",
+  "ntu": "OLT + ONTs"
+ },
+ {
+  "id": "smart-office-solutions",
+  "name": "Smart Office Solutions",
+  "pillar": "Business Solutions",
+  "description": "Smart Office converts traditional workplaces into intelligent digital hubs. It integrates smart environmental sensors, automated meeting room schedulers, IoT lighting controls, smart digital whiteboards, and desk-booking platforms.",
+  "features": [
+   "Integrated meeting room scheduling panels with calendar sync",
+   "IoT smart desk booking and occupancy sensors",
+   "Automated room lighting and climate control based on presence detection",
+   "Interactive touch screens and unified wireless video conferencing"
+  ],
+  "service": "Smart Office",
+  "accessMedia": "LAN / Wi-Fi",
+  "ntu": "IoT Gateway & Panels"
+ },
+ {
+  "id": "managed-wifi-solutions",
+  "name": "Managed WiFi Solutions",
+  "pillar": "Business Solutions",
+  "description": "Managed WiFi Solutions provide end-to-end wireless network deployment for public spaces, hotels, shopping centers, and enterprise buildings. SLT-Mobitel handles complete RF planning, hardware installation, guest access portal setup, and continuous SLA support.",
+  "features": [
+   "Professional RF heat mapping and optical access point placement design",
+   "Branded captive guest login portals with social login and OTP verification",
+   "Bandwidth throttling, content filtering, and network access security",
+   "Proactive 24/7 remote Wi-Fi network health monitoring and troubleshooting"
+  ],
+  "service": "Managed WiFi",
+  "accessMedia": "Fibre / Wireless",
+  "ntu": "Managed Access Points"
+ }
+]
