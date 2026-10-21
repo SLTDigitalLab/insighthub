@@ -199,6 +199,37 @@ const Login = () => {
     }
   };
 
+  const handleDevLogin = async (email = 'dineshpi@slt.com.lk', name = 'Dinesh Shameera (Admin)') => {
+    try {
+      setLoading(true);
+      setStatusMessage(`Authorizing ${email} (Dev Mode)...`);
+      try {
+        const res = await axios.post('/api/auth/verify-access', { email });
+        if (res.data?.success && res.data?.approved) {
+          if (res.data.role === 'admin') {
+            localStorage.setItem('insightHub_adminAuth', 'true');
+          } else {
+            localStorage.removeItem('insightHub_adminAuth');
+          }
+          localStorage.setItem('userRole', res.data.role || 'admin');
+          localStorage.setItem('userEmail', email);
+          localStorage.setItem('userName', name);
+          navigate('/dashboard', { replace: true });
+          return;
+        }
+      } catch (err) {
+        console.warn('Backend verify-access warning during dev login:', err);
+      }
+      localStorage.setItem('insightHub_adminAuth', 'true');
+      localStorage.setItem('userRole', 'admin');
+      localStorage.setItem('userEmail', email);
+      localStorage.setItem('userName', name);
+      navigate('/dashboard', { replace: true });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   if (checkingAuth) {
     return (
       <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc' }}>
@@ -343,6 +374,60 @@ const Login = () => {
             </>
           )}
         </button>
+
+        {/* Localhost Development Bypass - only visible on local dev */}
+        {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
+          <div style={{
+            marginTop: '1.25rem',
+            padding: '1.1rem',
+            background: '#f8fafc',
+            border: '1.5px dashed #cbd5e1',
+            borderRadius: '0.85rem',
+            textAlign: 'left'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem' }}>
+              <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#334155' }}>
+                🛠️ Localhost Developer Quick Sign-In
+              </span>
+              <span style={{ fontSize: '0.7rem', background: '#e2e8f0', color: '#475569', padding: '2px 7px', borderRadius: '4px', fontWeight: 700 }}>
+                Dev Mode
+              </span>
+            </div>
+            <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 0.85rem 0', lineHeight: 1.45 }}>
+              Azure Entra ID does not have <code>http://localhost:5173/login</code> in its Redirect URIs. Use this button to log in instantly with the approved Administrator profile.
+            </p>
+            <button
+              type="button"
+              onClick={() => handleDevLogin('dineshpi@slt.com.lk', 'Dinesh Shameera (Admin)')}
+              style={{
+                width: '100%',
+                padding: '0.75rem 1rem',
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                color: '#0369a1',
+                background: '#e0f2fe',
+                border: '1.5px solid #7dd3fc',
+                borderRadius: '0.65rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.5rem',
+                transition: 'all 0.15s ease'
+              }}
+              onMouseOver={(e) => {
+                e.currentTarget.style.background = '#bae6fd';
+                e.currentTarget.style.borderColor = '#38bdf8';
+              }}
+              onMouseOut={(e) => {
+                e.currentTarget.style.background = '#e0f2fe';
+                e.currentTarget.style.borderColor = '#7dd3fc';
+              }}
+            >
+              <ShieldCheck size={16} /> Sign In as Dinesh Shameera (Admin)
+            </button>
+          </div>
+        )}
 
         {/* Footer Info */}
         <div style={{
