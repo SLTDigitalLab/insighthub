@@ -754,7 +754,8 @@ function convertDocxToPdf(docxBuffer) {
     // Private temp folder for this one conversion
     const docxPath = path.join(dir, 'proposal.docx');
     fs.writeFileSync(docxPath, docxBuffer);
-    execFile(soffice, ['--headless', '--convert-to', 'pdf', '--outdir', dir, docxPath], { timeout: 90000 }, (err) => {
+    const profileUri = 'file:///' + path.join(dir, 'profile').replace(/\\/g, '/');
+    execFile(soffice, ['--headless', `-env:UserInstallation=${profileUri}`, '--convert-to', 'pdf', '--outdir', dir, docxPath], { timeout: 90000 }, (err) => {
       // LibreOffice opens the Word file without a window and saves proposal.pdf next to it
       try {
         if (err) throw err;

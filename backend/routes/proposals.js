@@ -11,7 +11,10 @@ const pdfParse = require('pdf-parse');
 // Reads the exported PDF's page text to find where each section starts (for the preview)
 // InsightHub accounts (designation, department, mobile number from the Request Access form)
 
+const path = require('path');
 const router = express.Router();
+
+router.use('/diagrams', express.static(path.join(__dirname, '..', 'templates', 'diagrams')));
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
 // Same Apify token n8n uses, set in backend/.env
