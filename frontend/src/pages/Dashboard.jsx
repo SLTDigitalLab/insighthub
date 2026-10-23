@@ -770,10 +770,15 @@ const Dashboard = () => {
           {agents.map(agent => {
             const Icon = agent.icon;
             const isActive = activeAgent.id === agent.id;
+            const isProposalAgent = agent.id === 'proposal' || agent.id === 'proposal-agent';
             return (
               <button
                 key={agent.id}
                 onClick={() => {
+                  if (isProposalAgent && isAdmin) {
+                    window.open('/proposals', '_blank');
+                    return;
+                  }
                   setActiveAgent(agent);
                   setResults(null);
                   setError(null);
@@ -806,7 +811,11 @@ const Dashboard = () => {
               >
                 <Icon size={18} color={isActive ? '#ffffff' : '#64748b'} />
                 <span style={{ flex: 1 }}>{agent.name}</span>
-                {isActive && <ChevronRight size={16} color="#ffffff" />}
+                {isProposalAgent && isAdmin ? (
+                  <ExternalLink size={15} color="#0066FF" title="Opens Proposal Hub in a new tab" />
+                ) : (
+                  isActive && <ChevronRight size={16} color="#ffffff" />
+                )}
               </button>
             );
           })}

@@ -50,7 +50,7 @@ async function previewPdf(fields) {
   // pages = { cover, letter, requirements, about, solution, investment } -> PDF page numbers, for the quick-jump chips
 }
 
-export default function ProposalAgent({ user = {}, accent = '#0284c7' }) {
+export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null }) {
   // user = logged-in rep's account details { name, email, designation, phone, division } (any missing one is ''); accent = this agent's sidebar colour
   const [step, setStep] = useState('search');
   // 'search' -> 'products' -> 'edit'
@@ -105,7 +105,17 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7' }) {
   }
 
   async function chooseBusiness(b) {
-    setBusiness(b); setSelected([]); setFilter(''); setOpenPillars({}); setError(''); setFields(null);
+    let leadLogo = b.logo || b.logoUrl || '';
+    if (!leadLogo && b.website) {
+      try {
+        const domain = b.website.replace(/https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').trim();
+        if (domain && domain.includes('.')) {
+          leadLogo = `https://logo.clearbit.com/${domain}`;
+        }
+      } catch (e) {}
+    }
+    const enriched = { ...b, leadLogo };
+    setBusiness(enriched); setSelected([]); setFilter(''); setOpenPillars({}); setError(''); setFields(null);
     // Start a fresh proposal for this business
     try {
       const { data } = await axios.get(`${API}/products`, { params: { category: b.category } });
@@ -133,7 +143,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7' }) {
       });
       // Backend fills the proposal from the business, the ticked products and the logged-in user
       // (anything still missing is looked up in that same account by email, never from anywhere else)
-      const next = { ...data.fields, ...contactEdits.current };
+      const next = { ...data.fields, ...contactEdits.current, leadLogo: business.leadLogo || data.fields?.leadLogo || '' };
       // Contact values the rep already typed this session win over the regenerated ones
       setFields(next);
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
@@ -223,6 +233,16 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7' }) {
 
   useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
   // Frees the PDF when leaving the page
+
+  useEffect(() => {
+    if (initialProposal && initialProposal.fields) {
+      setFields(initialProposal.fields);
+      setBusiness(initialProposal.business || { name: initialProposal.companyName, category: initialProposal.category, address: initialProposal.address });
+      setSelected(Array.isArray(initialProposal.products) ? initialProposal.products.map(p => typeof p === 'object' ? p.id : p).filter(Boolean) : []);
+      setStep('edit');
+      refreshPreview(initialProposal.fields);
+    }
+  }, [initialProposal]);
 
   function jumpTo(key) {
     if (viewMode === 'pdf' && preview.url) {
@@ -663,21 +683,52 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
         <div style={{ height: 6, background: `linear-gradient(90deg, ${navy} 0%, #0066FF 50%, #10b981 100%)` }} />
 
         {/* Document Header */}
+        {/* Document Header & Dual Brand Logos */}
         <div id="proposal-sec-cover" style={{ padding: '28px 36px 20px', borderBottom: '2px solid #f1f5f9' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap' }}>
-            <div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ fontSize: '1.25rem', fontWeight: 800, color: navy, letterSpacing: '-0.02em' }}>SLT-MOBITEL</span>
-                <span style={{ fontSize: '0.78rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>ENTERPRISE</span>
+          {/* Dual Brand Logos: Left SLT-Mobitel, Right Lead Company Logo */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 20, paddingBottom: 18, borderBottom: '1px solid #e2e8f0', flexWrap: 'wrap' }}>
+            {/* Left: SLT-Mobitel Enterprise Logo */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 8, background: navy, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ffffff', fontWeight: 900, fontSize: '1rem', boxShadow: '0 2px 8px rgba(11,42,111,0.25)' }}>
+                SLT
               </div>
-              <div style={{ fontSize: '0.82rem', color: '#64748b', marginTop: 3 }}>Intelligent Business Proposal</div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0B2A6F', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '4px 10px', display: 'inline-block' }}>
-                Ref: {fields.refNo || 'PENDING'}
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: navy, letterSpacing: '-0.02em' }}>SLT-MOBITEL</span>
+                  <span style={{ fontSize: '0.74rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>ENTERPRISE</span>
+                </div>
+                <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: 2 }}>National Telecommunications Provider</div>
               </div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 4 }}>Date: {fields.proposalDate || '—'}</div>
             </div>
+
+            {/* Right: Lead Company Logo / Identity */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', textAlign: 'right' }}>
+              <div>
+                <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1e293b' }}>
+                  {fields.companyName || 'Lead Company'}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Client Enterprise</div>
+              </div>
+              {fields.leadLogo ? (
+                <img
+                  src={fields.leadLogo}
+                  alt={fields.companyName}
+                  style={{ maxHeight: 42, maxWidth: 130, objectFit: 'contain', borderRadius: 6, border: '1px solid #cbd5e1', padding: 4 }}
+                  onError={(e) => { e.target.style.display = 'none'; }}
+                />
+              ) : (
+                <div style={{ width: 40, height: 40, borderRadius: 8, background: '#f8fafc', border: '1.5px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0B2A6F', fontWeight: 800, fontSize: '0.9rem' }}>
+                  {(fields.companyName || 'LEAD').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0B2A6F', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '4px 10px' }}>
+              Proposal Ref. No. {fields.refNo || 'PENDING'}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Date: {fields.proposalDate || '—'}</div>
           </div>
 
           <div style={{ marginTop: 24, padding: '18px 20px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>

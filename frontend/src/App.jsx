@@ -7,6 +7,7 @@ import RequestAccess from './pages/RequestAccess';
 import AdminPortal from './pages/AdminPortal';
 import ApprovalAction from './pages/ApprovalAction';
 import SearchHistory from './pages/SearchHistory';
+import ProposalHub from './pages/ProposalHub';
 import ProtectedRoute from './components/ProtectedRoute';
 import './index.css';
 
@@ -32,6 +33,14 @@ function App() {
           element={
             <ProtectedRoute>
               <Dashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/proposals"
+          element={
+            <ProtectedRoute>
+              <ProposalHub />
             </ProtectedRoute>
           }
         />

@@ -11,6 +11,19 @@ const pdfParse = require('pdf-parse');
 // Reads the exported PDF's page text to find where each section starts (for the preview)
 // InsightHub accounts (designation, department, mobile number from the Request Access form)
 
+const multer = require('multer');
+const uploadDocx = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  fileFilter: (req, file, cb) => {
+    if (file.originalname.match(/\.docx$/i) || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+      cb(null, true);
+    } else {
+      cb(new Error('Invalid file type. Only Microsoft Word (.docx) documents are allowed.'));
+    }
+  }
+});
+const proposalStorage = require('../services/proposalStorageService');
 const path = require('path');
 const router = express.Router();
 
@@ -268,12 +281,85 @@ router.post('/generate', async (req, res) => {
   }
 
   const finalFields = agentResponse?.proposal ? applyAgentProposal(fields, agentResponse.proposal) : fields;
+  const proposalWithRef = { ...finalFields, refNo };
+
+  // Store the newly prepared proposal in the system
+  try {
+    proposalStorage.saveProposal({
+      refNo,
+      companyName: business.name || finalFields.companyName,
+      business,
+      fields: proposalWithRef,
+      user,
+      products: payload.selectedProducts
+    });
+  } catch (saveErr) {
+    console.warn('[proposals/generate] Failed to persist proposal history:', saveErr.message);
+  }
+
   res.json({
-    fields: { ...finalFields, refNo },
+    fields: proposalWithRef,
     refFromSection: fromSection,
     notes: agentResponse?.proposal?.notes || ['Generated from SLT-Mobitel Product Knowledge Base'],
     sources: agentResponse?.sources || agentResponse?.proposal?.sources || { localKnowledgeBase: true }
   });
+});
+
+// ============================================================
+// SAVED PROPOSALS HISTORY ENDPOINTS
+// ============================================================
+router.get('/saved', (req, res) => {
+  try {
+    const list = proposalStorage.getAllProposals();
+    res.json({ success: true, count: list.length, proposals: list });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.delete('/saved/:id', (req, res) => {
+  try {
+    proposalStorage.deleteProposal(req.params.id);
+    res.json({ success: true, message: 'Proposal removed from system' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ============================================================
+// LATEST PROPOSAL TEMPLATE MANAGEMENT ENDPOINTS (ADMIN ONLY)
+// ============================================================
+router.get('/template/info', (req, res) => {
+  try {
+    const meta = proposalStorage.getTemplateMeta();
+    res.json({ success: true, template: meta });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.get('/template/download', (req, res) => {
+  const tplPath = proposalStorage.TEMPLATE_PATH;
+  if (!fs.existsSync(tplPath)) {
+    return res.status(404).json({ error: 'Proposal template file not found on server' });
+  }
+  const meta = proposalStorage.getTemplateMeta();
+  res.download(tplPath, meta.filename || 'proposal_template.docx');
+});
+
+router.post('/template/upload', uploadDocx.single('template'), (req, res) => {
+  try {
+    if (!req.file || !req.file.buffer) {
+      return res.status(400).json({ error: 'Please select a valid Microsoft Word (.docx) template file to upload.' });
+    }
+    const adminEmail = (req.body.adminEmail || 'admin').toLowerCase().trim();
+    const meta = proposalStorage.saveLatestTemplate(req.file.buffer, req.file.originalname, adminEmail);
+    console.log(`[proposals/template] New latest template uploaded by ${adminEmail} (${req.file.originalname}, ${req.file.size} bytes)`);
+    res.json({ success: true, message: 'Latest template uploaded successfully. All new proposals will use this template.', template: meta });
+  } catch (err) {
+    console.error('[proposals/template] Upload error:', err.message);
+    res.status(500).json({ error: err.message || 'Failed to upload template' });
+  }
 });
 
 async function sectionPages(pdf) {

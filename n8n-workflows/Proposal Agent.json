@@ -1,0 +1,148 @@
+{
+  "name": "Proposal Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "377c1b8b-c8e2-4c31-a042-fb8f4505a63f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        1056,
+        384
+      ],
+      "webhookId": "proposal"
+    },
+    {
+      "parameters": {
+        "jsCode": "const AGENT_BASE_URL = 'https://sltrnddigitallab.app.n8n.cloud/webhook';\n// Base URL of your n8n production webhooks (no trailing slash).\n\nconst input = $input.first().json;\n// The first item coming out of the Webhook node.\n\nconst body = input.body || input;\n// n8n puts the POST body under .body; fall back to the item itself when testing.\n\nconst company = body.company || {};\n// The business picked in the dashboard search bar: name, industry, location, overview, address.\n\nconst user = body.user || {};\n// The logged-in sales rep: name, phone, designation, email (used on the contact block and letter).\n\nconst products = Array.isArray(body.selectedProducts) ? body.selectedProducts : [];\n// The SLT products the rep ticked for this proposal (name, description, features).\n\nif (!company.name) throw new Error('company.name is required');\n// Stop early if no business was sent.\n\nif (products.length === 0) throw new Error('selectedProducts must contain at least one product');\n// Stop early if no products were selected.\n\nconst ctx = Object.assign({}, body.agentContext || {});\n// Results the dashboard already holds from the other agents: customerResearch, meetingPrep, productRecommendations.\n\nconst place = company.location || 'Sri Lanka';\n// Used to make the agent prompts more specific.\n\nconst callAgent = async (path, prompt) => {\n  // Calls one of your existing agent webhooks and returns its results array.\n  const res = await this.helpers.httpRequest({\n    method: 'POST',\n    url: AGENT_BASE_URL + '/' + path,\n    body: { prompt: prompt },\n    json: true,\n    timeout: 40000\n  });\n  // Same request shape your Express backend already sends: { prompt }.\n  return res && res.results ? res.results : null;\n  // Every agent answers { success, results: [...] }.\n};\n\nconst jobs = {};\n// Holds one pending call per agent whose data is missing.\n\nif (!ctx.customerResearch) jobs.customerResearch = callAgent('customer-research', 'Research ' + company.name + ' ' + place);\n// Customer Research is only called if the dashboard did not send its result.\n\nif (!ctx.meetingPrep) jobs.meetingPrep = callAgent('meeting-prep', 'Prepare a meeting brief for ' + company.name + ' ' + place);\n// Meeting Preparation is only called if missing.\n\nif (!ctx.productRecommendations) jobs.productRecommendations = callAgent('product-recommendation', 'Recommend SLT-Mobitel products for ' + company.name + ' ' + place);\n// Product Recommendations is only called if missing.\n\nconst keys = Object.keys(jobs);\n// Names of the agents we are fetching right now.\n\nconst settled = await Promise.allSettled(keys.map(function (k) { return jobs[k]; }));\n// Runs the missing agent calls in parallel; one failing agent will not break the proposal.\n\nconst fetched = [];\nconst failed = [];\n// Bookkeeping so the frontend can show which data sources were used.\n\nsettled.forEach(function (s, i) {\n  if (s.status === 'fulfilled' && s.value) { ctx[keys[i]] = s.value; fetched.push(keys[i]); }\n  else { failed.push(keys[i]); }\n});\n// Store each fetched result, or record the failure.\n\nconst toText = function (v, max) {\n  // Turns any agent output into plain text and trims it so the prompt stays small.\n  if (!v) return '';\n  // Nothing provided.\n  const arr = typeof v === 'string' ? [v] : (Array.isArray(v) ? v : (v.results || [v]));\n  // Accept a string, a results array, or the full { results } response.\n  const text = arr.map(function (r) {\n    if (typeof r === 'string') return r;\n    const head = r.Category || r.Section || r.Product || '';\n    // Customer Research uses Category, Meeting Prep uses Section, Recommendations use Product.\n    const tail = r.Details || r.Content || r['Why Recommended'] || JSON.stringify(r);\n    // Matching body field for each agent.\n    return head + ': ' + tail;\n  }).join('\\n\\n');\n  // One block per section, separated by a blank line.\n  return text.length > max ? text.substring(0, max) + ' ...' : text;\n  // Hard cap per source to control token use.\n};\n\nconst now = new Date();\nconst months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];\nconst dateStr = String(now.getDate()).padStart(2, '0') + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();\n// Date in the template format, for example 12 OCT 2026.\n\nconst proposalRef = body.proposalRef || ('1-' + Math.random().toString(36).substring(2, 8).toUpperCase());\n// Proposal reference number; the backend can send its own.\n\nconst productBlock = products.map(function (p, i) {\n  return (i + 1) + '. ' + p.name + '\\n   Description: ' + (p.description || 'N/A') + '\\n   Key features: ' + (Array.isArray(p.features) ? p.features.join('; ') : (p.features || 'N/A'));\n}).join('\\n');\n// Readable list of the selected products for the AI prompt.\n\nreturn [{\n  json: {\n    proposalRef: proposalRef,\n    dateStr: dateStr,\n    company: company,\n    user: user,\n    products: products,\n    requirementsInput: body.requirements || '',\n    pricing: Array.isArray(body.pricing) ? body.pricing : [],\n    recipientTitle: body.recipientTitle || 'IT Manager',\n    productBlock: productBlock,\n    researchText: toText(ctx.customerResearch, 3000),\n    meetingText: toText(ctx.meetingPrep, 3000),\n    recsText: toText(ctx.productRecommendations, 2500),\n    sources: {\n      provided: Object.keys(body.agentContext || {}),\n      fetched: fetched,\n      failed: failed\n    }\n  }\n}];\n// Everything the AI Agent and the Format Response node need, in one item.\n"
+      },
+      "id": "bf1d4c31-64b8-4e68-9996-469119e229ef",
+      "name": "Gather Agent Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1312,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=CUSTOMER COMPANY: {{ $json.company.name }}\nIndustry: {{ $json.company.industry || \"Unknown\" }}\nLocation: {{ $json.company.location || \"Unknown\" }}\nOverview: {{ $json.company.overview || \"Not provided\" }}\n\nSELECTED SLT PRODUCTS:\n{{ $json.productBlock }}\n\nSALES REP REQUIREMENTS:\n{{ $json.requirementsInput || \"Not provided\" }}\n\nCUSTOMER RESEARCH AGENT OUTPUT:\n{{ $json.researchText || \"None available\" }}\n\nMEETING PREPARATION AGENT OUTPUT:\n{{ $json.meetingText || \"None available\" }}\n\nPRODUCT RECOMMENDATIONS AGENT OUTPUT:\n{{ $json.recsText || \"None available\" }}",
+        "options": {
+          "systemMessage": "You write the customer-specific parts of an SLT-MOBITEL enterprise business proposal.\n\nYou receive: the customer company, the SLT products selected for this proposal, the sales rep requirements, and intelligence gathered by other InsightHub agents (customer research, meeting preparation, product recommendations).\n\nReturn ONLY one valid JSON object, no markdown fences, no commentary, with exactly these keys:\n{\n  \"letterTailored\": string,\n  \"productExplanations\": [{\"product\": string, \"paragraph\": string}],\n  \"requirements\": [string],\n  \"solutionIntro\": string,\n  \"solutionTable\": [{\"service\": string, \"station\": string, \"accessMedia\": string, \"ntu\": string}],\n  \"notes\": [string]\n}\n\nRules:\n- letterTailored: 2 to 4 sentences for the cover letter that connect this customer's pain points and what they appear to need to the selected products. Use only facts present in the provided context. Do NOT include any sentence describing or characterising the client company (its industry, size, type of business, or environment). Start the letter body directly with the purpose of the proposal.\n- productExplanations: exactly one entry per selected product, in the same order. Each paragraph is 2 to 3 sentences in the style of a proposal letter: what the product is, and why it fits this customer. Base the product facts only on the provided descriptions and features. Do NOT describe or characterise the client company (its industry, size, type of business, or environment) — explain only how the product addresses the customer's stated needs or pain points.\n- requirements: exactly one entry per selected product, in the same order as the selected products. Each is 1 to 2 sentences phrased as the customer requirement that this product answers (for example: Uninterrupted Internet connectivity for the head office with a dedicated IP). Derive them from the rep requirements, the pain points and the product details.\n- solutionIntro: one sentence introducing the solution table.\n- solutionTable: one row per selected product. If station, access media or NTU are not stated in the product details, write To be confirmed. Never invent hardware models, locations or speeds.\n- notes: assumptions or open items the rep should confirm before sending. Empty array if none.\n- Use ONLY facts found in the provided context. If the context is thin, stay general rather than guessing.\n- NEVER invent prices, speeds, contract terms, people, titles, phone numbers or URLs. Do not mention any person by name.\n- Do not use double-quote characters inside string values; use single quotes instead.\n- No self-correction or meta commentary."
+        }
+      },
+      "id": "21487838-7fbc-4338-be6e-986407923dd2",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1568,
+        384
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5.4-mini",
+        "options": {}
+      },
+      "id": "c278088c-1090-4268-8b1a-ffa9ff6ec0fb",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        1440,
+        608
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "UkgzFduKVmP1bfcC",
+          "name": "OpenAI account 9"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const prep = $('Gather Agent Data').first().json;\n// The collected data and inputs from the first Code node.\n\nlet raw = $input.first().json.output || '';\n// The AI Agent's text answer.\n\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n// Remove markdown fences if the model added them.\n\nlet ai;\ntry {\n  ai = JSON.parse(raw);\n  // Normal case: the model returned clean JSON.\n} catch (e) {\n  const start = raw.indexOf('{');\n  const end = raw.lastIndexOf('}');\n  // Fallback: find the outermost JSON object in the text.\n  if (start === -1 || end === -1) throw new Error('Agent did not return valid JSON: ' + raw.substring(0, 200));\n  // Nothing usable, so fail loudly instead of returning an empty proposal.\n  ai = JSON.parse(raw.substring(start, end + 1));\n}\n\nconst investment = prep.products.map(function (p, i) {\n  // Prices come ONLY from the request, never from the AI.\n  const price = prep.pricing.find(function (x) { return x.product === p.name; }) || prep.pricing[i] || {};\n  return {\n    description: p.name,\n    speed: price.speed || 'To be confirmed',\n    oneTimeCharge: price.oneTimeCharge != null ? price.oneTimeCharge : 'To be confirmed',\n    monthlyRental: price.monthlyRental != null ? price.monthlyRental : 'To be confirmed'\n  };\n});\n\nconst names = prep.products.map(function (p) { return p.name; }).join(', ');\n// Product names for the submission line.\n\nconst explanations = (Array.isArray(ai.productExplanations) ? ai.productExplanations : []).map(function (e) { return e.paragraph; }).filter(Boolean);\n// One AI-written paragraph per selected product, taken from the knowledge base descriptions.\n\nconst letterParagraphs = [\n  'We understand that every organisation needs to create an edge to succeed in the current complex business environment and how technology could help to achieve this. That is why we at SLT-MOBITEL have created a suite of customisable and scalable intelligent enterprise solutions designed to help you make that crucial leap to take your business beyond where it can be to where it should be.',\n  // Fixed paragraph 1 from your template.\n  'As we combine the strength of fixed and mobile, we pride ourselves on our unmatched enterprise capabilities and expert experience spanning decades. Moreover, we have dedicated Account Managers at your service, ensuring we are not only your provider but also your partner in progress.',\n  // Fixed paragraph 2 from your template.\n  ai.letterTailored || '',\n  // Customer-specific paragraph built from the research, meeting prep and recommendation data.\n  'We are pleased to submit the attached proposal for ' + names + '. Our proposal briefs on:',\n  // Submission line with the selected products.\n].concat(explanations).concat([\n  'We look forward to discussing the proposal in detail. Do not hesitate to reach out to ' + (prep.user.name || 'your Account Manager') + (prep.user.phone ? ' on ' + prep.user.phone : '') + ' should you require any assistance.',\n  // Contact line uses the logged-in user's name and phone.\n  'We are committed to partnering with you in your journey to success and look forward to empowering your business with our intelligent business solutions.'\n  // Fixed closing from your template.\n]).filter(Boolean);\n\nreturn [{\n  json: {\n    success: true,\n    agent: 'Proposal',\n    sources: prep.sources,\n    proposal: {\n      proposalRef: prep.proposalRef,\n      date: prep.dateStr,\n      customer: { name: prep.company.name, address: prep.company.address || prep.company.location || '' },\n      contact: { name: prep.user.name || '', phone: prep.user.phone || '', designation: prep.user.designation || '', email: prep.user.email || '' },\n      letter: {\n        recipientTitle: prep.recipientTitle,\n        salutation: 'Dear Sir/Madam',\n        subject: 'Business Proposal for ' + prep.company.name,\n        paragraphs: letterParagraphs,\n        tailored: ai.letterTailored || '',\n        productParagraphs: explanations\n      },\n      products: prep.products.map(function (p) { return { id: p.id || '', name: p.name }; }),\n      // Same order as requirements, solutionTable, investment and letter.productParagraphs, so the backend can map them by index\n      requirements: Array.isArray(ai.requirements) ? ai.requirements : [],\n      solutionIntro: ai.solutionIntro || '',\n      solutionTable: Array.isArray(ai.solutionTable) ? ai.solutionTable : [],\n      investment: investment,\n      notes: Array.isArray(ai.notes) ? ai.notes : [],\n      commitmentNote: '1 Year commitment period will be applicable'\n    }\n  }\n}];\n// Final response: the frontend renders this into the template, lets the rep edit it, then exports the PDF.\n"
+      },
+      "id": "86e93886-b0f8-4646-bad3-4238020f0781",
+      "name": "Format Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1856,
+        384
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Gather Agent Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gather Agent Data": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Format Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "versionId": "c5b40aeb-addd-49f4-8fc4-424b81b0cb89",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "0b81a947ce45dfee802d1f8e748d506ed4453821693c869115ccf2981691b2d9"
+  },
+  "nodeGroups": [],
+  "id": "eOuFcu8VkXxwZTxh",
+  "tags": []
+}
