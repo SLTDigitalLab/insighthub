@@ -94,7 +94,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7' }) {
     if (!query.trim()) return;
     setBusy('search'); setError(''); setResults([]);
     try {
-      const { data } = await axios.get(`${API}/search`, { params: { q: query.trim() }, timeout: 120000 });
+      const { data } = await axios.get(`${API}/search`, { params: { q: query.trim() }, timeout: 180000 });
       // Google Maps search through the backend; can take 15–40 s
       setResults(data.results);
       if (data.results.length === 0) setError('No businesses found. Try a more specific name, or enter the business manually below.');

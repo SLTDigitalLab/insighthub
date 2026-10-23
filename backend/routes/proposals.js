@@ -85,7 +85,7 @@ router.get('/search', async (req, res) => {
       const { data } = await axios.post(
         webhookUrl,
         { prompt: q, query: q },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 90000 }
+        { headers: { 'Content-Type': 'application/json' }, timeout: 180000 }
       );
       const items = parseN8nResponse(data);
       if (Array.isArray(items) && items.length > 0) {
