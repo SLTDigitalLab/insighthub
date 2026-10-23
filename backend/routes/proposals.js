@@ -69,12 +69,12 @@ router.get('/search', async (req, res) => {
   if (process.env.N8N_SEARCH_WEBHOOK_URL) {
     candidateN8nUrls.push(process.env.N8N_SEARCH_WEBHOOK_URL);
   }
-  candidateN8nUrls.push('https://sltrnddigitallab.app.n8n.cloud/webhook-test/lead-discovery');
   candidateN8nUrls.push('https://sltrnddigitallab.app.n8n.cloud/webhook/lead-discovery');
   if (process.env.N8N_WEBHOOK_BASE) {
     candidateN8nUrls.push(`${process.env.N8N_WEBHOOK_BASE}/lead-discovery`);
     candidateN8nUrls.push(`${process.env.N8N_WEBHOOK_BASE}/business-search`);
   }
+  candidateN8nUrls.push('https://sltrnddigitallab.app.n8n.cloud/webhook-test/lead-discovery');
 
   // De-duplicate URLs
   const uniqueUrls = [...new Set(candidateN8nUrls)];
