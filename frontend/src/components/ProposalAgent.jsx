@@ -310,9 +310,17 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7' }) {
               <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start', minWidth: 0 }}>
                 <div style={{ ...S.bubble, background: `${accent}18`, color: accent }}><Building2 size={20} /></div>
                 <div style={{ textAlign: 'left', minWidth: 0 }}>
-                  <div style={S.name}>{r.name}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    <div style={S.name}>{r.name}</div>
+                    {r.leadScore && (
+                      <span style={{ fontSize: '0.72rem', fontWeight: 600, padding: '1px 8px', borderRadius: 10, background: '#f0fdf4', color: '#166534', border: '1px solid #bbf7d0' }}>
+                        {r.leadScore}
+                      </span>
+                    )}
+                  </div>
                   {r.category && <div style={S.meta}>{r.category}</div>}
                   {r.address && <div style={S.meta}><MapPin size={13} /> {r.address}</div>}
+                  {r.phone && <div style={S.meta}>📞 {r.phone}</div>}
                   {r.rating != null && <div style={S.meta}><Star size={13} /> {r.rating}{r.reviews ? ` (${r.reviews})` : ''}</div>}
                 </div>
               </div>

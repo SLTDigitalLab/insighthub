@@ -30,37 +30,103 @@ const DEFAULTS = {
   commitmentPeriod: process.env.PROPOSAL_COMMITMENT || '1 Year',
 };
 
+function parseN8nResponse(data) {
+  if (Array.isArray(data)) {
+    if (data.length === 1 && typeof data[0] === 'object' && (data[0].output || data[0].text || data[0].message || data[0].response)) {
+      return parseN8nResponse(data[0]);
+    }
+    return data;
+  }
+  if (data && Array.isArray(data.results)) return data.results;
+  if (data && Array.isArray(data.places)) return data.places;
+  if (typeof data === 'object' && (data.output || data.text || data.message || data.response)) {
+    const raw = data.output || data.text || data.message || data.response;
+    try {
+      const clean = String(raw).replace(/```json/gi, '').replace(/```/g, '').trim();
+      const match = clean.match(/\[[\s\S]*\]/);
+      if (match) return JSON.parse(match[0]);
+      if (clean.startsWith('{')) return [JSON.parse(clean)];
+    } catch (e) {
+      console.warn('[proposals/search] JSON parse failed on n8n output:', e.message);
+    }
+  }
+  if (typeof data === 'string') {
+    try {
+      const clean = data.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const match = clean.match(/\[[\s\S]*\]/);
+      if (match) return JSON.parse(match[0]);
+    } catch {}
+  }
+  return [];
+}
+
 router.get('/search', async (req, res) => {
   const q = String(req.query.q || '').trim();
   if (!q) return res.status(400).json({ error: 'q is required' });
 
-  // 1. Check if n8n business search webhook is available
-  if (N8N_SEARCH_WEBHOOK_URL) {
+  // 1. Prioritize n8n lead-discovery (checks test webhook, production webhook, or custom env webhook)
+  const candidateN8nUrls = [];
+  if (process.env.N8N_SEARCH_WEBHOOK_URL) {
+    candidateN8nUrls.push(process.env.N8N_SEARCH_WEBHOOK_URL);
+  }
+  candidateN8nUrls.push('https://sltrnddigitallab.app.n8n.cloud/webhook-test/lead-discovery');
+  candidateN8nUrls.push('https://sltrnddigitallab.app.n8n.cloud/webhook/lead-discovery');
+  if (process.env.N8N_WEBHOOK_BASE) {
+    candidateN8nUrls.push(`${process.env.N8N_WEBHOOK_BASE}/lead-discovery`);
+    candidateN8nUrls.push(`${process.env.N8N_WEBHOOK_BASE}/business-search`);
+  }
+
+  // De-duplicate URLs
+  const uniqueUrls = [...new Set(candidateN8nUrls)];
+
+  for (const webhookUrl of uniqueUrls) {
     try {
+      console.log(`[proposals/search] Requesting businesses from n8n: ${webhookUrl} for prompt: "${q}"`);
       const { data } = await axios.post(
-        N8N_SEARCH_WEBHOOK_URL,
-        { query: q, prompt: q },
-        { headers: { 'Content-Type': 'application/json' }, timeout: 45000 }
+        webhookUrl,
+        { prompt: q, query: q },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 90000 }
       );
-      const items = Array.isArray(data) ? data : (data.results || data.places || []);
+      const items = parseN8nResponse(data);
       if (Array.isArray(items) && items.length > 0) {
-        const results = items.map(r => ({
-          id: String(r.id || r.placeId || r.url || r.name || r.title || Math.random()),
-          name: r.name || r.title || r['Company Name'],
-          address: r.address || r.location || r.street || '',
-          city: r.city || '',
-          category: r.category || r.categoryName || r['Industry'] || '',
-          phone: r.phone || r['Contact Number'] || '',
-          website: r.website || r.url || '',
-          rating: r.rating != null ? r.rating : (r.totalScore != null ? r.totalScore : (parseFloat(r['Customer Rating']) || null)),
-          reviews: r.reviews || r.reviewsCount || null,
-        })).filter(r => r.name);
+        const results = items.map((r, idx) => {
+          const name = r['Company Name'] || r.name || r.title || r.company || '';
+          const address = r['Location'] || r.address || r.street || r.city || '';
+          const category = r['Industry'] || r.category || r.categoryName || r['Size'] || 'Enterprise';
+          const phone = (r['Contact Number'] && r['Contact Number'] !== 'N/A' && !/pending/i.test(r['Contact Number'])) ? r['Contact Number'] : (r.phone || '');
+          const website = (r['Website'] && r['Website'] !== 'N/A') ? r['Website'] : (r.website || r.url || '');
+          let rating = null;
+          if (r['Customer Rating'] && r['Customer Rating'] !== 'N/A') {
+            rating = parseFloat(String(r['Customer Rating']).replace(/\/5/, '')) || null;
+          } else if (r.rating != null) {
+            rating = r.rating;
+          } else if (r.totalScore != null) {
+            rating = r.totalScore;
+          }
+          return {
+            id: String(r.id || r.placeId || `lead-${idx}-${encodeURIComponent(name)}`),
+            name,
+            address,
+            city: r.city || '',
+            category,
+            phone,
+            website,
+            rating,
+            reviews: r.reviews || r.reviewsCount || null,
+            leadScore: r['Lead Score'] || null,
+            reason: r['Reason'] || '',
+          };
+        }).filter(r => r.name);
+
         if (results.length > 0) {
-          return res.json({ results, source: 'n8n' });
+          console.log(`[proposals/search] n8n returned ${results.length} found businesses via ${webhookUrl}`);
+          return res.json({ results, source: 'n8n', webhookUrl });
         }
       }
     } catch (err) {
-      console.warn('[proposals/search] n8n business-search skipped/failed (' + err.message + '), checking next provider');
+      const status = err.response?.status;
+      // 404 simply means test endpoint is not actively listening; try next candidate
+      console.warn(`[proposals/search] n8n attempt on ${webhookUrl} skipped (${status || err.message})`);
     }
   }
 
