@@ -39,7 +39,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const items = $input.all().map(item => item.json);\n\nconst results = items.map(r => ({\n  id: r.placeId || r.url || r.title,\n  name: r.title,\n  address: r.address || [r.street, r.city].filter(Boolean).join(', ') || '',\n  city: r.city || '',\n  category: r.categoryName || '',\n  phone: r.phone || '',\n  website: r.website || '',\n  rating: r.totalScore ?? null,\n  reviews: r.reviewsCount ?? null\n})).filter(r => r.name);\n\nreturn [{\n  json: {\n    success: true,\n    count: results.length,\n    results: results\n  }\n}];"
+        "jsCode": "const all = $input.all();\nlet items = [];\nfor (const entry of all) {\n  const j = entry.json;\n  if (Array.isArray(j)) {\n    items.push(...j);\n  } else if (j && Array.isArray(j.data)) {\n    items.push(...j.data);\n  } else if (j && Array.isArray(j.items)) {\n    items.push(...j.items);\n  } else if (j && typeof j === 'object') {\n    items.push(j);\n  }\n}\n\nconst results = items.map(r => ({\n  id: r.placeId || r.url || r.title || String(Math.random()),\n  name: r.title || r.name,\n  address: r.address || [r.street, r.city].filter(Boolean).join(', ') || '',\n  city: r.city || '',\n  category: r.categoryName || (Array.isArray(r.categories) ? r.categories[0] : '') || '',\n  phone: r.phone || '',\n  website: r.website || '',\n  rating: r.totalScore != null ? r.totalScore : (r.rating != null ? r.rating : null),\n  reviews: r.reviewsCount != null ? r.reviewsCount : (r.reviews != null ? r.reviews : null)\n})).filter(r => r.name);\n\nreturn [{\n  json: {\n    success: true,\n    count: results.length,\n    results: results\n  }\n}];"
       },
       "id": "b1000000-0000-4000-8000-000000000003",
       "name": "Format Search Results",
