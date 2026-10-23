@@ -1,0 +1,77 @@
+{
+  "name": "Business Search (Proposal Agent)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "business-search",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "b1000000-0000-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [0, 0],
+      "webhookId": "business-search"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/compass~google-maps-extractor/run-sync-get-dataset-items?fields=title,phone,website,street,city,totalScore,categoryName,reviewsCount",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"searchStringsArray\": [\"{{ $json.body.query || $json.body.prompt }} Sri Lanka\"],\n  \"locationQuery\": \"Sri Lanka\",\n  \"maxCrawledPlacesPerSearch\": 8,\n  \"maxReviews\": 0,\n  \"maxImages\": 0,\n  \"language\": \"en\"\n}"
+      },
+      "id": "b1000000-0000-4000-8000-000000000002",
+      "name": "Apify Google Maps",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 0],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "51tnt1hoAIQQXqOL",
+          "name": "Header Auth account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all().map(item => item.json);\n\nconst results = items.map(r => ({\n  id: r.placeId || r.url || r.title,\n  name: r.title,\n  address: r.address || [r.street, r.city].filter(Boolean).join(', ') || '',\n  city: r.city || '',\n  category: r.categoryName || '',\n  phone: r.phone || '',\n  website: r.website || '',\n  rating: r.totalScore ?? null,\n  reviews: r.reviewsCount ?? null\n})).filter(r => r.name);\n\nreturn [{\n  json: {\n    success: true,\n    count: results.length,\n    results: results\n  }\n}];"
+      },
+      "id": "b1000000-0000-4000-8000-000000000003",
+      "name": "Format Search Results",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 0]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Apify Google Maps",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Apify Google Maps": {
+      "main": [
+        [
+          {
+            "node": "Format Search Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {}
+}

@@ -99,9 +99,8 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7' }) {
       setResults(data.results);
       if (data.results.length === 0) setError('No businesses found. Try a more specific name, or enter the business manually below.');
     } catch (err) {
-      const msg = await apiError(err);
-      setError(/APIFY_TOKEN/.test(msg) ? 'Business search is not connected yet. Enter the business manually below.' : `${msg}. You can enter the business manually below.`);
-      // Search needs the Apify token; until it is added, the manual form below does the same job
+      console.warn('[proposalAgent/search]', err);
+      setError('Unable to fetch live directory results right now. You can enter the business manually below.');
     } finally { setBusy(''); }
   }
 

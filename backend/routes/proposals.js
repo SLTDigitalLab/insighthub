@@ -17,9 +17,9 @@ const router = express.Router();
 router.use('/diagrams', express.static(path.join(__dirname, '..', 'templates', 'diagrams')));
 
 const APIFY_TOKEN = process.env.APIFY_TOKEN;
-// Same Apify token n8n uses, set in backend/.env
 const N8N_PROPOSAL_WEBHOOK_URL = process.env.N8N_PROPOSAL_WEBHOOK_URL || (process.env.N8N_WEBHOOK_BASE ? `${process.env.N8N_WEBHOOK_BASE}/proposal` : '');
-// n8n "Proposal Agent" workflow that writes the letter, requirements, solution table and investment rows
+const N8N_SEARCH_WEBHOOK_URL = process.env.N8N_SEARCH_WEBHOOK_URL || (process.env.N8N_WEBHOOK_BASE ? `${process.env.N8N_WEBHOOK_BASE}/business-search` : '');
+// Starting values for the secondary contact / acknowledgement page (the rep can still edit them)
 const DEFAULTS = {
   rebmName: process.env.PROPOSAL_REBM_NAME || '',
   rebmDesignation: process.env.PROPOSAL_REBM_DESIGNATION || 'Regional Enterprise Business Manager',
@@ -29,43 +29,102 @@ const DEFAULTS = {
   rebmArea: process.env.PROPOSAL_REBM_AREA || '',
   commitmentPeriod: process.env.PROPOSAL_COMMITMENT || '1 Year',
 };
-// Starting values for the secondary contact / acknowledgement page (the rep can still edit them)
 
 router.get('/search', async (req, res) => {
   const q = String(req.query.q || '').trim();
-  // What the rep typed, e.g. "hotels in kandy"
   if (!q) return res.status(400).json({ error: 'q is required' });
-  if (!APIFY_TOKEN) return res.status(500).json({ error: 'APIFY_TOKEN is not set in backend/.env' });
+
+  // 1. Check if n8n business search webhook is available
+  if (N8N_SEARCH_WEBHOOK_URL) {
+    try {
+      const { data } = await axios.post(
+        N8N_SEARCH_WEBHOOK_URL,
+        { query: q, prompt: q },
+        { headers: { 'Content-Type': 'application/json' }, timeout: 45000 }
+      );
+      const items = Array.isArray(data) ? data : (data.results || data.places || []);
+      if (Array.isArray(items) && items.length > 0) {
+        const results = items.map(r => ({
+          id: String(r.id || r.placeId || r.url || r.name || r.title || Math.random()),
+          name: r.name || r.title || r['Company Name'],
+          address: r.address || r.location || r.street || '',
+          city: r.city || '',
+          category: r.category || r.categoryName || r['Industry'] || '',
+          phone: r.phone || r['Contact Number'] || '',
+          website: r.website || r.url || '',
+          rating: r.rating != null ? r.rating : (r.totalScore != null ? r.totalScore : (parseFloat(r['Customer Rating']) || null)),
+          reviews: r.reviews || r.reviewsCount || null,
+        })).filter(r => r.name);
+        if (results.length > 0) {
+          return res.json({ results, source: 'n8n' });
+        }
+      }
+    } catch (err) {
+      console.warn('[proposals/search] n8n business-search skipped/failed (' + err.message + '), checking next provider');
+    }
+  }
+
+  // 2. Direct Apify Google Maps Actor if APIFY_TOKEN is set
+  if (APIFY_TOKEN) {
+    try {
+      const { data } = await axios.post(
+        'https://api.apify.com/v2/acts/compass~google-maps-extractor/run-sync-get-dataset-items',
+        {
+          searchStringsArray: [/sri lanka/i.test(q) ? q : `${q} Sri Lanka`],
+          maxCrawledPlacesPerSearch: 8,
+          language: 'en',
+        },
+        { headers: { Authorization: `Bearer ${APIFY_TOKEN}` }, timeout: 60000 }
+      );
+      const results = (Array.isArray(data) ? data : []).map(r => ({
+        id: r.placeId || r.url || r.title,
+        name: r.title,
+        address: r.address || '',
+        city: r.city || '',
+        category: r.categoryName || (r.categories || [])[0] || '',
+        phone: r.phone || '',
+        website: r.website || '',
+        rating: r.totalScore ?? null,
+        reviews: r.reviewsCount ?? null,
+      })).filter(r => r.name);
+      if (results.length > 0) {
+        return res.json({ results, source: 'apify' });
+      }
+    } catch (err) {
+      console.warn('[proposals/search] Apify actor skipped/failed (' + err.message + '), using open directory fallback');
+    }
+  }
+
+  // 3. Zero-token Open Directory Lookup (OpenStreetMap Nominatim for Sri Lanka)
   try {
-    const { data } = await axios.post(
-      'https://api.apify.com/v2/acts/compass~google-maps-extractor/run-sync-get-dataset-items',
-      {
-        searchStringsArray: [/sri lanka/i.test(q) ? q : `${q} Sri Lanka`],
-        // Puts "Sri Lanka" in the search text itself instead of using locationQuery
-        maxCrawledPlacesPerSearch: 6,
-        // Fewer places so the actor finishes sooner
-        language: 'en',
-      },
-      { headers: { Authorization: `Bearer ${APIFY_TOKEN}` }, timeout: 110000 },
-      // Gives slow actor runs up to 110 s before giving up
-    );
-    // Runs the Google Maps actor and waits for its results (usually 15–40 s)
-    const results = (Array.isArray(data) ? data : []).map(r => ({
-      id: r.placeId || r.url || r.title,
-      name: r.title,
-      address: r.address || '',
-      city: r.city || '',
-      category: r.categoryName || (r.categories || [])[0] || '',
-      phone: r.phone || '',
-      website: r.website || '',
-      rating: r.totalScore ?? null,
-      reviews: r.reviewsCount ?? null,
-    })).filter(r => r.name);
-    // Keeps only what the proposal page needs
-    res.json({ results });
+    const cleanQ = q.replace(/sri lanka/gi, '').trim();
+    const { data: osm } = await axios.get('https://nominatim.openstreetmap.org/search', {
+      params: { q: `${cleanQ} Sri Lanka`, format: 'json', addressdetails: 1, limit: 8 },
+      headers: { 'User-Agent': 'InsightHub-Proposal-Agent/1.0 (Enterprise Sales Platform)' },
+      timeout: 10000,
+    });
+    const results = (Array.isArray(osm) ? osm : []).map(r => {
+      const a = r.address || {};
+      const city = a.city || a.town || a.suburb || a.village || a.county || '';
+      const rawCat = a.office || a.amenity || a.shop || a.commercial || a.tourism || r.type || 'Enterprise';
+      const category = rawCat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return {
+        id: `osm-${r.osm_id || Math.random().toString(36).substring(2, 9)}`,
+        name: r.name || (r.display_name ? r.display_name.split(',')[0].trim() : cleanQ),
+        address: r.display_name || '',
+        city: city,
+        category: category,
+        phone: '',
+        website: '',
+        rating: null,
+        reviews: null,
+      };
+    }).filter(r => r.name);
+
+    return res.json({ results, source: 'directory' });
   } catch (err) {
-    console.error('[proposals/search]', err.response?.status, err.response?.data || err.message);
-    res.status(502).json({ error: 'Business search failed', detail: err.response?.data?.error?.message || err.message });
+    console.error('[proposals/search] Open directory fallback error:', err.message);
+    return res.json({ results: [], source: 'none' });
   }
 });
 
