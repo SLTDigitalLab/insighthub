@@ -105,15 +105,19 @@ export default function ProposalHub() {
   const handleTemplateUpload = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
-      showToast('Please select a Microsoft Word (.docx) file first.', 'error');
+      showToast('Please select a Microsoft Word (.doc or .docx) file first.', 'error');
       return;
     }
-    if (!selectedFile.name.match(/\.docx$/i)) {
-      showToast('Only Microsoft Word (.docx) documents are supported.', 'error');
+    if (!selectedFile.name.match(/\.(docx|doc)$/i)) {
+      showToast('Only Microsoft Word (.doc and .docx) documents are supported.', 'error');
       return;
     }
 
+    const isDoc = /\.doc$/i.test(selectedFile.name);
     setUploadingTemplate(true);
+    if (isDoc) {
+      showToast('Uploading .doc template and converting to .docx...', 'info');
+    }
     const formData = new FormData();
     formData.append('template', selectedFile);
     formData.append('adminEmail', userEmail || 'admin');
@@ -335,7 +339,7 @@ export default function ProposalHub() {
               {/* Upload Card */}
               <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8, color: '#0B2A6F' }}>
-                  <FileUp size={19} color="#0284c7" /> Replace Template (.docx)
+                  <FileUp size={19} color="#0284c7" /> Replace Template (.doc / .docx)
                 </h3>
 
                 <form onSubmit={handleTemplateUpload}>
@@ -347,17 +351,21 @@ export default function ProposalHub() {
                     <input
                       type="file"
                       id="template-file-input"
-                      accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                      accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/x-msword"
                       style={{ display: 'none' }}
                       onChange={(e) => setSelectedFile(e.target.files[0] || null)}
                     />
                     <label htmlFor="template-file-input" style={{ cursor: 'pointer', display: 'block' }}>
                       <Upload size={38} color="#0284c7" style={{ margin: '0 auto 10px' }} />
                       <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0369a1' }}>
-                        {selectedFile ? selectedFile.name : 'Click or drag Microsoft Word (.docx) template here'}
+                        {selectedFile ? selectedFile.name : 'Click or drag Microsoft Word (.doc or .docx) template here'}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4 }}>
-                        {selectedFile ? `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready for upload` : 'Only Microsoft Word (.docx) templates'}
+                        {selectedFile ? (
+                          `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready for upload ${selectedFile.name.match(/\.doc$/i) ? '(Will be auto-converted to .docx)' : ''}`
+                        ) : (
+                          'Supports both Microsoft Word 97-2004 (.doc) and modern (.docx) templates'
+                        )}
                       </div>
                     </label>
                   </div>
@@ -375,7 +383,7 @@ export default function ProposalHub() {
                   >
                     {uploadingTemplate ? (
                       <>
-                        <RefreshCw size={18} className="spin" /> Updating Template on Server...
+                        <RefreshCw size={18} className="spin" /> {selectedFile?.name?.match(/\.doc$/i) ? 'Converting .doc & Updating Template...' : 'Updating Template on Server...'}
                       </>
                     ) : (
                       <>
@@ -387,7 +395,18 @@ export default function ProposalHub() {
 
                 {/* Current Active Template Information */}
                 <div style={{ marginTop: 24, padding: '14px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Template on Server</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Active Template on Server</div>
+                    {templateMeta?.convertedFromDoc ? (
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', padding: '1px 8px', borderRadius: 10 }}>
+                        Converted from .DOC
+                      </span>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', fontWeight: 700, background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', padding: '1px 8px', borderRadius: 10 }}>
+                        DOCX
+                      </span>
+                    )}
+                  </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, flexWrap: 'wrap', gap: 10 }}>
                     <div>
                       <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0B2A6F' }}>{templateMeta?.filename || 'proposal_template.docx'}</div>
@@ -408,7 +427,7 @@ export default function ProposalHub() {
 
                 {/* Architecture Note */}
                 <div style={{ marginTop: 16, padding: '12px 14px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0', fontSize: '0.8rem', color: '#166534', lineHeight: 1.5 }}>
-                  <strong>How the template is used:</strong> Every time a sales rep clicks <em>Export Word (.docx)</em> or <em>Export PDF</em>, the server immediately loads this latest uploaded template file.
+                  <strong>Format Support:</strong> You can upload either <strong>.doc</strong> or <strong>.docx</strong>. If a legacy <strong>.doc</strong> is uploaded, it is automatically converted into high-fidelity <strong>.docx</strong> format on the server.
                 </div>
               </div>
 

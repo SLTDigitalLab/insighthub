@@ -12,14 +12,16 @@ const pdfParse = require('pdf-parse');
 // InsightHub accounts (designation, department, mobile number from the Request Access form)
 
 const multer = require('multer');
-const uploadDocx = multer({
+const uploadTemplate = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
   fileFilter: (req, file, cb) => {
-    if (file.originalname.match(/\.docx$/i) || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+    const isDocx = file.originalname.match(/\.docx$/i) || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const isDoc = file.originalname.match(/\.doc$/i) || file.mimetype === 'application/msword' || file.mimetype === 'application/x-msword';
+    if (isDocx || isDoc) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only Microsoft Word (.docx) documents are allowed.'));
+      cb(new Error('Invalid file type. Only Microsoft Word (.docx and .doc) documents are allowed.'));
     }
   }
 });
@@ -347,15 +349,21 @@ router.get('/template/download', (req, res) => {
   res.download(tplPath, meta.filename || 'proposal_template.docx');
 });
 
-router.post('/template/upload', uploadDocx.single('template'), (req, res) => {
+router.post('/template/upload', uploadTemplate.single('template'), async (req, res) => {
   try {
     if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ error: 'Please select a valid Microsoft Word (.docx) template file to upload.' });
+      return res.status(400).json({ error: 'Please select a valid Microsoft Word (.docx or .doc) template file to upload.' });
     }
     const adminEmail = (req.body.adminEmail || 'admin').toLowerCase().trim();
-    const meta = proposalStorage.saveLatestTemplate(req.file.buffer, req.file.originalname, adminEmail);
-    console.log(`[proposals/template] New latest template uploaded by ${adminEmail} (${req.file.originalname}, ${req.file.size} bytes)`);
-    res.json({ success: true, message: 'Latest template uploaded successfully. All new proposals will use this template.', template: meta });
+    const meta = await proposalStorage.saveLatestTemplate(req.file.buffer, req.file.originalname, adminEmail);
+    console.log(`[proposals/template] New latest template uploaded by ${adminEmail} (${req.file.originalname}, ${req.file.size} bytes, format: ${meta.uploadedFormat})`);
+    res.json({
+      success: true,
+      message: meta.convertedFromDoc
+        ? 'Latest template uploaded in .doc format, successfully converted to .docx, and set as active. All new proposals will use this template.'
+        : 'Latest template (.docx) uploaded successfully and set as active. All new proposals will use this template.',
+      template: meta
+    });
   } catch (err) {
     console.error('[proposals/template] Upload error:', err.message);
     res.status(500).json({ error: err.message || 'Failed to upload template' });
