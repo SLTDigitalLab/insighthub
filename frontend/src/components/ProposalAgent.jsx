@@ -648,8 +648,30 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
             </div>
           )}
           <div style={{ ...S.previewArea, overflow: 'hidden' }}>
-            {viewMode === 'pdf' && preview.url ? (
-              <iframe key={`${preview.url}-${jump.n}`} src={`${preview.url}#page=${jump.page}&view=FitH`} title="Proposal preview" style={{ width: '100%', height: '100%', border: 0, display: 'block' }} />
+            {viewMode === 'pdf' ? (
+              preview.url ? (
+                <iframe key={`${preview.url}-${jump.n}`} src={`${preview.url}#page=${jump.page}&view=FitH`} title="Proposal preview" style={{ width: '100%', height: '100%', border: 0, display: 'block' }} />
+              ) : previewing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
+                  <Loader2 size={36} className="spin" color={accent} />
+                  <p style={{ marginTop: 12, fontWeight: 700, fontSize: '0.95rem', color: '#0B2A6F' }}>Generating Official PDF...</p>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: 0 }}>Compiling template layout and LibreOffice document pages...</p>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b', padding: 20, textAlign: 'center' }}>
+                  <FileText size={48} color="#94a3b8" style={{ marginBottom: 12 }} />
+                  <p style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0B2A6F', margin: '0 0 6px' }}>Official PDF is not generated yet</p>
+                  <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 16px', maxWidth: 400 }}>
+                    Click below to generate the official LibreOffice PDF preview, or switch to Document View to edit fields.
+                  </p>
+                  <button
+                    onClick={() => refreshPreview()}
+                    style={{ padding: '8px 18px', background: accent, color: '#fff', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
+                  >
+                    <RefreshCw size={14} /> Generate Official PDF
+                  </button>
+                </div>
+              )
             ) : (
               <ProposalDocumentPreview fields={fields} byId={byId} accent={accent} />
             )}

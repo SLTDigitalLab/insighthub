@@ -675,55 +675,32 @@ async function tocPagesFromPdf(pdf) {
 }
 
 async function renderProposal(fields, format = 'docx') {
+  if (format === 'docx') {
+    return renderDocx(fields);
+  }
+
   const layout = { letterLevel: 0, aboutLevel: 0, networkBreak: false };
-  let first = buildDocx(fields, TOC_TEMPLATE_PAGES, layout);
+  const first = buildDocx(fields, TOC_TEMPLATE_PAGES, layout);
   let pdf;
   try {
     pdf = await docxToPdf(first.buffer);
   } catch (err) {
     if (format === 'pdf') throw err;
-    console.warn('[proposal] Layout not measured:', err.message);
+    console.warn('[proposal] PDF conversion failed:', err.message);
     return first;
-    // No LibreOffice: Word export still works, with the template's page numbers
+    // Word export still works, with the template's page numbers
   }
-  let texts = await pdfPageTexts(pdf);
-  const rerender = async () => {
-    first = buildDocx(fields, TOC_TEMPLATE_PAGES, layout);
-    pdf = await docxToPdf(first.buffer);
-    texts = await pdfPageTexts(pdf);
-  };
 
-  while (!letterFits(texts) && layout.letterLevel < LETTER_WORD_LIMITS.length - 1) {
-    layout.letterLevel += 1;
-    await rerender();
-  }
-  // Letter spilled off page 3: shorten the letter paragraphs one step and render again
-  if (!letterFits(texts)) console.warn('[proposal] Letter still longer than one page at the shortest setting');
-  while (!aboutFits(texts) && layout.aboutLevel < ABOUT_LIMITS.length - 1) {
-    layout.aboutLevel += 1;
-    await rerender();
-  }
-  // "About you" spilled onto a second page: shorten its text one step and render again (same idea as the letter)
-  if (!aboutFits(texts)) console.warn('[proposal] About you section still longer than one page at the shortest setting');
-  if (!networkFits(texts)) {
-    layout.networkBreak = true;
-    await rerender();
-  }
-  // NETWORK ARCHITECTURE and its map on different pages: move the heading to a new page
-
-  const pages = await tocPagesFromPdf(pdf);
-  if (pages.every((n, i) => n === TOC_TEMPLATE_PAGES[i])) return format === 'pdf' ? { buffer: pdf, baseName: first.baseName } : first;
-  // Numbers already right: no second render needed
-  const final = buildDocx(fields, pages, layout);
-  // Second render with the measured page numbers in the Contents page
-  return format === 'pdf' ? { buffer: await docxToPdf(final.buffer), baseName: final.baseName } : final;
+  return { buffer: pdf, baseName: first.baseName };
 }
 
 function findLibreOffice() {
   const candidates = [
     process.env.LIBREOFFICE_PATH,
     // Optional override in backend/.env
+    'C:\\Program Files\\LibreOffice\\program\\soffice.com',
     'C:\\Program Files\\LibreOffice\\program\\soffice.exe',
+    'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.com',
     'C:\\Program Files (x86)\\LibreOffice\\program\\soffice.exe',
     // Default install locations on Windows
     '/usr/bin/soffice',
