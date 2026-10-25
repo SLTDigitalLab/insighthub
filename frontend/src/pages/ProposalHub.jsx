@@ -105,21 +105,16 @@ export default function ProposalHub() {
   const handleTemplateUpload = async (e) => {
     e.preventDefault();
     if (!selectedFile) {
-      showToast('Please select a Microsoft Word (.doc or .docx) file first.', 'error');
+      showToast('Please select a Microsoft Word (.docx) file first.', 'error');
       return;
     }
-    if (!selectedFile.name.match(/\.(docx|doc)$/i)) {
-      showToast('Only Microsoft Word (.doc and .docx) documents are supported.', 'error');
+    if (!selectedFile.name.match(/\.docx$/i)) {
+      showToast('Only Microsoft Word (.docx) documents are supported. Converting legacy .doc files causes formatting errors; please save as .docx in Word before uploading.', 'error');
       return;
     }
 
-    const isDoc = /\.doc$/i.test(selectedFile.name);
     setUploadingTemplate(true);
-    if (isDoc) {
-      showToast('Converting .doc via native Microsoft Word...', 'info');
-    } else {
-      showToast('Uploading .docx template (Zero conversion)...', 'info');
-    }
+    showToast('Uploading .docx template directly...', 'info');
     const formData = new FormData();
     formData.append('template', selectedFile);
     formData.append('adminEmail', userEmail || 'admin');
@@ -355,21 +350,21 @@ export default function ProposalHub() {
               {/* Upload Card */}
               <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
                 <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8, color: '#0B2A6F' }}>
-                  <FileUp size={19} color="#0284c7" /> Replace Template (.docx recommended)
+                  <FileUp size={19} color="#0284c7" /> Replace Template (.docx only)
                 </h3>
 
-                {/* Best Practice Notice to Avoid Format Changes */}
+                {/* Direct DOCX Upload Guarantee Notice */}
                 <div style={{
-                  marginBottom: 16, padding: '12px 14px', background: '#eff6ff',
-                  borderRadius: 8, border: '1px solid #bfdbfe', fontSize: '0.83rem', color: '#1e40af', lineHeight: 1.5
+                  marginBottom: 16, padding: '12px 14px', background: '#f0fdf4',
+                  borderRadius: 8, border: '1px solid #bbf7d0', fontSize: '0.83rem', color: '#166534', lineHeight: 1.5
                 }}>
                   <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <AlertCircle size={16} color="#2563eb" />
-                    How to Avoid Format Changes
+                    <CheckCircle2 size={16} color="#16a34a" />
+                    Direct .docx Storage — 100% Format Preservation
                   </div>
                   <div>
-                    Converting legacy <strong>.doc</strong> files with automated tools can alter table widths, margins, and fonts.
-                    To guarantee <strong>100% exact layout preservation</strong>, open your template in Microsoft Word, click <strong>File &rarr; Save As &rarr; Word Document (.docx)</strong>, and upload the <strong>.docx</strong> file directly!
+                    Uploaded <strong>.docx</strong> templates are stored <strong>directly without any server-side alterations</strong>.
+                    To avoid format errors, only <strong>.docx</strong> files are accepted. If you have a <code>.doc</code> file, open it in Word and click <strong>File &rarr; Save As &rarr; Word Document (.docx)</strong> first.
                   </div>
                 </div>
 
@@ -382,7 +377,7 @@ export default function ProposalHub() {
                     <input
                       type="file"
                       id="template-file-input"
-                      accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
+                      accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                       style={{ display: 'none' }}
                       onChange={(e) => setSelectedFile(e.target.files[0] || null)}
                     />
@@ -393,46 +388,46 @@ export default function ProposalHub() {
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4 }}>
                         {selectedFile ? (
-                          `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready for upload ${selectedFile.name.match(/\.doc$/i) ? '(Legacy .doc format)' : '(Native .docx — Zero conversion)'}`
+                          `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready for upload (Direct .docx — 100% Exact Preservation)`
                         ) : (
-                          'Native .docx recommended for 100% pixel-perfect layout preservation'
+                          'Strictly .docx format — Zero conversion, 100% pixel-perfect layout preservation'
                         )}
                       </div>
                     </label>
                   </div>
 
-                  {/* Warning if legacy .doc is selected */}
-                  {selectedFile && selectedFile.name.match(/\.doc$/i) && (
+                  {/* Warning if a non-docx file is dropped */}
+                  {selectedFile && !selectedFile.name.match(/\.docx$/i) && (
                     <div style={{
-                      marginBottom: 14, padding: '10px 14px', background: '#fef3c7', borderRadius: 6,
-                      border: '1px solid #fde68a', color: '#92400e', fontSize: '0.8rem', display: 'flex', gap: 8, alignItems: 'flex-start'
+                      marginBottom: 14, padding: '10px 14px', background: '#fef2f2', borderRadius: 6,
+                      border: '1px solid #fecaca', color: '#991b1b', fontSize: '0.8rem', display: 'flex', gap: 8, alignItems: 'flex-start'
                     }}>
-                      <AlertCircle size={16} color="#d97706" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <AlertCircle size={16} color="#ef4444" style={{ flexShrink: 0, marginTop: 2 }} />
                       <div>
-                        <strong>Notice for legacy .doc files:</strong> Converting .doc files can alter formatting.
-                        For 100% exact formatting, open the file in Microsoft Word and do <strong>File &rarr; Save As &rarr; .docx</strong> before uploading.
+                        <strong>Legacy .doc file detected:</strong> Due to format distortion during conversion, .doc files are not supported.
+                        Please open your file in Microsoft Word, click <strong>File &rarr; Save As &rarr; Word Document (.docx)</strong>, and upload the <strong>.docx</strong> file directly.
                       </div>
                     </div>
                   )}
 
                   <button
                     type="submit"
-                    disabled={!selectedFile || uploadingTemplate}
+                    disabled={!selectedFile || !selectedFile.name.match(/\.docx$/i) || uploadingTemplate}
                     style={{
                       width: '100%', padding: '12px', borderRadius: 8, border: 'none',
-                      background: selectedFile ? 'linear-gradient(135deg, #0284c7 0%, #0B2A6F 100%)' : '#cbd5e1',
-                      color: '#ffffff', fontWeight: 700, fontSize: '0.92rem', cursor: selectedFile && !uploadingTemplate ? 'pointer' : 'not-allowed',
+                      background: selectedFile && selectedFile.name.match(/\.docx$/i) ? 'linear-gradient(135deg, #0284c7 0%, #0B2A6F 100%)' : '#cbd5e1',
+                      color: '#ffffff', fontWeight: 700, fontSize: '0.92rem', cursor: selectedFile && selectedFile.name.match(/\.docx$/i) && !uploadingTemplate ? 'pointer' : 'not-allowed',
                       display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                      boxShadow: selectedFile ? '0 4px 12px rgba(2, 132, 199, 0.25)' : 'none'
+                      boxShadow: selectedFile && selectedFile.name.match(/\.docx$/i) ? '0 4px 12px rgba(2, 132, 199, 0.25)' : 'none'
                     }}
                   >
                     {uploadingTemplate ? (
                       <>
-                        <RefreshCw size={18} className="spin" /> {selectedFile?.name?.match(/\.doc$/i) ? 'Converting .doc & Updating Template...' : 'Updating Template on Server...'}
+                        <RefreshCw size={18} className="spin" /> Updating Template on Server...
                       </>
                     ) : (
                       <>
-                        <Upload size={18} /> Set as Latest Template
+                        <Upload size={18} /> Set as Latest Template (.docx)
                       </>
                     )}
                   </button>

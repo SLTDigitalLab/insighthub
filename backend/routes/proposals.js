@@ -17,11 +17,10 @@ const uploadTemplate = multer({
   limits: { fileSize: 250 * 1024 * 1024 }, // 250MB
   fileFilter: (req, file, cb) => {
     const isDocx = file.originalname.match(/\.docx$/i) || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-    const isDoc = file.originalname.match(/\.doc$/i) || file.mimetype === 'application/msword' || file.mimetype === 'application/x-msword';
-    if (isDocx || isDoc) {
+    if (isDocx) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Only Microsoft Word (.docx and .doc) documents are allowed.'));
+      cb(new Error('Only Microsoft Word (.docx) documents are supported. Converting legacy .doc files causes formatting errors; please save as .docx in Microsoft Word before uploading.'));
     }
   }
 });
@@ -352,16 +351,14 @@ router.get('/template/download', (req, res) => {
 router.post('/template/upload', uploadTemplate.single('template'), async (req, res) => {
   try {
     if (!req.file || !req.file.buffer) {
-      return res.status(400).json({ error: 'Please select a valid Microsoft Word (.docx or .doc) template file to upload.' });
+      return res.status(400).json({ error: 'Please select a valid Microsoft Word (.docx) template file to upload.' });
     }
     const adminEmail = (req.body.adminEmail || 'admin').toLowerCase().trim();
     const meta = await proposalStorage.saveLatestTemplate(req.file.buffer, req.file.originalname, adminEmail);
-    console.log(`[proposals/template] New latest template uploaded by ${adminEmail} (${req.file.originalname}, ${req.file.size} bytes, format: ${meta.uploadedFormat})`);
+    console.log(`[proposals/template] New latest template (.docx) uploaded by ${adminEmail} (${req.file.originalname}, ${req.file.size} bytes)`);
     res.json({
       success: true,
-      message: meta.convertedFromDoc
-        ? 'Latest template converted via native Microsoft Word and set as active. Note: To guarantee 100% exact formatting without any conversion, uploading native .docx is always recommended.'
-        : 'Latest template (.docx) uploaded successfully with 100% exact layout preserved. All new proposals will use this template.',
+      message: 'Latest proposal template (.docx) saved directly with 100% exact layout preserved. All new proposals will use this template.',
       template: meta
     });
   } catch (err) {

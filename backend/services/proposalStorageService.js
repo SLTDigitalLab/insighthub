@@ -138,40 +138,42 @@ module.exports = {
   },
 
   saveLatestTemplate: async (fileBuffer, originalName, adminEmail) => {
-    let finalBuffer = fileBuffer;
-    const isDoc = /\.doc$/i.test(originalName) && !/\.docx$/i.test(originalName);
-    let converted = false;
-    let conversionMethod = 'none';
-
-    if (isDoc) {
-      console.log(`[proposalStorage] Converting uploaded .doc file (${originalName}) to .docx...`);
-      const convRes = await convertDocToDocx(fileBuffer);
-      finalBuffer = convRes.buffer;
-      conversionMethod = convRes.method || 'msword_native_com';
-      converted = true;
-      console.log(`[proposalStorage] .doc conversion successful (${fileBuffer.length} bytes -> ${finalBuffer.length} bytes via ${conversionMethod})`);
+    const isDocx = /\.docx$/i.test(originalName);
+    if (!isDocx) {
+      throw new Error('Converting legacy .doc files causes formatting errors. Please save your file as .docx in Microsoft Word and upload the .docx file directly.');
     }
 
-    // Sanitize template to clean raw CRM fields, strip Enterprise_STest sample data,
-    // convert merge fields to tags, and eliminate floating tables that cause overlapping text
-    const { sanitizeTemplate } = require('./templateSanitizer');
-    const sanitized = sanitizeTemplate(finalBuffer);
-    finalBuffer = sanitized.buffer;
+    // Inspect tags in read-only mode without mutating the document
+    let tagsCount = 0;
+    let warnings = [];
+    try {
+      const PizZip = require('pizzip');
+      const zip = new PizZip(fileBuffer);
+      const docXml = zip.file('word/document.xml')?.asText() || '';
+      const tags = [...new Set(docXml.match(/\{[a-zA-Z0-9_@#\/]+\}/g) || [])];
+      tagsCount = tags.length;
+      if (!docXml.includes('{companyName}')) {
+        warnings.push('Template does not appear to contain the "{companyName}" placeholder.');
+      }
+    } catch (e) {
+      console.warn('[proposalStorage] Could not inspect tags:', e.message);
+    }
 
-    // Replace current template directly with the latest sanitized template
-    fs.writeFileSync(TEMPLATE_PATH, finalBuffer);
+    // Save the uploaded .docx buffer directly to TEMPLATE_PATH - 100% exact layout preservation!
+    fs.writeFileSync(TEMPLATE_PATH, fileBuffer);
+    console.log(`[proposalStorage] Latest template (.docx) saved directly without modification (${fileBuffer.length} bytes, ${tagsCount} tags detected)`);
 
     const meta = {
       filename: originalName || 'proposal_template.docx',
       savedFormat: 'docx',
-      uploadedFormat: isDoc ? 'doc' : 'docx',
-      convertedFromDoc: converted,
+      uploadedFormat: 'docx',
+      convertedFromDoc: false,
       uploadedBy: adminEmail || 'Admin',
       updatedAt: new Date().toISOString(),
-      sizeBytes: finalBuffer.length,
+      sizeBytes: fileBuffer.length,
       originalSizeBytes: fileBuffer.length,
-      tagsCount: sanitized.tagsFound.length,
-      warnings: sanitized.warnings,
+      tagsCount,
+      warnings,
       version: `v${Date.now()}`
     };
 
