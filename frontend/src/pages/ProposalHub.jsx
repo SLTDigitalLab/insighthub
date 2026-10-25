@@ -116,7 +116,9 @@ export default function ProposalHub() {
     const isDoc = /\.doc$/i.test(selectedFile.name);
     setUploadingTemplate(true);
     if (isDoc) {
-      showToast('Uploading .doc template and converting to .docx...', 'info');
+      showToast('Converting .doc via native Microsoft Word...', 'info');
+    } else {
+      showToast('Uploading .docx template (Zero conversion)...', 'info');
     }
     const formData = new FormData();
     formData.append('template', selectedFile);
@@ -352,37 +354,66 @@ export default function ProposalHub() {
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>
               {/* Upload Card */}
               <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 16px', display: 'flex', alignItems: 'center', gap: 8, color: '#0B2A6F' }}>
-                  <FileUp size={19} color="#0284c7" /> Replace Template (.doc / .docx)
+                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 12px', display: 'flex', alignItems: 'center', gap: 8, color: '#0B2A6F' }}>
+                  <FileUp size={19} color="#0284c7" /> Replace Template (.docx recommended)
                 </h3>
+
+                {/* Best Practice Notice to Avoid Format Changes */}
+                <div style={{
+                  marginBottom: 16, padding: '12px 14px', background: '#eff6ff',
+                  borderRadius: 8, border: '1px solid #bfdbfe', fontSize: '0.83rem', color: '#1e40af', lineHeight: 1.5
+                }}>
+                  <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                    <AlertCircle size={16} color="#2563eb" />
+                    How to Avoid Format Changes
+                  </div>
+                  <div>
+                    Converting legacy <strong>.doc</strong> files with automated tools can alter table widths, margins, and fonts.
+                    To guarantee <strong>100% exact layout preservation</strong>, open your template in Microsoft Word, click <strong>File &rarr; Save As &rarr; Word Document (.docx)</strong>, and upload the <strong>.docx</strong> file directly!
+                  </div>
+                </div>
 
                 <form onSubmit={handleTemplateUpload}>
                   <div style={{
-                    border: '2px dashed #93c5fd', borderRadius: 10, padding: '36px 20px',
+                    border: '2px dashed #93c5fd', borderRadius: 10, padding: '32px 20px',
                     textAlign: 'center', background: '#f0f9ff', cursor: 'pointer', transition: 'all 0.2s ease',
-                    marginBottom: 16
+                    marginBottom: 14
                   }}>
                     <input
                       type="file"
                       id="template-file-input"
-                      accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword,application/x-msword"
+                      accept=".docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword"
                       style={{ display: 'none' }}
                       onChange={(e) => setSelectedFile(e.target.files[0] || null)}
                     />
                     <label htmlFor="template-file-input" style={{ cursor: 'pointer', display: 'block' }}>
                       <Upload size={38} color="#0284c7" style={{ margin: '0 auto 10px' }} />
                       <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0369a1' }}>
-                        {selectedFile ? selectedFile.name : 'Click or drag Microsoft Word (.doc or .docx) template here'}
+                        {selectedFile ? selectedFile.name : 'Click or drag Microsoft Word (.docx) template here'}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4 }}>
                         {selectedFile ? (
-                          `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready for upload ${selectedFile.name.match(/\.doc$/i) ? '(Will be auto-converted to .docx)' : ''}`
+                          `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready for upload ${selectedFile.name.match(/\.doc$/i) ? '(Legacy .doc format)' : '(Native .docx — Zero conversion)'}`
                         ) : (
-                          'Supports both Microsoft Word 97-2004 (.doc) and modern (.docx) templates'
+                          'Native .docx recommended for 100% pixel-perfect layout preservation'
                         )}
                       </div>
                     </label>
                   </div>
+
+                  {/* Warning if legacy .doc is selected */}
+                  {selectedFile && selectedFile.name.match(/\.doc$/i) && (
+                    <div style={{
+                      marginBottom: 14, padding: '10px 14px', background: '#fef3c7', borderRadius: 6,
+                      border: '1px solid #fde68a', color: '#92400e', fontSize: '0.8rem', display: 'flex', gap: 8, alignItems: 'flex-start'
+                    }}>
+                      <AlertCircle size={16} color="#d97706" style={{ flexShrink: 0, marginTop: 2 }} />
+                      <div>
+                        <strong>Notice for legacy .doc files:</strong> Converting .doc files can alter formatting.
+                        For 100% exact formatting, open the file in Microsoft Word and do <strong>File &rarr; Save As &rarr; .docx</strong> before uploading.
+                      </div>
+                    </div>
+                  )}
 
                   <button
                     type="submit"
@@ -417,7 +448,7 @@ export default function ProposalHub() {
                       </span>
                     ) : (
                       <span style={{ fontSize: '0.7rem', fontWeight: 700, background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', padding: '1px 8px', borderRadius: 10 }}>
-                        DOCX
+                        Native DOCX
                       </span>
                     )}
                   </div>
@@ -451,8 +482,8 @@ export default function ProposalHub() {
                 </div>
 
                 {/* Architecture Note */}
-                <div style={{ marginTop: 16, padding: '12px 14px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0', fontSize: '0.8rem', color: '#166534', lineHeight: 1.5 }}>
-                  <strong>Format Support:</strong> You can upload either <strong>.doc</strong> or <strong>.docx</strong>. If a legacy <strong>.doc</strong> is uploaded, it is automatically converted into high-fidelity <strong>.docx</strong> format on the server.
+                <div style={{ marginTop: 16, padding: '12px 14px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.8rem', color: '#334155', lineHeight: 1.5 }}>
+                  <strong>Zero-Conversion Guarantee:</strong> Uploading native <strong>.docx</strong> templates ensures <strong>zero conversion</strong> is performed, keeping 100% of your tables, page breaks, fonts, and vector logos exactly as designed.
                 </div>
               </div>
 

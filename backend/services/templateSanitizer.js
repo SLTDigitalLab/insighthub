@@ -67,14 +67,6 @@ function sanitizeTemplate(buffer) {
     // 5. Remove floating table positioning so LibreOffice & Word do not stack tables on top of each other
     if (hasFloatingTables) {
       xml = xml.replace(/<w:tblpPr\b[^>]*\/>/gis, '');
-      // Center tables inline
-      xml = xml.replace(/(<w:tblPr>)(.*?)(<\/w:tblPr>)/gis, (full, open, pr, close) => {
-        let cleanPr = pr.replace(/<w:jc\s+w:val="[^"]*"\/>/gi, '');
-        if (!cleanPr.includes('<w:jc')) {
-          cleanPr = cleanPr.replace(/(<w:tblW\b[^>]*\/>)/i, `$1<w:jc w:val="center"/>`);
-        }
-        return `${open}${cleanPr}${close}`;
-      });
     }
 
     zip.file('word/document.xml', xml);

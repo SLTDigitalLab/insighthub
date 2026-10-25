@@ -11,3 +11,6 @@ backend/data/*.jsonl
 *.lock
 *.backup
 *.bak
+*.doc
+scratch/
+test_*.docx

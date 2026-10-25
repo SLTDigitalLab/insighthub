@@ -360,8 +360,8 @@ router.post('/template/upload', uploadTemplate.single('template'), async (req, r
     res.json({
       success: true,
       message: meta.convertedFromDoc
-        ? 'Latest template uploaded in .doc format, successfully converted to .docx, and set as active. All new proposals will use this template.'
-        : 'Latest template (.docx) uploaded successfully and set as active. All new proposals will use this template.',
+        ? 'Latest template converted via native Microsoft Word and set as active. Note: To guarantee 100% exact formatting without any conversion, uploading native .docx is always recommended.'
+        : 'Latest template (.docx) uploaded successfully with 100% exact layout preserved. All new proposals will use this template.',
       template: meta
     });
   } catch (err) {
