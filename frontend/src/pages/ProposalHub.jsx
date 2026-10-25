@@ -136,6 +136,20 @@ export default function ProposalHub() {
     }
   };
 
+  const handleResetTemplate = async () => {
+    if (!window.confirm('Are you sure you want to restore the official system default proposal template? This will replace the active template with the clean master template.')) return;
+    try {
+      setUploadingTemplate(true);
+      const { data } = await axios.post('/api/proposals/template/reset');
+      showToast(data.message || 'Template restored to official system default!');
+      fetchTemplateInfo();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to restore default template.', 'error');
+    } finally {
+      setUploadingTemplate(false);
+    }
+  };
+
   const handleDeleteProposal = async (id, refNo) => {
     if (!window.confirm(`Are you sure you want to delete proposal ${refNo || id}?`)) return;
     try {
@@ -414,14 +428,25 @@ export default function ProposalHub() {
                         Updated: {templateMeta?.updatedAt ? new Date(templateMeta.updatedAt).toLocaleString() : 'System Default'} &nbsp;•&nbsp; Size: {templateMeta?.sizeBytes ? (templateMeta.sizeBytes / (1024 * 1024)).toFixed(2) + ' MB' : '—'}
                       </div>
                     </div>
-                    <a
-                      href="/api/proposals/template/download"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#eff6ff', color: '#0284c7', borderRadius: 6, border: '1px solid #bfdbfe', textDecoration: 'none', fontSize: '0.82rem', fontWeight: 700 }}
-                    >
-                      <Download size={14} /> Download File
-                    </a>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <a
+                        href="/api/proposals/template/download"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', background: '#eff6ff', color: '#0284c7', borderRadius: 6, border: '1px solid #bfdbfe', textDecoration: 'none', fontSize: '0.82rem', fontWeight: 700 }}
+                      >
+                        <Download size={14} /> Download File
+                      </a>
+                      <button
+                        type="button"
+                        onClick={handleResetTemplate}
+                        disabled={uploadingTemplate}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', background: '#f8fafc', color: '#475569', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}
+                        title="Restore the pristine system default template"
+                      >
+                        <RefreshCw size={13} className={uploadingTemplate ? "spin" : ""} /> Restore Default
+                      </button>
+                    </div>
                   </div>
                 </div>
 

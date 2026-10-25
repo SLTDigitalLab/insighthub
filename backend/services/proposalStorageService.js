@@ -139,7 +139,13 @@ module.exports = {
       console.log(`[proposalStorage] .doc conversion successful (${fileBuffer.length} bytes -> ${finalBuffer.length} bytes)`);
     }
 
-    // Replace current template directly with the latest template
+    // Sanitize template to clean raw CRM fields, strip Enterprise_STest sample data,
+    // convert merge fields to tags, and eliminate floating tables that cause overlapping text
+    const { sanitizeTemplate } = require('./templateSanitizer');
+    const sanitized = sanitizeTemplate(finalBuffer);
+    finalBuffer = sanitized.buffer;
+
+    // Replace current template directly with the latest sanitized template
     fs.writeFileSync(TEMPLATE_PATH, finalBuffer);
 
     const meta = {
@@ -151,9 +157,31 @@ module.exports = {
       updatedAt: new Date().toISOString(),
       sizeBytes: finalBuffer.length,
       originalSizeBytes: fileBuffer.length,
+      tagsCount: sanitized.tagsFound.length,
+      warnings: sanitized.warnings,
       version: `v${Date.now()}`
     };
 
+    fs.writeFileSync(TEMPLATE_META_FILE, JSON.stringify(meta, null, 2), 'utf8');
+    return meta;
+  },
+
+  resetToDefaultTemplate: () => {
+    const DEFAULT_TEMPLATE = path.join(__dirname, '..', 'templates', 'default_proposal_template.docx');
+    if (!fs.existsSync(DEFAULT_TEMPLATE)) {
+      throw new Error('Default system template backup not found');
+    }
+    fs.copyFileSync(DEFAULT_TEMPLATE, TEMPLATE_PATH);
+    const meta = {
+      filename: 'default_proposal_template.docx',
+      savedFormat: 'docx',
+      uploadedFormat: 'docx',
+      convertedFromDoc: false,
+      uploadedBy: 'System (Restored Default)',
+      updatedAt: new Date().toISOString(),
+      sizeBytes: fs.statSync(TEMPLATE_PATH).size,
+      version: '1.0'
+    };
     fs.writeFileSync(TEMPLATE_META_FILE, JSON.stringify(meta, null, 2), 'utf8');
     return meta;
   },

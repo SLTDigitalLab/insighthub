@@ -370,6 +370,21 @@ router.post('/template/upload', uploadTemplate.single('template'), async (req, r
   }
 });
 
+router.post('/template/reset', (req, res) => {
+  try {
+    const meta = proposalStorage.resetToDefaultTemplate();
+    console.log('[proposals/template] Template reset to system default template');
+    res.json({
+      success: true,
+      message: 'Proposal template has been successfully restored to the official system default template.',
+      template: meta
+    });
+  } catch (err) {
+    console.error('[proposals/template] Reset error:', err.message);
+    res.status(500).json({ error: err.message || 'Failed to reset template' });
+  }
+});
+
 async function sectionPages(pdf) {
   const texts = [];
   await pdfParse(pdf, {

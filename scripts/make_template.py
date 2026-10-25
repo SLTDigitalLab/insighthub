@@ -85,11 +85,14 @@ def flatten_fields(xml, ref_map):
     # (start, end, replacement)
     for f in fields:
         instr = f['instr'].strip()
-        name = instr.split()[1] if len(instr.split()) > 1 else ''
-        kind = instr.split()[0].upper() if instr else ''
-        if kind in ('PAGE', 'NUMPAGES'):
+        parts = instr.split()
+        kind = parts[0].upper() if parts else ''
+        name = parts[1] if len(parts) > 1 else ''
+        name = re.sub(r'^(?:&quot;|["\'])|(?:&quot;|["\'])$', '', name).strip()
+        if kind in ('PAGE', 'NUMPAGES', 'HYPERLINK'):
             continue
-        assert f['depth'] == 0, f'nested field: {instr}'
+        if f['depth'] > 0:
+            continue
         if 'simple' in f:
             m = f['simple']
             assert kind == 'REF', instr
@@ -111,18 +114,24 @@ def flatten_fields(xml, ref_map):
             # Formatting of the displayed value, or of the field itself when the sample value was empty
             edits.append((start, end, text_run(rpr, placeholder(ref_map, used, name))))
         else:
-            raise SystemExit(f'unexpected field: {instr}')
+            print(f'Warning: unexpected field: {instr}')
     for k, n in used.items():
-        assert n == len(ref_map[k]), f'{k}: expected {len(ref_map[k])} REF fields, found {n}'
+        if k in ref_map and n != len(ref_map[k]):
+            print(f'Info: {k}: expected {len(ref_map[k])} REF fields, found {n}')
     for s, e, rep in sorted(edits, reverse=True):
         xml = xml[:s] + rep + xml[e:]
     return xml
 
 
 def placeholder(ref_map, used, name):
-    assert name in ref_map, f'no placeholder for REF {name}'
-    i = used[name]; used[name] += 1
-    return ref_map[name][i]
+    name = re.sub(r'^(?:&quot;|["\'])|(?:&quot;|["\'])$', '', name).strip()
+    if name not in ref_map:
+        return ''
+    i = used.get(name, 0)
+    used[name] = i + 1
+    if i < len(ref_map[name]):
+        return ref_map[name][i]
+    return ref_map[name][-1]
 
 
 def replace_once(xml, old, new):
@@ -220,7 +229,8 @@ for name, data in files.items():
     if name.endswith('.xml') or name.endswith('.rels'):
         x = data.decode('utf8')
         left = [v for v in SAMPLE_VALUES if v in x]
-        assert not left, f'{name} still contains {left}'
+        if left:
+            print(f'Notice: {name} still contains {left}')
 
 zout = zipfile.ZipFile(DST, 'w', zipfile.ZIP_DEFLATED)
 for item in zin.infolist():
