@@ -14,7 +14,7 @@ const pdfParse = require('pdf-parse');
 const multer = require('multer');
 const uploadTemplate = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB
+  limits: { fileSize: 250 * 1024 * 1024 }, // 250MB
   fileFilter: (req, file, cb) => {
     const isDocx = file.originalname.match(/\.docx$/i) || file.mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
     const isDoc = file.originalname.match(/\.doc$/i) || file.mimetype === 'application/msword' || file.mimetype === 'application/x-msword';

@@ -178,11 +178,14 @@ async function indexChunks(docId, fileName, chunks) {
   const coll = await getCollection();
   if (coll) {
     try {
-      await coll.upsert({
-        ids: ids,
-        documents: chunks,
-        metadatas: metadatas
-      });
+      const BATCH_SIZE = 500;
+      for (let i = 0; i < chunks.length; i += BATCH_SIZE) {
+        await coll.upsert({
+          ids: ids.slice(i, i + BATCH_SIZE),
+          documents: chunks.slice(i, i + BATCH_SIZE),
+          metadatas: metadatas.slice(i, i + BATCH_SIZE)
+        });
+      }
       console.log(`[ChromaDB] Successfully indexed ${chunks.length} chunks for ${fileName}`);
       return { indexed: chunks.length, status: 'indexed_chroma' };
     } catch (err) {

@@ -27,8 +27,8 @@ const APP_BASE_URL = process.env.APP_BASE_URL || 'https://insighthub.raccoon-ai.
 
 // Middleware
 app.use(cors());
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+app.use(express.json({ limit: '250mb' }));
+app.use(express.urlencoded({ extended: true, limit: '250mb' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/proposals', require('./routes/proposals'));
@@ -57,7 +57,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
+  limits: { fileSize: 250 * 1024 * 1024 }, // 250MB limit for large enterprise product documents
   fileFilter: (req, file, cb) => {
     const cleanName = (file.originalname || '').replace(/^["']|["']$/g, '').trim();
     const ext = path.extname(cleanName).toLowerCase();

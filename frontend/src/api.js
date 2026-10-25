@@ -18,7 +18,7 @@ export const uploadKnowledgeBaseDocument = async (file, onProgress) => {
           onProgress(percentCompleted);
         }
       },
-      timeout: 180000 // 3 minutes timeout for parsing/embedding
+      timeout: 600000 // 10 minutes timeout for large documents (80MB+) parsing/embedding
     }
   );
 
