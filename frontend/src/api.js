@@ -12,9 +12,6 @@ export const uploadKnowledgeBaseDocument = async (file, onProgress) => {
     BACKEND_ENDPOINTS.uploadDocument,
     formData,
     {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
       onUploadProgress: (progressEvent) => {
         if (onProgress && progressEvent.total) {
           const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);

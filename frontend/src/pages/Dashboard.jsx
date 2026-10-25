@@ -425,7 +425,8 @@ const Dashboard = () => {
       loadKbDocuments();
     } catch (err) {
       console.error("Server upload error:", err);
-      showToast(err.response?.data?.error || err.message || 'Failed to upload document to server.', 'error');
+      const errMsg = err.response?.data?.error || (typeof err.response?.data === 'string' ? err.response.data.replace(/<[^>]+>/g, '').trim() : null) || err.message || 'Failed to upload document to server.';
+      showToast(errMsg, 'error');
     } finally {
       setUploading(false);
     }

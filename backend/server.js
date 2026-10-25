@@ -59,11 +59,27 @@ const upload = multer({
   storage: storage,
   limits: { fileSize: 50 * 1024 * 1024 }, // 50MB limit
   fileFilter: (req, file, cb) => {
-    const allowedTypes = ['application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel', 'text/csv'];
-    if (allowedTypes.includes(file.mimetype) || file.originalname.match(/\.(pdf|txt|doc|docx|xlsx|xls|csv)$/i)) {
+    const cleanName = (file.originalname || '').replace(/^["']|["']$/g, '').trim();
+    const ext = path.extname(cleanName).toLowerCase();
+    const allowedExts = ['.pdf', '.txt', '.doc', '.docx', '.xlsx', '.xls', '.csv', '.tsv', '.json', '.md'];
+    const allowedMimes = [
+      'application/pdf',
+      'text/plain',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'application/vnd.ms-excel',
+      'text/csv',
+      'text/tab-separated-values',
+      'application/json',
+      'application/octet-stream',
+      'application/zip',
+      'application/x-zip-compressed'
+    ];
+    if (allowedExts.includes(ext) || allowedMimes.includes(file.mimetype)) {
       cb(null, true);
     } else {
-      cb(new Error('Invalid file type. Allowed: PDF, TXT, Word, Excel (.xlsx/.xls), and CSV files.'));
+      cb(new Error(`Invalid file type "${ext || file.mimetype}". Allowed types: PDF, Word (.docx/.doc), Excel (.xlsx/.xls), CSV, and TXT.`));
     }
   }
 });
@@ -189,7 +205,15 @@ app.get('/api/documents', (req, res) => {
   }
 });
 
-app.post('/api/documents/upload', upload.single('file'), async (req, res) => {
+app.post('/api/documents/upload', (req, res, next) => {
+  upload.single('file')(req, res, (err) => {
+    if (err) {
+      console.error('[Upload Multer Error]', err.message);
+      return res.status(400).json({ success: false, error: err.message });
+    }
+    next();
+  });
+}, async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({ success: false, error: 'No file uploaded.' });
@@ -1546,6 +1570,16 @@ app.delete('/api/search-history', (req, res) => {
 });
 
 const { indexPdfPortfolioToChroma } = require('./services/pdfIndexerService');
+
+// Global Error Handling Middleware
+app.use((err, req, res, next) => {
+  console.error('[Global Server Error]', err);
+  const status = err.status || (err.name === 'MulterError' ? 400 : 500);
+  res.status(status).json({
+    success: false,
+    error: err.message || 'Internal server error occurred.'
+  });
+});
 
 // Start Server
 app.listen(PORT, '0.0.0.0', () => {
