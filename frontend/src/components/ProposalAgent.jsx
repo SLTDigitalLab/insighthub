@@ -7,6 +7,7 @@ import { Search, Building2, MapPin, Star, Download, ChevronDown, ChevronRight, A
 
 const API = '/api/proposals';
 // Relative path like the other calls in api.js — Vite/nginx forwards it to the backend
+const ACTIVE_SESSION_KEY = 'insightHub_activeProposalSession';
 const CONTACT_KEYS = ['amName', 'amDesignation', 'amPhone', 'amEmail', 'amDivision', 'rebmName', 'rebmDesignation', 'rebmPhone', 'rebmEmail', 'rebmDivision'];
 // Contact fields the rep can edit on the Contact page section
 const ACK_KEYS = ['ackAddressee1', 'ackAddressee2', 'ackDate', 'ackPrefill', 'ackCompanyName', 'ackAddress', 'ackSolution', 'ackInitialCharge', 'ackMonthlyCharge', 'ackCommitment'];
@@ -50,10 +51,49 @@ async function previewPdf(fields) {
   // pages = { cover, letter, requirements, about, solution, investment } -> PDF page numbers, for the quick-jump chips
 }
 
-export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null }) {
+export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null, onClearProposal = null }) {
+  // Read any saved draft session so tab switching or browser sleep never loses in-progress proposal
+  const savedSession = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   // user = logged-in rep's account details { name, email, designation, phone, division } (any missing one is ''); accent = this agent's sidebar colour
-  const [step, setStep] = useState('search');
+  const [step, setStep] = useState(() => {
+    if (initialProposal?.fields) return 'edit';
+    if (savedSession?.step === 'edit' && savedSession?.fields) return 'edit';
+    if (savedSession?.step === 'products' && savedSession?.business) return 'products';
+    return 'search';
+  });
   // 'search' -> 'products' -> 'edit'
+
+  const [business, setBusiness] = useState(() => {
+    if (initialProposal) return initialProposal.business || { name: initialProposal.companyName, category: initialProposal.category, address: initialProposal.address };
+    if (savedSession?.business) return savedSession.business;
+    return null;
+  });
+
+  const [selected, setSelected] = useState(() => {
+    if (initialProposal) return Array.isArray(initialProposal.products) ? initialProposal.products.map(p => typeof p === 'object' ? p.id : p).filter(Boolean) : [];
+    if (Array.isArray(savedSession?.selected)) return savedSession.selected;
+    return [];
+  });
+
+  const [fields, setFields] = useState(() => {
+    if (initialProposal?.fields) return initialProposal.fields;
+    if (savedSession?.fields) return savedSession.fields;
+    return null;
+  });
+
+  const [refFromSection, setRefFromSection] = useState(() => {
+    if (savedSession?.refFromSection !== undefined) return savedSession.refFromSection;
+    return true;
+  });
+
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState('');
   // '' or what is running: 'search' | 'generate' | 'docx' | 'pdf'
@@ -61,17 +101,12 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   const [results, setResults] = useState([]);
   const [manual, setManual] = useState({ name: '', address: '', category: '' });
   // Business typed in by hand — used when the search isn't available or doesn't find the business
-  const [business, setBusiness] = useState(null);
-  // The business the rep picked
   const [catalogue, setCatalogue] = useState([]);
   const [suggested, setSuggested] = useState([]);
-  const [refFromSection, setRefFromSection] = useState(true);
   // false when the server used the neutral SLT- prefix because the account has no Section
-  const [selected, setSelected] = useState([]);
   // Ticked product ids, in the order ticked (= order in the proposal)
   const [filter, setFilter] = useState('');
   const [openPillars, setOpenPillars] = useState({});
-  const [fields, setFields] = useState(null);
   const [checks, setChecks] = useState({ notes: [], failed: [] });
   // Proposal Agent notes + sources it couldn't read (kept in state, not shown)
   // Every variable part of the template, generated then edited by the rep
@@ -79,13 +114,13 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   const [preview, setPreview] = useState({ url: '', pages: {}, fields: null });
   // Last good preview: blob URL of the PDF, section pages, and the fields it was made from
   const [previewError, setPreviewError] = useState('');
-  const [viewMode, setViewMode] = useState('doc');
+  const [viewMode, setViewMode] = useState(() => savedSession?.viewMode || 'doc');
   // 'doc' (interactive live document sheet) | 'pdf' (LibreOffice PDF iframe)
   const [jump, setJump] = useState({ page: 1, n: 0 });
   // Page the preview is showing; n changes on every chip click so the viewer reloads at that page
   const urlRef = useRef('');
   const seq = useRef(0);
-  const contactEdits = useRef({});
+  const contactEdits = useRef(savedSession?.contactEdits || {});
   // Contact Us values the rep has typed (key -> value), kept across Generate for this session
   // urlRef = current blob URL (freed when replaced / on leaving); seq drops out-of-date preview responses
 
@@ -234,15 +269,93 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   useEffect(() => () => { if (urlRef.current) URL.revokeObjectURL(urlRef.current); }, []);
   // Frees the PDF when leaving the page
 
+  // Ensure product catalogue is always loaded so features and diagrams render properly
+  useEffect(() => {
+    if (catalogue.length === 0) {
+      axios.get(`${API}/products`, { params: { category: business?.category || '' } })
+        .then(({ data }) => {
+          if (Array.isArray(data.products)) setCatalogue(data.products);
+          if (Array.isArray(data.suggested)) setSuggested(data.suggested);
+        })
+        .catch(err => console.warn('[proposalAgent/products]', err.message));
+    }
+  }, [business?.category, catalogue.length]);
+
+  // Auto-persist active proposal session to localStorage (prevents loss on tab switch, sleep, or reload)
+  useEffect(() => {
+    if (step === 'edit' && fields && business) {
+      try {
+        const payload = {
+          step: 'edit',
+          business,
+          selected,
+          fields,
+          refFromSection,
+          contactEdits: contactEdits.current,
+          viewMode,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(payload));
+      } catch (err) {
+        console.warn('[proposalAgent/saveSession]', err);
+      }
+    } else if (step === 'products' && business) {
+      try {
+        const payload = {
+          step: 'products',
+          business,
+          selected,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(payload));
+      } catch {}
+    }
+  }, [step, fields, business, selected, refFromSection, viewMode]);
+
   useEffect(() => {
     if (initialProposal && initialProposal.fields) {
       setFields(initialProposal.fields);
-      setBusiness(initialProposal.business || { name: initialProposal.companyName, category: initialProposal.category, address: initialProposal.address });
-      setSelected(Array.isArray(initialProposal.products) ? initialProposal.products.map(p => typeof p === 'object' ? p.id : p).filter(Boolean) : []);
+      const b = initialProposal.business || { name: initialProposal.companyName, category: initialProposal.category, address: initialProposal.address };
+      setBusiness(b);
+      const sel = Array.isArray(initialProposal.products) ? initialProposal.products.map(p => typeof p === 'object' ? p.id : p).filter(Boolean) : [];
+      setSelected(sel);
       setStep('edit');
       refreshPreview(initialProposal.fields);
     }
   }, [initialProposal]);
+
+  // Reconnection and tab visibility recovery (e.g. returning from YouTube or other tabs)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        if (step === 'edit' && fields && viewMode === 'pdf' && !preview.url && !previewing) {
+          refreshPreview(fields);
+        }
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => document.removeEventListener('visibilitychange', handleVisibility);
+  }, [step, fields, viewMode, preview.url, previewing]);
+
+  const handleStartFresh = () => {
+    if (window.confirm('Start a fresh proposal? Any unsaved edits on the current draft will be cleared from this screen.')) {
+      try {
+        localStorage.removeItem(ACTIVE_SESSION_KEY);
+      } catch {}
+      setFields(null);
+      setBusiness(null);
+      setSelected([]);
+      setFilter('');
+      setStep('search');
+      setResults([]);
+      setError('');
+      setPreview({ url: '', pages: {}, fields: null });
+      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      urlRef.current = '';
+      contactEdits.current = {};
+      if (onClearProposal) onClearProposal();
+    }
+  };
 
   function jumpTo(key) {
     if (viewMode === 'pdf' && preview.url) {
@@ -357,10 +470,26 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
       <button style={S.ghost} onClick={() => setStep(step === 'edit' ? 'products' : 'search')}>
         <ArrowLeft size={16} /> {step === 'edit' ? 'Change products' : 'Change business'}
       </button>
-      <div style={{ minWidth: 0 }}>
+      <div style={{ minWidth: 0, flex: 1 }}>
         <div style={{ fontWeight: 700, fontSize: '1.08rem', color: 'var(--text-main, #0f172a)' }}>{business.name}</div>
         <div style={S.meta}>{[business.category, business.address].filter(Boolean).join(' · ')}</div>
       </div>
+      {step === 'edit' && (
+        <button
+          type="button"
+          onClick={handleStartFresh}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 14px', background: '#f8fafc',
+            border: '1px solid #cbd5e1', borderRadius: 8,
+            fontSize: '0.82rem', fontWeight: 700, color: '#0B2A6F',
+            cursor: 'pointer', boxShadow: '0 1px 2px rgba(0,0,0,0.04)'
+          }}
+          title="Clear current active proposal draft and start fresh"
+        >
+          <RefreshCw size={13} /> Start Fresh Proposal
+        </button>
+      )}
     </div>
   );
   // Bar showing the chosen business, with a back button

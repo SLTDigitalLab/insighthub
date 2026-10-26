@@ -147,6 +147,13 @@ export default function ProposalHub() {
     }
   };
 
+  const handleStartFreshProposal = () => {
+    setSelectedProposal(null);
+    try {
+      localStorage.removeItem('insightHub_activeProposalSession');
+    } catch {}
+  };
+
   const handleDeleteProposal = async (id, refNo) => {
     if (!window.confirm(`Are you sure you want to delete proposal ${refNo || id}?`)) return;
     try {
@@ -154,7 +161,7 @@ export default function ProposalHub() {
       showToast('Proposal removed from system.');
       setSavedProposals(prev => prev.filter(p => p.id !== id && p.refNo !== id));
       if (selectedProposal && (selectedProposal.id === id || selectedProposal.refNo === id)) {
-        setSelectedProposal(null);
+        handleStartFreshProposal();
       }
     } catch (err) {
       showToast('Failed to delete proposal.', 'error');
@@ -298,7 +305,7 @@ export default function ProposalHub() {
       <main style={{ flex: 1, padding: activeTab === 'generator' ? '20px 24px' : '32px 36px', maxWidth: activeTab === 'generator' ? '100%' : '1350px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         
         {/* TAB 1: Proposal Generator Wizard */}
-        {activeTab === 'generator' && (
+        <div style={{ display: activeTab === 'generator' ? 'block' : 'none' }}>
           <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', padding: 24 }}>
             {selectedProposal && (
               <div style={{
@@ -318,7 +325,7 @@ export default function ProposalHub() {
                   </div>
                 </div>
                 <button
-                  onClick={() => setSelectedProposal(null)}
+                  onClick={handleStartFreshProposal}
                   style={{
                     padding: '6px 14px', background: '#ffffff', border: '1px solid #cbd5e1',
                     borderRadius: 6, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
@@ -332,9 +339,10 @@ export default function ProposalHub() {
             <ProposalAgent
               user={proposalUser || { name: userName, email: userEmail, designation: '', phone: '', division: '' }}
               initialProposal={selectedProposal}
+              onClearProposal={handleStartFreshProposal}
             />
           </div>
-        )}
+        </div>
 
         {/* TAB 2: Upload Latest Template (Admin Only) */}
         {activeTab === 'template' && (
