@@ -169,14 +169,40 @@ function imagePara(rId, docPrId, name, size) {
   // Standard Word inline picture XML pointing at the image relationship rId
 }
 
-function keyFeaturesXml(product, beforeDiagram) {
-  const features = product ? product.features.map(f => String(f || '').trim()).filter(Boolean) : [];
-  if (!features.length) return '';
-  // No features (or a requirement the rep added by hand) = no "Key Features" label at all
-  return textPara(run('Key Features', { bold: true }), { before: 100, after: 20, keepNext: true })
-    + features.map((f, j) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${j < features.length - 1 || beforeDiagram ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="20" w:after="20"/><w:ind w:left="720" w:right="360" w:hanging="300"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(f)}</w:p>`).join('');
-  // "Key Features" label + one "•" bullet per feature, word for word from the knowledge base (products.json, parsed from the
-  // Portfolio PDF); a long feature wraps under its own text. keepNext keeps the list with the diagram that follows it.
+function customerBenefitsXml(product, beforeDiagram) {
+  const benefits = product ? (product.customerBenefits || []).map(b => String(b || '').trim()).filter(Boolean) : [];
+  if (!benefits.length) return '';
+  return textPara(run('Customer Benefits', { bold: true, color: '0B2A6F' }), { before: 100, after: 20, keepNext: true })
+    + benefits.map((b, j) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${j < benefits.length - 1 || beforeDiagram ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="20" w:after="20"/><w:ind w:left="720" w:right="360" w:hanging="300"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
+}
+
+function termsAndConditionsXml(products) {
+  let xml = '';
+  const productsWithTerms = (products || []).filter(p => p && String(p.termsAndConditions || '').trim());
+  if (productsWithTerms.length) {
+    xml += textPara(run('Product-Specific Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 140, after: 60, keepNext: true });
+    productsWithTerms.forEach((p, idx) => {
+      xml += textPara(run(`${idx + 1}.  ${p.name}`, { bold: true, color: '0B2A6F' }), { before: idx === 0 ? 60 : 120, after: 30, keepNext: true });
+      xml += textPara(run(String(p.termsAndConditions).trim()), { before: 20, after: 60 });
+    });
+  }
+
+  const GENERAL_TERMS = [
+    'All prices are valid for 30 days period from the date of submission of the proposal.',
+    'The quoted prices shall be subjected to prevailing applicable taxes at the time of invoicing.',
+    'Since this is a budgetary quotation, do not make any payment against this quotation please.',
+    'SLT has all the rights to revise the proposal.',
+    'Information in this proposal shall not be disclosed to any third party by the customer.',
+    'Customer shall not use the service for any unlawful act and be solely responsible for all information retrieved, stored and transmitted through the Service by the Company and comply with all regulatory conditions-imposed from time to time by TRCSL.',
+    'Customer shall bear the cost of any transfer or change of the Service at the customer’s request.',
+  ];
+
+  xml += textPara(run('General Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 180, after: 60, keepNext: true });
+  GENERAL_TERMS.forEach((term, idx) => {
+    xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="30" w:after="30"/><w:ind w:left="720" w:right="360" w:hanging="360"/></w:pPr><w:r><w:rPr><w:color w:val="231F20"/></w:rPr><w:t>${idx + 1}.</w:t></w:r><w:r><w:tab/></w:r>${run(term)}</w:p>`;
+  });
+
+  return xml || '<w:p/>';
 }
 
 function addDiagramsAndBuildRequirements(zip, requirements) {
@@ -185,16 +211,19 @@ function addDiagramsAndBuildRequirements(zip, requirements) {
   // List of files (images etc.) the document links to
   let xml = '';
   requirements.forEach((r, i) => {
-    xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 120 : 280, keepNext: true });
+    // Reserve one page for each product: insert page break before product 1, 2, ...
+    if (i > 0) {
+      xml += '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
+    }
+    xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 120 : 160, keepNext: true });
     // Numbered requirement title in SLT navy (editable by the rep)
     if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 40, keepNext: true });
     // Requirement description (editable by the rep)
     const product = PRODUCT_BY_ID[r.id];
     const own = product && path.join(DIAGRAM_DIR, `${product.id}.png`);
     const hasDiagram = !!own && fs.existsSync(own);
-    if (r.showFeatures !== false) xml += keyFeaturesXml(product, hasDiagram);
-    // The product's Key Features from the knowledge base, between its description and its diagram,
-    // unless the rep unticked "Show Key Features" (missing = shown, so older saved proposals still get them)
+    // Replace Key Features with Customer Benefits from the knowledge base
+    xml += customerBenefitsXml(product, hasDiagram);
     if (!hasDiagram) return;
     // A requirement the rep added by hand, or a product without its own diagram, shows its text only
     const buf = fs.readFileSync(own);
@@ -202,7 +231,9 @@ function addDiagramsAndBuildRequirements(zip, requirements) {
     zip.file(`word/media/${mediaName}`, buf);
     // Copies the image into the .docx
     const rId = `rIdIH${i + 1}`;
-    rels = rels.replace('</Relationships>', `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaName}"/></Relationships>`);
+    if (!rels.includes(`Id="${rId}"`)) {
+      rels = rels.replace('</Relationships>', `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaName}"/></Relationships>`);
+    }
     // Registers the image so the document can reference it
     xml += imagePara(rId, 9000 + i, `${product.name} diagram`, pngSize(buf));
     // The diagram goes under the requirement
@@ -286,7 +317,9 @@ function generateFields({ business, productIds = [], user = {}, refNo, defaults 
 
   const addr = splitAddress(business.address);
   const station = business.city || localityOf(business.address);
-  // SLT station column = the customer's city
+  const introParagraphs = products.map(p => String(p.proposalDescription || p.description || '').trim()).filter(Boolean);
+  const solutionIntro1 = introParagraphs[0] || '';
+  const solutionIntro2 = introParagraphs.slice(1).join('\n\n');
 
   return {
     companyName: business.name,
@@ -301,13 +334,16 @@ function generateFields({ business, productIds = [], user = {}, refNo, defaults 
     // Letter header on page 3
     solutionName: joinNames(products.map(p => p.name)),
     // "We are pleased to submit the attached proposal for BIL, Managed WiFi and Enterprise TV"
-    solutionIntro1: products[0].description,
-    // First letter paragraph = description of the first product, from the knowledge base
-    solutionIntro2: products.length > 1
-      ? `In addition, the proposed solution includes ${joinNames(products.slice(1).map(p => p.name))}. Each requirement and its solution diagram is detailed in the following pages of this proposal.`
-      : `Key features include ${products[0].features.slice(0, 3).map(f => f.replace(/\.$/, '')).join('; ')}.`,
-    // Second paragraph: the other products, or the key features if only one was ticked
-    requirements: products.map(p => ({ id: p.id, title: p.name, text: firstSentence(p.description), showFeatures: true })),
+    solutionIntro1,
+    // First letter paragraph = proposal description of first product from knowledge base
+    solutionIntro2,
+    // Subsequent letter paragraphs = proposal descriptions of other products from knowledge base
+    requirements: products.map(p => ({
+      id: p.id,
+      title: p.name,
+      text: p.proposalDescription || p.description,
+      showFeatures: false,
+    })),
     // Page 6: one requirement per product; id links it to its network diagram
     aboutDescription: describeBusiness(business),
     recommendations: recommendFor(business, productIds),
@@ -429,27 +465,23 @@ function applyAgentProposal(fields, proposal = {}) {
   const named = (text, i) => useCatalogueName(text, agentNames[fields.requirements[i].id], products[i]);
   const allNamed = text => fields.requirements.reduce((t, r, i) => named(t, i), String(text || ''));
 
-  const agentParagraphs = Array.isArray(letter.productParagraphs) ? letter.productParagraphs : [];
-  const many = products.length >= 4;
-  // 4+ products: one short sentence (~20 words) each; 1-3 products: up to 2 sentences each
-  const productParagraphs = products.map((p, i) => {
-    const text = dropFixedLetterText(named(agentParagraphs[i], i)) || (p ? p.description : '');
-    return many ? shortProductSentence(text, p, 20) : firstSentences(text, 2);
-  }).filter(Boolean);
-  // Every selected product gets its own paragraph, in order; if n8n sent none for a product, its catalogue description is used
-  const tailoredText = dropFixedLetterText(allNamed(letter.tailored));
-  const tailored = many ? shortSentence(tailoredText, 20) : firstSentences(tailoredText, 2);
-  // The tailored paragraph is optional: with 4+ products it is dropped if it can't be said cleanly in ~20 words
-  // Whether it all fits on page 3 is checked on the rendered PDF (see renderProposal)
+  // "No need to generate product description. Add only the description in the proposal description part"
+  const introParagraphs = products.map(p => String((p && p.proposalDescription) || (p && p.description) || '').trim()).filter(Boolean);
+  const solutionIntro1 = introParagraphs[0] || fields.solutionIntro1;
+  const solutionIntro2 = introParagraphs.slice(1).join('\n\n');
 
   return {
     ...fields,
     // Company, ref, date, address, solutionName, solutionSummary, contacts and commitment stay as the builder computed them
-    solutionIntro1: tailored,
-    // First letter paragraph = the customer-tailored text
-    solutionIntro2: productParagraphs.length ? productParagraphs.join('\n\n') : fields.solutionIntro2,
-    // Then one paragraph per product (each blank-line-separated block prints as its own paragraph)
-    requirements: fields.requirements.map((r, i) => ({ id: r.id, title: r.title, text: reqs[i] != null ? named(blankIfTbc(reqs[i]), i) : r.text, showFeatures: r.showFeatures !== false })),
+    solutionIntro1,
+    // First letter paragraph = proposal description of first product from knowledge base
+    solutionIntro2,
+    // Then one paragraph per product from the knowledge base
+    requirements: fields.requirements.map((r, i) => {
+      const p = PRODUCT_BY_ID[r.id];
+      const desc = (p && p.proposalDescription) ? p.proposalDescription : r.text;
+      return { id: r.id, title: r.title, text: desc, showFeatures: false };
+    }),
     // id/title (catalogue name) kept so the per-product network diagram still matches
     components: fields.components.map((c, i) => (table[i] ? {
       service: c.service,
@@ -564,7 +596,62 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   if (!fields || !String(fields.companyName || '').trim()) throw Object.assign(new Error('companyName is required'), { status: 400 });
   const zip = new PizZip(fs.readFileSync(TEMPLATE_PATH));
   // Fresh copy of the template for every request
-  const requirementsXml = addDiagramsAndBuildRequirements(zip, Array.isArray(fields.requirements) ? fields.requirements.filter(r => String(r.title || '').trim()) : []);
+
+  // Pre-process word/document.xml to clean field codes, Lotus Road address, and Terms & Conditions
+  let xml = zip.file('word/document.xml').asText();
+
+  // 1. Cover page: cleanly replace field codes so {companyName} displays directly
+  const pStart = xml.indexOf('SET CustomerName4');
+  if (pStart !== -1) {
+    const paraStart = xml.lastIndexOf('<w:p ', pStart);
+    const paraEnd = xml.indexOf('</w:p>', pStart) + 6;
+    const cleanCoverPara = '<w:p w:rsidR="00F86C5E" w:rsidRPr="0073313B" w:rsidRDefault="00F86C5E" w:rsidP="004C153B"><w:pPr><w:pStyle w:val="Title"/><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/></w:rPr></w:pPr><w:r><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:t>{companyName}</w:t></w:r><w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:br/></w:r><w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:br/><w:t xml:space="preserve">Proposal Ref. No. </w:t></w:r><w:r w:rsidR="008B026C"><w:rPr><w:color w:val="FF0000"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t>{refNo}</w:t></w:r></w:p>';
+    xml = xml.substring(0, paraStart) + cleanCoverPara + xml.substring(paraEnd);
+  }
+
+  // 2. Letter page: remove duplicate Lotus Road address paragraph completely
+  xml = xml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>).)*?SET Address "No 125, Lotus Road[^"]*"(?:(?!<\/w:p>).)*?<\/w:p>/s, '');
+  xml = xml.replace(/<w:fldSimple w:instr="\s*REF\s+Address\b[^"]*">(?:(?!<\/w:fldSimple>).)*?<\/w:fldSimple>/gs, '');
+  xml = xml.replace(/No 125, Lotus Road, Colombo 01, Colombo, Western, Sri Lanka, 00100/g, '');
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET Designation ""\s*<\/w:instrText>/g, '');
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*REF\s+Designation\b[^<]*<\/w:instrText>/g, '');
+
+  // 3. Terms & Conditions section: inject {@termsAndConditionsXml}
+  const termsIdx = xml.indexOf('TERMS AND CONDITIONS');
+  if (termsIdx !== -1) {
+    const tblStart = xml.lastIndexOf('<w:tbl', termsIdx);
+    const tblEnd = xml.indexOf('</w:tbl>', termsIdx) + 8;
+    let termsTbl = xml.substring(tblStart, tblEnd);
+    termsTbl = termsTbl.replace(/<w:trHeight w:val="10982"\/>/g, '');
+    termsTbl = termsTbl.replace(
+      /(<w:tcPr><w:tcW w:w="9648" w:type="dxa"\/><\/w:tcPr>)(?:<w:p\b[^>]*\/?>(?:(?!<\/w:p>).)*?(?:<\/w:p>)?)+/s,
+      '$1<w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p>'
+    );
+    xml = xml.substring(0, tblStart) + termsTbl + xml.substring(tblEnd);
+
+    const generalTermsStart = xml.indexOf('All prices are valid for 30 days');
+    if (generalTermsStart !== -1) {
+      let pStart = xml.lastIndexOf('<w:p', generalTermsStart);
+      while (pStart !== -1 && (xml[pStart + 4] !== ' ' && xml[pStart + 4] !== '>')) {
+        pStart = xml.lastIndexOf('<w:p', pStart - 1);
+      }
+      const generalTermsEnd = xml.indexOf('Customer shall bear the cost of any transfer', generalTermsStart);
+      if (generalTermsEnd !== -1) {
+        let pEnd = xml.indexOf('</w:p>', generalTermsEnd) + 6;
+        const trailingBookmark = '<w:bookmarkEnd w:id="5"/>';
+        if (xml.substring(pEnd).startsWith(trailingBookmark)) {
+          pEnd += trailingBookmark.length;
+        }
+        xml = xml.substring(0, pStart) + xml.substring(pEnd);
+      }
+    }
+  }
+
+  zip.file('word/document.xml', xml);
+
+  const reqList = Array.isArray(fields.requirements) ? fields.requirements.filter(r => String(r.title || '').trim()) : [];
+  const selectedProducts = reqList.map(r => PRODUCT_BY_ID[r.id]).filter(Boolean);
+  const requirementsXml = addDiagramsAndBuildRequirements(zip, reqList);
   // Adds the diagram images and builds the requirements page
   const tbc = v => String(v || '').trim() || 'To be confirmed';
 
@@ -606,6 +693,7 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     })),
     // Prices formatted as 100,000.00; blank prints "On request"; blank QoS Template prints "N/A"
     requirementsXml,
+    termsAndConditionsXml: termsAndConditionsXml(selectedProducts),
     ...Object.fromEntries(tocPages.map((n, i) => [`toc${i}`, String(n)])),
     // Contents page numbers
   };
@@ -616,10 +704,10 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   // Fills every placeholder and table row
   if (networkBreak) {
     const out = doc.getZip();
-    const xml = out.file('word/document.xml').asText();
+    const docXml = out.file('word/document.xml').asText();
     const heading = '<w:pStyle w:val="Heading2"/><w:keepNext/><w:spacing w:before="240"/>';
     // The NETWORK ARCHITECTURE heading's properties, as set by scripts/fix_template_layout.py
-    if (xml.includes(heading)) out.file('word/document.xml', xml.replace(heading, '<w:pStyle w:val="Heading2"/><w:keepNext/><w:pageBreakBefore/><w:spacing w:before="0"/>'));
+    if (docXml.includes(heading)) out.file('word/document.xml', docXml.replace(heading, '<w:pStyle w:val="Heading2"/><w:keepNext/><w:pageBreakBefore/><w:spacing w:before="0"/>'));
     // NETWORK ARCHITECTURE heading starts a new page, so it and its map stay together
   }
   return {
