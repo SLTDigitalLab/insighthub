@@ -163,13 +163,16 @@ async function indexChunks(docId, fileName, chunks) {
     timestamp: new Date().toISOString()
   }));
 
-  // 1. Index into local JSON store
+  // 1. Index into local JSON store (upsert by id)
+  const existingMap = new Map(localStore.map((item, idx) => [item.id, idx]));
   chunks.forEach((chunkText, i) => {
-    localStore.push({
-      id: ids[i],
-      text: chunkText,
-      metadata: metadatas[i]
-    });
+    const entry = { id: ids[i], text: chunkText, metadata: metadatas[i] };
+    if (existingMap.has(ids[i])) {
+      localStore[existingMap.get(ids[i])] = entry;
+    } else {
+      localStore.push(entry);
+      existingMap.set(ids[i], localStore.length - 1);
+    }
   });
   saveLocalStore(localStore);
   console.log(`[Local Vector Store] Indexed ${chunks.length} chunks for "${fileName}" (total entries: ${localStore.length})`);

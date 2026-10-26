@@ -83,8 +83,10 @@ async function indexPdfPortfolioToChroma() {
 
     const coll = await chromaService.getCollection();
     if (!coll) {
-      console.warn(`[PDF Indexer Warning] ChromaDB not available. Storing PDF products locally.`);
-      return { indexed: products.length, status: 'chroma_offline' };
+      console.warn(`[PDF Indexer Warning] ChromaDB not available. Storing PDF products in local vector store.`);
+      const chunks = products.map(p => p.text);
+      await chromaService.indexChunks('pdf_portfolio', PDF_FILE_NAME, chunks);
+      return { indexed: products.length, status: 'indexed_local_store' };
     }
 
     // Upsert products in batches of 20
