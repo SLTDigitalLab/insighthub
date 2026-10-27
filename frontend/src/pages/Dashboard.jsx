@@ -22,6 +22,7 @@ import {
   saveSearchHistory
 } from '../api';
 import ProposalAgent from '../components/ProposalAgent';
+import ProposalMaintenance from '../components/ProposalMaintenance';
 import ConfirmModal from '../components/ConfirmModal';
 
 
@@ -1059,30 +1060,32 @@ const Dashboard = () => {
               <History size={17} color="#0066FF" /> Search History
             </button>
 
-            <button
-              onClick={() => window.open('/proposals', '_blank')}
-              id="btn-proposal-hub-header"
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: '#ffffff', color: '#0284c7',
-                border: '1.5px solid #0284c7',
-                padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
-                boxShadow: '0 2px 10px rgba(2, 132, 199, 0.08)',
-                cursor: 'pointer', transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.background = '#f0f9ff';
-                e.currentTarget.style.borderColor = '#0369a1';
-                e.currentTarget.style.boxShadow = '0 4px 15px rgba(2, 132, 199, 0.2)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.background = '#ffffff';
-                e.currentTarget.style.borderColor = '#0284c7';
-                e.currentTarget.style.boxShadow = '0 2px 10px rgba(2, 132, 199, 0.08)';
-              }}
-            >
-              <ClipboardList size={17} color="#0284c7" /> Proposal Hub
-            </button>
+            {isAdmin && (
+              <button
+                onClick={() => window.open('/proposals', '_blank')}
+                id="btn-proposal-hub-header"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '0.5rem',
+                  background: '#ffffff', color: '#0284c7',
+                  border: '1.5px solid #0284c7',
+                  padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
+                  boxShadow: '0 2px 10px rgba(2, 132, 199, 0.08)',
+                  cursor: 'pointer', transition: 'all 0.2s'
+                }}
+                onMouseOver={(e) => {
+                  e.currentTarget.style.background = '#f0f9ff';
+                  e.currentTarget.style.borderColor = '#0369a1';
+                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(2, 132, 199, 0.2)';
+                }}
+                onMouseOut={(e) => {
+                  e.currentTarget.style.background = '#ffffff';
+                  e.currentTarget.style.borderColor = '#0284c7';
+                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(2, 132, 199, 0.08)';
+                }}
+              >
+                <ClipboardList size={17} color="#0284c7" /> Proposal Hub
+              </button>
+            )}
 
             {isAdmin && (
               <button
@@ -1127,10 +1130,14 @@ const Dashboard = () => {
         </div>
 
         {activeAgent.id === 'proposal' ? (
-          <ProposalAgent
-            user={proposalUser || { name: localStorage.getItem('userName') || '', email: userEmail, designation: '', phone: '', division: '' }}
-            accent={activeAgent.color}
-          />
+          isAdmin ? (
+            <ProposalAgent
+              user={proposalUser || { name: localStorage.getItem('userName') || '', email: userEmail, designation: '', phone: '', division: '' }}
+              accent={activeAgent.color}
+            />
+          ) : (
+            <ProposalMaintenance onBack={() => setActiveAgent(agents[0])} />
+          )
         ) : (
           <>
         {isAdmin && activeAgent.id === 'newBusinesses' && (

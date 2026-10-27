@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 import ProposalAgent from '../components/ProposalAgent';
+import ProposalMaintenance from '../components/ProposalMaintenance';
 import ConfirmModal from '../components/ConfirmModal';
 
 export default function ProposalHub() {
@@ -289,20 +290,22 @@ export default function ProposalHub() {
 
         {/* Tab Switcher Buttons */}
         <div className="proposal-hub-tabs">
-          <button
-            onClick={() => handleTabChange('generator')}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
-              fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              background: activeTab === 'generator' ? '#ffffff' : 'transparent',
-              color: activeTab === 'generator' ? '#0B2A6F' : '#64748b',
-              boxShadow: activeTab === 'generator' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-            }}
-          >
-            <Sparkles size={16} color={activeTab === 'generator' ? '#0284c7' : '#64748b'} />
-            Generate Proposal
-          </button>
+          {isAdmin && (
+            <button
+              onClick={() => handleTabChange('generator')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
+                fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                background: activeTab === 'generator' ? '#ffffff' : 'transparent',
+                color: activeTab === 'generator' ? '#0B2A6F' : '#64748b',
+                boxShadow: activeTab === 'generator' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+              }}
+            >
+              <Sparkles size={16} color={activeTab === 'generator' ? '#0284c7' : '#64748b'} />
+              Generate Proposal
+            </button>
+          )}
 
           <button
             onClick={() => handleTabChange('archive')}
@@ -343,42 +346,46 @@ export default function ProposalHub() {
         
         {/* TAB 1: Proposal Generator Wizard */}
         <div style={{ display: activeTab === 'generator' ? 'block' : 'none' }}>
-          <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', padding: '20px 16px' }}>
-            {selectedProposal && (
-              <div style={{
-                marginBottom: 20, padding: '12px 18px', background: '#eff6ff',
-                borderRadius: 8, border: '1px solid #bfdbfe',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <FileText size={18} color="#0284c7" />
-                  <div>
-                    <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1e3a8a' }}>
-                      Editing Saved Proposal: {selectedProposal.companyName}
-                    </div>
-                    <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
-                      Ref No: <strong>{selectedProposal.refNo}</strong> • Created: {new Date(selectedProposal.createdAt || selectedProposal.date).toLocaleDateString()}
+          {!isAdmin ? (
+            <ProposalMaintenance onBack={() => navigate('/dashboard')} />
+          ) : (
+            <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', padding: '20px 16px' }}>
+              {selectedProposal && (
+                <div style={{
+                  marginBottom: 20, padding: '12px 18px', background: '#eff6ff',
+                  borderRadius: 8, border: '1px solid #bfdbfe',
+                  display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <FileText size={18} color="#0284c7" />
+                    <div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 700, color: '#1e3a8a' }}>
+                        Editing Saved Proposal: {selectedProposal.companyName}
+                      </div>
+                      <div style={{ fontSize: '0.78rem', color: '#64748b' }}>
+                        Ref No: <strong>{selectedProposal.refNo}</strong> • Created: {new Date(selectedProposal.createdAt || selectedProposal.date).toLocaleDateString()}
+                      </div>
                     </div>
                   </div>
+                  <button
+                    onClick={handleStartFreshProposal}
+                    style={{
+                      padding: '6px 14px', background: '#ffffff', border: '1px solid #cbd5e1',
+                      borderRadius: 6, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
+                      color: '#0B2A6F', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
+                    }}
+                  >
+                    Start Fresh Proposal
+                  </button>
                 </div>
-                <button
-                  onClick={handleStartFreshProposal}
-                  style={{
-                    padding: '6px 14px', background: '#ffffff', border: '1px solid #cbd5e1',
-                    borderRadius: 6, fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer',
-                    color: '#0B2A6F', boxShadow: '0 1px 2px rgba(0,0,0,0.05)'
-                  }}
-                >
-                  Start Fresh Proposal
-                </button>
-              </div>
-            )}
-            <ProposalAgent
-              user={proposalUser || { name: userName, email: userEmail, designation: '', phone: '', division: '' }}
-              initialProposal={selectedProposal}
-              onClearProposal={handleStartFreshProposal}
-            />
-          </div>
+              )}
+              <ProposalAgent
+                user={proposalUser || { name: userName, email: userEmail, designation: '', phone: '', division: '' }}
+                initialProposal={selectedProposal}
+                onClearProposal={handleStartFreshProposal}
+              />
+            </div>
+          )}
         </div>
 
         {/* TAB 2: Upload Latest Template (Admin Only) */}
