@@ -222,7 +222,7 @@ const Register = () => {
         }} />
 
         <div
-          className="animate-fade-in"
+          className="animate-fade-in auth-card"
           style={{
             background: 'rgba(255, 255, 255, 0.92)',
             backdropFilter: 'blur(16px)',
@@ -396,7 +396,7 @@ const Register = () => {
       background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 50%, #e2e8f0 100%)',
       padding: '2.5rem 1.5rem'
     }}>
-      <div style={{
+      <div className="auth-card" style={{
         background: '#ffffff',
         padding: '3rem 2.5rem',
         borderRadius: '1.25rem',

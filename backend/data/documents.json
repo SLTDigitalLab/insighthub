@@ -1,5 +1,16 @@
 [
   {
+    "id": "7fecfa29-2bee-492e-9eae-608cc53df5d3",
+    "name": "SLT_Mobitel_Solutions_Portfolio_Knowledge_Base_Proposal_v2 (1).docx",
+    "size": 74006869,
+    "mimeType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "filePath": "F:\\Mobitel\\Projects\\Project 03 Lead Generation Agent\\backend\\uploads\\1792938500505-691236016-SLT_Mobitel_Solutions_Portfolio_Knowledge_Base_Proposal_v2__1_.docx",
+    "fileNameOnDisk": "1792938500505-691236016-SLT_Mobitel_Solutions_Portfolio_Knowledge_Base_Proposal_v2__1_.docx",
+    "chunkCount": 117,
+    "status": "indexed_local_vector_store",
+    "uploadedAt": "2026-10-25T14:28:26.439Z"
+  },
+  {
     "id": "9d82907a-14c6-4855-9679-bee0cffaaa8c",
     "name": "incorporated_companies_march_2026 (1).csv",
     "size": 15034,
@@ -20,16 +31,5 @@
     "chunkCount": 18,
     "status": "indexed_local_vector_store",
     "uploadedAt": "2026-08-24T17:38:53.543Z"
-  },
-  {
-    "id": "6f946d88-ad37-4233-9a4b-f3165c925a23",
-    "name": "Incorporated_Companies_Notice_March_2026.pdf",
-    "size": 33824224,
-    "mimeType": "application/pdf",
-    "filePath": "F:\\Mobitel\\Projects\\Project 03 Lead Generation Agent\\backend\\uploads\\1787587979300-818423335-Incorporated_Companies_Notice_March_2026.pdf",
-    "fileNameOnDisk": "1787587979300-818423335-Incorporated_Companies_Notice_March_2026.pdf",
-    "chunkCount": 0,
-    "status": "empty",
-    "uploadedAt": "2026-08-24T16:13:03.723Z"
   }
 ]

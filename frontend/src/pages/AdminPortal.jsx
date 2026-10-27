@@ -408,11 +408,13 @@ const AdminPortal = () => {
       )}
 
       {/* Admin Top Navbar */}
-      <header style={{
+      <header className="admin-portal-header" style={{
         background: '#ffffff', borderBottom: '1px solid #e2e8f0', padding: '1rem 2rem',
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 100
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        flexWrap: 'wrap', gap: '0.75rem',
+        position: 'sticky', top: 0, zIndex: 100
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
           <img src="/insighthub-logo.png" alt="InsightHub" style={{ height: '36px', width: 'auto' }} />
           <div style={{ height: '24px', width: '1px', background: '#cbd5e1' }}></div>
           <div>
@@ -425,7 +427,7 @@ const AdminPortal = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
           <Link
             to="/dashboard"
             style={{
@@ -450,7 +452,7 @@ const AdminPortal = () => {
       </header>
 
       {/* Main Admin Content Container */}
-      <div style={{ maxWidth: '1200px', margin: '2rem auto', padding: '0 1.5rem' }}>
+      <div className="admin-portal-container" style={{ maxWidth: '1200px', margin: '2rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
         {/* KPI Stats Banner */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
           <div style={{ background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
@@ -810,11 +812,11 @@ const AdminPortal = () => {
         )}
 
         {/* Users Table */}
-        <div style={{
+        <div className="table-responsive" style={{
           background: '#ffffff', borderRadius: '1rem', border: '1px solid #e2e8f0',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.03)', overflow: 'hidden'
+          boxShadow: '0 4px 12px rgba(0,0,0,0.03)', overflowX: 'auto', WebkitOverflowScrolling: 'touch'
         }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+          <table style={{ width: '100%', minWidth: '820px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
             <thead>
               <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', color: '#475569' }}>
                 <th style={{ padding: '0.85rem 1.25rem', fontWeight: 700 }}>User / Full Name</th>

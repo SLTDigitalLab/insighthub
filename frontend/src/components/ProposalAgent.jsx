@@ -2,8 +2,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 // React hooks for state, effects, memoised lists and DOM refs
 import axios from 'axios';
 // Same HTTP client as the rest of InsightHub
-import { Search, Building2, MapPin, Star, Download, ChevronDown, ChevronRight, ArrowLeft, Loader2, FileText, Plus, Trash2, Sparkles, X, RefreshCw } from 'lucide-react';
+import { Search, Building2, MapPin, Star, Download, ChevronDown, ChevronRight, ArrowLeft, Loader2, FileText, Plus, Trash2, Sparkles, X, RefreshCw, Upload } from 'lucide-react';
 // Same icon library the Dashboard already uses
+import ConfirmModal from './ConfirmModal';
 
 const API = '/api/proposals';
 // Relative path like the other calls in api.js — Vite/nginx forwards it to the backend
@@ -118,6 +119,8 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   // 'doc' (interactive live document sheet) | 'pdf' (LibreOffice PDF iframe)
   const [jump, setJump] = useState({ page: 1, n: 0 });
   // Page the preview is showing; n changes on every chip click so the viewer reloads at that page
+  const [mobileStep3Tab, setMobileStep3Tab] = useState('editor');
+  // 'editor' | 'preview' on screens <= 960px
   const urlRef = useRef('');
   const seq = useRef(0);
   const contactEdits = useRef(savedSession?.contactEdits || {});
@@ -337,24 +340,29 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
     return () => document.removeEventListener('visibilitychange', handleVisibility);
   }, [step, fields, viewMode, preview.url, previewing]);
 
+  const [confirmFreshOpen, setConfirmFreshOpen] = useState(false);
+
   const handleStartFresh = () => {
-    if (window.confirm('Start a fresh proposal? Any unsaved edits on the current draft will be cleared from this screen.')) {
-      try {
-        localStorage.removeItem(ACTIVE_SESSION_KEY);
-      } catch {}
-      setFields(null);
-      setBusiness(null);
-      setSelected([]);
-      setFilter('');
-      setStep('search');
-      setResults([]);
-      setError('');
-      setPreview({ url: '', pages: {}, fields: null });
-      if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      urlRef.current = '';
-      contactEdits.current = {};
-      if (onClearProposal) onClearProposal();
-    }
+    setConfirmFreshOpen(true);
+  };
+
+  const executeStartFresh = () => {
+    setConfirmFreshOpen(false);
+    try {
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+    } catch {}
+    setFields(null);
+    setBusiness(null);
+    setSelected([]);
+    setFilter('');
+    setStep('search');
+    setResults([]);
+    setError('');
+    setPreview({ url: '', pages: {}, fields: null });
+    if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+    urlRef.current = '';
+    contactEdits.current = {};
+    if (onClearProposal) onClearProposal();
   };
 
   function jumpTo(key) {
@@ -548,14 +556,164 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
     <div>
       {bizBar}
       {error && <div style={S.error}>{error}</div>}
-      <div style={S.split}>
-        <div style={S.left}>
+
+      {/* Mobile-only toggle switcher between Form Editor and Live Preview */}
+      <div className="proposal-mobile-tab-toggle">
+        <button
+          type="button"
+          onClick={() => setMobileStep3Tab('editor')}
+          className="proposal-mobile-tab-btn"
+          style={{
+            background: mobileStep3Tab === 'editor' ? '#ffffff' : 'transparent',
+            color: mobileStep3Tab === 'editor' ? accent : '#64748b',
+            boxShadow: mobileStep3Tab === 'editor' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+          }}
+        >
+          <FileText size={16} /> Edit Form
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!preview.url && viewMode === 'pdf') refreshPreview();
+            setMobileStep3Tab('preview');
+          }}
+          className="proposal-mobile-tab-btn"
+          style={{
+            background: mobileStep3Tab === 'preview' ? '#ffffff' : 'transparent',
+            color: mobileStep3Tab === 'preview' ? accent : '#64748b',
+            boxShadow: mobileStep3Tab === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+          }}
+        >
+          <Sparkles size={16} /> Live Preview
+        </button>
+      </div>
+
+      <div className="proposal-split-container" style={S.split}>
+        <div className={`proposal-split-left ${mobileStep3Tab === 'preview' ? 'mobile-hidden-pane' : ''}`} style={S.left}>
           <div style={S.h2}>Edit proposal</div>
           <p style={{ ...S.meta, marginBottom: 12 }}>Click Refresh preview to see your edits in the PDF.</p>
 
           <Section title="Cover & letter (pages 1–3)">
             {field('Business name', 'companyName')}
-            <div style={S.two}>{refField()}{field('Date (DD/MM/YYYY)', 'proposalDate')}</div>
+            <div style={{ marginBottom: 14, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 14px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main, #0f172a)' }}>
+                  Client Company Logo (Cover Page)
+                </span>
+                {fields.leadLogo && (
+                  <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
+                    Loaded
+                  </span>
+                )}
+              </div>
+
+              {fields.leadLogo ? (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 12px', background: '#fff', border: '1px solid #cbd5e1', borderRadius: 8, marginBottom: 10 }}>
+                    <div style={{ minWidth: 64, height: 42, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, padding: 4 }}>
+                      <img
+                        src={fields.leadLogo}
+                        alt="Client logo"
+                        style={{ maxHeight: 36, maxWidth: 90, objectFit: 'contain' }}
+                        onError={e => { e.target.style.display = 'none'; }}
+                      />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {fields.companyName || 'Client'} Logo
+                      </div>
+                      <div style={{ fontSize: '0.73rem', color: '#64748b' }}>
+                        Placed on the cover page to the right of the Mobitel logo
+                      </div>
+                    </div>
+                    <label style={{ ...S.ghost, padding: '6px 12px', fontSize: '0.82rem', cursor: 'pointer', margin: 0, borderColor: '#0B2A6F', color: '#0B2A6F', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Upload size={14} /> Change logo
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = ev => set('leadLogo', ev.target.result);
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                    <button
+                      type="button"
+                      style={{ ...S.del, padding: 6, alignSelf: 'center', color: '#ef4444' }}
+                      title="Remove logo"
+                      onClick={() => set('leadLogo', '')}
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
+
+                  {/* Logo Display Size Controls */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Cover Logo Size:</span>
+                    {[
+                      { id: 'small', label: 'Small' },
+                      { id: 'medium', label: 'Medium (Normal)' },
+                      { id: 'large', label: 'Large (High visibility)' }
+                    ].map(opt => {
+                      const active = (fields.leadLogoSize || 'medium') === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => set('leadLogoSize', opt.id)}
+                          style={{
+                            border: active ? '1.5px solid #0B2A6F' : '1px solid #cbd5e1',
+                            background: active ? '#eff6ff' : '#fff',
+                            color: active ? '#0B2A6F' : '#64748b',
+                            fontWeight: active ? 700 : 500,
+                            borderRadius: 6,
+                            padding: '3px 10px',
+                            fontSize: '0.74rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input
+                      style={{ ...S.input, flex: 1, fontSize: '0.82rem' }}
+                      placeholder="Paste image URL or click Change logo to upload..."
+                      value={fields.leadLogo || ''}
+                      onChange={e => set('leadLogo', e.target.value)}
+                    />
+                    <label style={{ ...S.ghost, padding: '7px 14px', fontSize: '0.82rem', cursor: 'pointer', margin: 0, background: '#0B2A6F', color: '#fff', borderColor: '#0B2A6F', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <Upload size={14} /> Change logo
+                      <input
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp"
+                        style={{ display: 'none' }}
+                        onChange={e => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const reader = new FileReader();
+                          reader.onload = ev => set('leadLogo', ev.target.result);
+                          reader.readAsDataURL(file);
+                        }}
+                      />
+                    </label>
+                  </div>
+                  <div style={{ fontSize: '0.74rem', color: '#64748b', marginTop: 6 }}>
+                    Tip: If no logo is uploaded, the company name is formatted in bold dark navy Verdana.
+                  </div>
+                </div>
+              )}
+            </div>
+            <div className="proposal-two-col" style={S.two}>{refField()}{field('Date (DD/MM/YYYY)', 'proposalDate')}</div>
             {field('Addressed to', 'recipientDesignation')}
             {field('Address line 1', 'addressLine1')}
             {field('Address line 2', 'addressLine2')}
@@ -622,27 +780,11 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
             <p style={S.meta}>This section always prints on one page; very long text is shortened in the PDF/Word only.</p>
           </Section>
 
-          <Section title="Proposed solution table (page 8)">
-            {field('Text above the table', 'solutionSummary', 2)}
-            {fields.components.map((r, i) => (
-              <div key={i} style={S.card}>
-                <div style={S.two}>
-                  <input style={S.input} placeholder="Service" value={r.service} onChange={e => setRow('components', i, 'service', e.target.value)} />
-                  <input style={S.input} placeholder="Station" value={r.station} onChange={e => setRow('components', i, 'station', e.target.value)} />
-                  <input style={S.input} placeholder="Access media" value={r.accessMedia} onChange={e => setRow('components', i, 'accessMedia', e.target.value)} />
-                  <input style={S.input} placeholder="NTU / equipment" value={r.ntu} onChange={e => setRow('components', i, 'ntu', e.target.value)} />
-                </div>
-                <button style={{ ...S.del, marginTop: 4 }} onClick={() => delRow('components', i)}><Trash2 size={14} /> Remove row</button>
-              </div>
-            ))}
-            <button style={S.add} onClick={() => addRow('components', { service: '', station: '', accessMedia: '', ntu: '' })}><Plus size={14} /> Add row</button>
-          </Section>
-
           <Section title="Your investment (LKR)">
             {fields.investment.map((r, i) => (
               <div key={i} style={S.card}>
                 <input style={{ ...S.input, width: '100%', boxSizing: 'border-box', fontWeight: 600 }} placeholder="Description" value={r.description} onChange={e => setRow('investment', i, 'description', e.target.value)} />
-                <div style={{ ...S.two, marginTop: 6 }}>
+                <div className="proposal-two-col" style={{ ...S.two, marginTop: 6 }}>
                   <input style={S.input} placeholder="Speed" value={r.bandwidth} onChange={e => setRow('investment', i, 'bandwidth', e.target.value)} />
                   <input style={S.input} placeholder="QoS template" value={r.qosTemplate || ''} onChange={e => setRow('investment', i, 'qosTemplate', e.target.value)} />
                   <input style={S.input} placeholder="One-time" inputMode="decimal" value={r.oneTimeCharge} onChange={e => setRow('investment', i, 'oneTimeCharge', e.target.value)} />
@@ -658,13 +800,13 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
 
           <Section title="Contact page">
             <div style={S.groupLabel}>Primary Contact</div>
-            <div style={S.two}>{field('Name', 'amName')}{field('Designation', 'amDesignation')}</div>
-            <div style={S.two}>{field('Contact Number', 'amPhone')}{field('Email', 'amEmail')}</div>
+            <div className="proposal-two-col" style={S.two}>{field('Name', 'amName')}{field('Designation', 'amDesignation')}</div>
+            <div className="proposal-two-col" style={S.two}>{field('Contact Number', 'amPhone')}{field('Email', 'amEmail')}</div>
             {field('Division', 'amDivision')}
             <p style={S.meta}>Filled from your InsightHub account (the Request Access form); anything your account doesn't have stays empty. Name and number also go in the letter's closing line.</p>
             <div style={{ ...S.groupLabel, marginTop: 10 }}>Secondary Contact</div>
-            <div style={S.two}>{field('Name', 'rebmName')}{field('Designation', 'rebmDesignation')}</div>
-            <div style={S.two}>{field('Contact Number', 'rebmPhone')}{field('Email', 'rebmEmail')}</div>
+            <div className="proposal-two-col" style={S.two}>{field('Name', 'rebmName')}{field('Designation', 'rebmDesignation')}</div>
+            <div className="proposal-two-col" style={S.two}>{field('Contact Number', 'rebmPhone')}{field('Email', 'rebmEmail')}</div>
             {field('Division', 'rebmDivision')}
             <p style={S.meta}>Filled from the backend's proposal settings, not from your account. Empty fields print nothing.</p>
           </Section>
@@ -672,7 +814,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
           <Section title="Acknowledgements page">
             {field('Addressee line 1', 'ackAddressee1')}
             {field('Addressee line 2', 'ackAddressee2')}
-            <div style={S.two}>{field('Proposal submission date (DD/MM/YYYY)', 'ackDate')}{refField()}</div>
+            <div className="proposal-two-col" style={S.two}>{field('Proposal submission date (DD/MM/YYYY)', 'ackDate')}{refField()}</div>
             <p style={S.meta}>The reference number is the same one as on the cover and every page header.</p>
             <label style={{ ...S.meta, gap: 6, margin: '6px 0 10px', cursor: 'pointer' }}>
               <input type="checkbox" checked={fields.ackPrefill !== false} onChange={e => setAckPrefill(e.target.checked)} />
@@ -681,13 +823,13 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
             {field('Company Name', 'ackCompanyName')}
             {field('Address', 'ackAddress')}
             {field('Solution', 'ackSolution')}
-            <div style={S.two}>{field('Initial Charge', 'ackInitialCharge')}{field('Monthly Charge', 'ackMonthlyCharge')}</div>
+            <div className="proposal-two-col" style={S.two}>{field('Initial Charge', 'ackInitialCharge')}{field('Monthly Charge', 'ackMonthlyCharge')}</div>
             {field('Commitment Period', 'ackCommitment')}
             <p style={S.meta}>An empty line prints the dotted line for the customer to fill in by hand.</p>
           </Section>
         </div>
 
-        <div style={S.right}>
+        <div className={`proposal-split-right ${mobileStep3Tab === 'editor' ? 'mobile-hidden-pane' : ''}`} style={S.right}>
           <div style={S.previewBar}>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
               <div style={{ display: 'flex', gap: 3, background: '#f1f5f9', padding: '3px', borderRadius: 8, marginRight: 4 }}>
@@ -808,6 +950,18 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={confirmFreshOpen}
+        title="Start a Fresh Proposal?"
+        message="Starting a fresh proposal will clear your active draft from the editor and return you to company selection. Any unsaved edits on this proposal will be discarded."
+        confirmText="Yes, Start Fresh"
+        cancelText="Keep Editing Draft"
+        variant="primary"
+        icon={<RefreshCw size={24} color="#0066FF" />}
+        onConfirm={executeStartFresh}
+        onCancel={() => setConfirmFreshOpen(false)}
+      />
     </div>
   );
 }
@@ -864,7 +1018,14 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
                 <img
                   src={fields.leadLogo}
                   alt={fields.companyName}
-                  style={{ maxHeight: 42, maxWidth: 130, objectFit: 'contain', borderRadius: 6, border: '1px solid #cbd5e1', padding: 4 }}
+                  style={{
+                    maxHeight: fields.leadLogoSize === 'large' ? 56 : fields.leadLogoSize === 'small' ? 32 : 44,
+                    maxWidth: fields.leadLogoSize === 'large' ? 165 : fields.leadLogoSize === 'small' ? 95 : 130,
+                    objectFit: 'contain',
+                    borderRadius: 6,
+                    border: '1px solid #cbd5e1',
+                    padding: 4
+                  }}
                   onError={(e) => { e.target.style.display = 'none'; }}
                 />
               ) : (
@@ -989,36 +1150,6 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
           </div>
         </div>
 
-        {/* Section: Proposed Solution Table */}
-        <div id="proposal-sec-solution" style={{ padding: '28px 36px', borderBottom: border }}>
-          <div style={{ fontSize: '1rem', fontWeight: 800, color: navy, marginBottom: 8 }}>
-            PROPOSED SOLUTION
-          </div>
-          <p style={{ fontSize: '0.84rem', color: '#64748b', margin: '0 0 14px' }}>{fields.solutionSummary}</p>
-          <div style={{ overflowX: 'auto', border: border, borderRadius: 6 }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem', textAlign: 'left' }}>
-              <thead>
-                <tr style={{ background: navy, color: '#ffffff' }}>
-                  <th style={{ padding: '8px 12px', fontWeight: 700 }}>Service</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 700 }}>Station</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 700 }}>Access Media</th>
-                  <th style={{ padding: '8px 12px', fontWeight: 700 }}>NTU / Equipment</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(fields.components || []).map((row, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid #e2e8f0', background: i % 2 === 0 ? '#ffffff' : '#f8fafc' }}>
-                    <td style={{ padding: '8px 12px', fontWeight: 600 }}>{row.service || '—'}</td>
-                    <td style={{ padding: '8px 12px', color: '#475569' }}>{row.station || '—'}</td>
-                    <td style={{ padding: '8px 12px', color: '#475569' }}>{row.accessMedia || '—'}</td>
-                    <td style={{ padding: '8px 12px', color: '#475569' }}>{row.ntu || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
         {/* Section: Investment */}
         <div id="proposal-sec-investment" style={{ padding: '28px 36px', borderBottom: border }}>
           <div style={{ fontSize: '1rem', fontWeight: 800, color: navy, marginBottom: 8 }}>
@@ -1104,7 +1235,7 @@ function Section({ title, closed = false, children }) {
 const BORDER = '1px solid var(--border-color, #e2e8f0)';
 const S = {
   searchRow: { display: 'flex', gap: 12, marginBottom: 24, flexWrap: 'wrap' },
-  searchBox: { flex: '1 1 320px', display: 'flex', alignItems: 'center', gap: 12, border: BORDER, borderRadius: 12, padding: '0 18px', background: '#fff', minHeight: 56 },
+  searchBox: { flex: '1 1 240px', width: '100%', boxSizing: 'border-box', display: 'flex', alignItems: 'center', gap: 12, border: BORDER, borderRadius: 12, padding: '0 18px', background: '#fff', minHeight: 56 },
   searchInput: { flex: 1, border: 'none', outline: 'none', fontSize: '1rem', background: 'transparent', color: 'inherit' },
   primary: { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8, border: 'none', borderRadius: 12, padding: '0 24px', minHeight: 48, color: '#fff', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', whiteSpace: 'nowrap' },
   ghost: { display: 'inline-flex', alignItems: 'center', gap: 6, border: BORDER, borderRadius: 10, padding: '8px 12px', background: '#fff', cursor: 'pointer', fontSize: '0.88rem', fontWeight: 600, color: 'var(--text-main, #0f172a)', whiteSpace: 'nowrap' },
@@ -1112,7 +1243,7 @@ const S = {
   empty: { display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted, #64748b)' },
   manual: { border: BORDER, borderRadius: 14, padding: 16, background: '#fff', marginBottom: 18 },
   manualRow: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8, marginTop: 10, alignItems: 'center' },
-  resultGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 14 },
+  resultGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 14 },
   resultCard: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, border: BORDER, borderRadius: 14, padding: 16, background: '#fff', cursor: 'pointer', color: 'inherit', font: 'inherit' },
   bubble: { width: 38, height: 38, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', flex: '0 0 auto' },
   name: { fontWeight: 600, fontSize: '1rem', marginBottom: 3, color: 'var(--text-main, #0f172a)' },
@@ -1125,7 +1256,7 @@ const S = {
   groupHead: { display: 'flex', alignItems: 'center', gap: 6, fontWeight: 600, fontSize: '0.88rem', padding: '4px 6px 8px', color: 'var(--text-main, #0f172a)' },
   groupToggle: { display: 'flex', alignItems: 'center', gap: 8, width: '100%', border: 'none', background: 'transparent', padding: 6, fontWeight: 600, fontSize: '0.92rem', cursor: 'pointer', color: 'var(--text-main, #0f172a)' },
   count: { color: '#fff', borderRadius: 999, fontSize: '0.72rem', padding: '1px 8px' },
-  productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 8, padding: '4px 2px' },
+  productGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 8, padding: '4px 2px' },
   product: { display: 'flex', gap: 10, alignItems: 'flex-start', border: '1px solid', borderRadius: 10, padding: '9px 11px', cursor: 'pointer' },
   featureList: { margin: '4px 0 0', paddingLeft: 20, fontSize: '0.78rem', lineHeight: 1.45, color: 'var(--text-muted, #64748b)' },
   // Read-only Key Features under a requirement (greyed out when "Show Key Features" is unticked)

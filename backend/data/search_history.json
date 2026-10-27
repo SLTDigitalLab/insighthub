@@ -1,5 +1,399 @@
 [
   {
+    "id": "sh_1792977792274_ct4ukk",
+    "userEmail": "dineshpi@slt.com.lk",
+    "agentId": "improve",
+    "agentName": "Help Improve Service",
+    "prompt": "SLT mobitel",
+    "resultsCount": 6,
+    "results": [
+      {
+        "Category": "Executive Summary & Sentiment Analysis",
+        "Details": "Overall Sentiment Rating: Moderate Negative to High Friction at Branch/Service-Center Level.\n\nGoogle & Facebook Review Score Overview: Public Google results and third-party review signals indicate low satisfaction around service responsiveness, with Trustpilot snippets showing approximately 1.5/5 for Mobitel and ~1.8/5 for Sri Lanka Telecom-related service pages, based on around 45–50 reviews each. Facebook/community complaints are frequent in public groups, with recurring references to hotline unresponsiveness, repeated complaint logging, delayed fault restoration, and branch-level support delays.\n\nCore Brand vs Operational Reality: The SLT-Mobitel brand still carries strong national utility and scale perception, especially for enterprise connectivity and nationwide coverage. However, the operational reality reflected in public feedback shows friction at the first touchpoint: callers struggle to reach support, faults take too long to resolve, and customers perceive weak ownership between hotline, branch, and technician dispatch. This creates a gap between a strong telecom brand promise and inconsistent service execution."
+      },
+      {
+        "Category": "Key Complaints & Operational Bottlenecks",
+        "Details": "1. **Hotline Queue Congestion & Unresponsive Support**\n- **Customer Experience Friction:** Public feedback repeatedly says customers “cannot get through to the hotline,” with long waits and repeated calling to 1717 / 1212 / 0112 381 381.\n- **Root Cause Analysis:** Understaffed call handling, weak IVR containment, limited first-call resolution, and poor ticket triage across consumer and enterprise queues.\n- **Impacted Divisions/Branches:** Call Centre Operations, Customer Care, Enterprise Support Desk, and general SLT-Mobitel contact channels.\n\n2. **Delayed Fault Restoration for Fiber/Internet Outages**\n- **Customer Experience Friction:** Complaints describe internet/fiber being down for 2–9 days, with slow technician dispatch and delayed restoration updates.\n- **Root Cause Analysis:** Weak field-service orchestration, insufficient SLA enforcement, lack of proactive outage monitoring, and manual escalation handling.\n- **Impacted Divisions/Branches:** SLT Fiber service teams, regional fault repair operations, and branch service centers handling line faults.\n\n3. **Repeated Complaint Logging Without Closure**\n- **Customer Experience Friction:** Users report making “over 10 complaints” and still not receiving resolution or a callback.\n- **Root Cause Analysis:** Fragmented complaint management, no unified CRM case lifecycle, poor escalation visibility, and limited customer journey ownership.\n- **Impacted Divisions/Branches:** Customer Resolution Management, Service Assurance, branch complaint desks, and enterprise account support.\n\n4. **Branch-Level Service Delays and Long Queues**\n- **Customer Experience Friction:** Customers cite slow handling at physical service centers for activations, billing disputes, and troubleshooting.\n- **Root Cause Analysis:** Manual workflows, insufficient counter staffing, weak appointment scheduling, and no digital queue management.\n- **Impacted Divisions/Branches:** Teleshops, retail branches, customer service centers, and billing support counters.\n\n5. **Billing / Package Dispute Friction**\n- **Customer Experience Friction:** Public comments reference overcharging, unexpected package balance deductions, and mismatch between advertised and delivered package value.\n- **Root Cause Analysis:** Billing engine reconciliation gaps, unclear usage notifications, and weak transparent self-service billing tools.\n- **Impacted Divisions/Branches:** Billing operations, prepaid/postpaid support, digital commerce, and dispute-resolution teams.\n\n6. **Service Delivery Breakdowns in Digital Requests**\n- **Customer Experience Friction:** Reports include undelivered or delayed digital assets such as eSIM activation support and package activation delays.\n- **Root Cause Analysis:** Manual provisioning steps, insufficient workflow automation, and poor integration between sales, activation, and support systems.\n- **Impacted Divisions/Branches:** Digital sales, provisioning teams, enterprise onboarding, and customer support.\n\n7. **Poor Complaint Transparency Across Hotline and Branch Channels**\n- **Customer Experience Friction:** Customers feel they are being redirected across channels without clear ownership or live status updates.\n- **Root Cause Analysis:** Channel silos, limited omnichannel CRM integration, inconsistent supervisor escalation paths, and weak proactive communication.\n- **Impacted Divisions/Branches:** Customer care, branch operations, digital support, and enterprise service delivery."
+      },
+      {
+        "Category": "Identified Leadership & CX Decision Makers (LinkedIn & Facebook)",
+        "Details": "1. **Anuruddha Rathnayake** — **Chief Network Officer**\n- **Department / Scope:** Network planning, deployment, operations, and core connectivity governance.\n- **Relevance to Opportunity:** Key sponsor for resolving connectivity-related complaints, branch downtime, and resilience improvements.\n- **Profile Link / Source:** https://lk.linkedin.com/in/anuruddha\n\n2. **Manoree Bandara** — **Head - Contact Centre Operations**\n- **Department / Scope:** Contact center operations, service quality, and frontline support efficiency.\n- **Relevance to Opportunity:** Ideal sponsor for call-handling redesign, IVR optimization, and first-call resolution improvement.\n- **Profile Link / Source:** https://lk.linkedin.com/in/manoree-bandara-16b2b55b\n\n3. **Bishan Dabare** — **Manager - Contact Center Operations**\n- **Department / Scope:** Contact center workflows, service operations, and operational analytics.\n- **Relevance to Opportunity:** Strong operational stakeholder for complaint backlog reduction and ticket triage automation.\n- **Profile Link / Source:** https://lk.linkedin.com/in/bishan-dabare-056527113\n\n4. **Dinesh Perera** — **Deputy General Manager - IT Solutions Configuration**\n- **Department / Scope:** IT solutions architecture, digital systems configuration, and transformation enablement.\n- **Relevance to Opportunity:** Best fit to sponsor CRM, workflow automation, and systems integration improvement initiatives.\n- **Profile Link / Source:** https://lk.linkedin.com/in/dinesh-perera-6581193a\n\n5. **Aruna Mohotti** — **Senior Manager Product Marketing - Prepaid**\n- **Department / Scope:** Product strategy, customer experience, and channel management.\n- **Relevance to Opportunity:** Valuable sponsor for aligning product promise, digital servicing, and customer communication improvements.\n- **Profile Link / Source:** https://lk.linkedin.com/in/aruna-mohotti-92467a42\n\n6. **Yoshini Fonseka** — **Customer Relationship Management Executive**\n- **Department / Scope:** Customer resolution management and escalation handling.\n- **Relevance to Opportunity:** Operationally relevant for designing case closure discipline and customer follow-up improvements.\n- **Profile Link / Source:** https://lk.linkedin.com/in/yoshini-fonseka-2a74b2241\n\n7. **Kanishka Samaraweera** — **Account Manager Enterprise Business**\n- **Department / Scope:** Enterprise business relationships and service delivery support.\n- **Relevance to Opportunity:** Useful entry point for enterprise CX proposals and account-level service improvement pilots.\n- **Profile Link / Source:** https://lk.linkedin.com/in/kanishka-samaraweera-7585289a\n\n8. **Upuli Jayaratne** — **Teleshop Manager**\n- **Department / Scope:** Retail/teleshop operations and customer interface management.\n- **Relevance to Opportunity:** Strong branch-operations contact for queue reduction, service scripting, and service consistency improvements.\n- **Profile Link / Source:** https://lk.linkedin.com/in/upulijayaratne"
+      },
+      {
+        "Category": "Technology & Infrastructure Gap Analysis",
+        "Details": "1. **Voice & Contact Center Architecture**\n- The current experience suggests IVR containment is weak, queue congestion is high, and agents are not consistently resolving issues on first contact.\n- Likely gaps include limited intelligent routing, insufficient unified case management, and lack of AI-assisted self-service/chat deflection.\n\n2. **Branch Connectivity & Network Resilience**\n- Recurring outage complaints indicate branch and last-mile resilience are not consistently redundant enough for mission-critical operations.\n- Likely gaps include limited SD-WAN adoption, insufficient automatic failover, and inconsistent branch-to-core monitoring.\n\n3. **Cloud, Hosting & Systems Uptime**\n- Digital service activations and complaint follow-up issues point to fragmented back-office systems and slow workflow execution.\n- Likely gaps include weak CRM/workflow integration, limited cloud elasticity for service portals, and poor status visibility for customers.\n\n4. **Cybersecurity & Data Protection**\n- Enterprise and consumer touchpoints both depend on multiple digital channels, increasing exposure to account abuse, phishing, and data leakage risks.\n- Likely gaps include incomplete zero-trust controls across branch endpoints, insufficient managed firewall coverage, and limited centralized SOC-driven monitoring."
+      },
+      {
+        "Category": "SLT-Mobitel Service Improvement Roadmap & Product Solutions",
+        "Details": "1. **Contact Center Solutions (Avaya, 3CX, ConneXt)** [Pillar: 6. ENTERPRISE VOICE]\n- **Direct Complaint Solved:** Complaint #1 and #7: hotline congestion, weak first-call resolution, poor channel ownership.\n- **Technical Solution & Architecture:** Hosted or on-prem contact center platform; IVR and call queuing; skill-based routing; integrated reporting and ticket visibility.\n- **Measurable Business Impact:** 24/7 queue management, materially lower abandonment, faster call handling, and improved SLA adherence with real-time response analytics.\n\n2. **Univo** [Pillar: 6. ENTERPRISE VOICE]\n- **Direct Complaint Solved:** Complaint #1 and #4: poor hotline flow and branch service inefficiency.\n- **Technical Solution & Architecture:** Cloud IP-PBX; IVR, call forwarding, voicemail-to-email; multi-branch unified numbering; mobile app extension capability.\n- **Measurable Business Impact:** Lower telephony capex, faster routing to the right desk/branch, and improved internal transfer efficiency with cloud-managed voice control.\n\n3. **SD-WAN (Software-Defined Wide Area Network)** [Pillar: 1. NETWORKING]\n- **Direct Complaint Solved:** Complaint #2 and #7: branch downtime, poor resilience, inconsistent connectivity.\n- **Technical Solution & Architecture:** Centralized cloud controller; dynamic path selection; policy-based routing; application-aware traffic prioritization for voice/video.\n- **Measurable Business Impact:** Reduced WAN downtime risk, better cloud app performance, and stronger branch resiliency for enterprise sites.\n\n4. **Integrated Internet Service** [Pillar: 2. INTERNET]\n- **Direct Complaint Solved:** Complaint #2 and #6: outages and service interruptions affecting operations.\n- **Technical Solution & Architecture:** Primary fiber with automatic cellular backup; single-IP persistence; unified SLA and billing; automatic failover.\n- **Measurable Business Impact:** Continuity for branch operations, reduced transaction downtime, and less service interruption during fiber faults.\n\n5. **Enterprise Premium Cloud (VMware)** [Pillar: 4. CLOUD & IDC]\n- **Direct Complaint Solved:** Complaint #3 and #6: slow resolution cycles and digital service processing delays.\n- **Technical Solution & Architecture:** VMware vCloud Director self-service; high-IOPS SAN storage; dedicated or multi-tenant vDCs; auto-failover clusters.\n- **Measurable Business Impact:** Higher platform stability for customer portals and back-office systems, improved uptime, and scalable infrastructure for digital service workflows.\n\n6. **Kaspersky End Point Security** [Pillar: 3. CYBER SECURITY]\n- **Direct Complaint Solved:** Complaint #7: security exposure across digital customer and branch endpoints.\n- **Technical Solution & Architecture:** Cloud-managed endpoint protection; anti-malware/anti-ransomware; device control; vulnerability and web control.\n- **Measurable Business Impact:** Reduced endpoint compromise risk, better customer-data protection, and stronger operational security posture across service desks and branches."
+      },
+      {
+        "Category": "Strategic Account Pitch & Engagement Plan",
+        "Details": "Primary Pitch Angle: Position SLT-Mobitel as the customer-experience transformation partner that can reduce complaint volume, improve first-contact resolution, and strengthen branch/network resilience through an integrated voice, connectivity, cloud, and security stack.\n\nRecommended Pilot / POC: Run a 30-day pilot covering one enterprise contact center queue and one branch/site. Deploy a contact center solution with routing/reporting plus SD-WAN or Integrated Internet Service for resilience, then measure call abandonment, ticket closure time, and uptime improvement.\n\nInitial Stakeholder Outreach: Start with Manoree Bandara (Head - Contact Centre Operations) and Bishan Dabare (Manager - Contact Center Operations) for operational pain validation, then bring in Dinesh Perera (IT Solutions Configuration) for architecture and integration, and Anuruddha Rathnayake (Chief Network Officer) for network resilience and service assurance discussions. Focus talking points on complaint reduction, faster restoration, clear SLA ownership, and visible customer-status transparency."
+      }
+    ],
+    "timestamp": "2026-10-26T01:23:12.272Z",
+    "updatedAt": "2026-10-26T01:23:12.272Z"
+  },
+  {
+    "id": "sh_1792977690137_kl4lty",
+    "userEmail": "dineshpi@slt.com.lk",
+    "agentId": "product",
+    "agentName": "Product Recommendations",
+    "prompt": "SLT mobitel",
+    "resultsCount": 6,
+    "results": [
+      {
+        "Product": "Premium VPN",
+        "Category": "1. NETWORKING",
+        "Why Recommended": "Problem Solved: Designed for enterprises that need secure, high-capacity multi-branch connectivity with strict service guarantees. It is a strong fit where branch-to-branch traffic, ERP access, voice, and internal applications must stay stable with predictable performance.\n\nKey Features:\n• Multiprotocol Label Switching (MPLS) based site-to-site private network connectivity\n\n• Guaranteed bandwidth with stringent Service Level Agreements (SLAs)\n\n• High security and reliable private bandwidth for enterprise, financial, and government use cases\n\nExpected Value: Delivers dependable WAN performance with QoS protection for critical traffic, reducing reliance on multiple fragmented links and improving application responsiveness across branches. This can typically support lower operational complexity and more predictable uptime for distributed operations.",
+        "Source": "Knowledge Base",
+        "Priority": "High"
+      },
+      {
+        "Product": "Integrated Internet Service",
+        "Category": "2. INTERNET",
+        "Why Recommended": "Problem Solved: Best suited for businesses that cannot tolerate internet outages at branches, service points, or operational offices. It addresses continuity risk by combining fixed fiber and automatic cellular backup, keeping business transactions online during line failures.\n\nKey Features:\n• Automatic failover between primary fixed fiber and cellular backup\n\n• Single IP address persistence during automatic link failover\n\n• Unified billing and single SLA management under SLT-Mobitel\n\nExpected Value: Helps minimize downtime for mission-critical transactions and reduces the business impact of local fiber cuts or last-mile instability. The dual-path design can materially improve service continuity and reduce branch interruption costs.",
+        "Source": "Knowledge Base",
+        "Priority": "High"
+      },
+      {
+        "Product": "Enterprise WiFi",
+        "Category": "1. NETWORKING",
+        "Why Recommended": "Problem Solved: Ideal for organizations that need professionally managed wireless coverage across offices, campuses, hotels, hospitals, or public venues. It solves coverage gaps, inconsistent user experience, and the burden of managing wireless access internally.\n\nKey Features:\n• Fully managed wireless networking solution for enterprise environments\n\n• Centralized design, deployment, and ongoing management by SLT-Mobitel\n\n• Suitable for offices, university campuses, hotels, and public venues\n\nExpected Value: Improves user connectivity quality and reduces IT workload by outsourcing wireless planning and operations. A managed architecture can reduce support overhead and improve end-user experience across high-density environments.",
+        "Source": "Knowledge Base",
+        "Priority": "Medium"
+      },
+      {
+        "Product": "Managed Firewall",
+        "Category": "3. CYBER SECURITY",
+        "Why Recommended": "Problem Solved: Protects enterprise networks from malware, unauthorized access, and intrusion attempts while reducing the internal burden of firewall administration. It is well suited for companies lacking dedicated security staff or needing stronger perimeter defense and continuous monitoring.\n\nKey Features:\n• Next-Generation Firewall (NGFW) features including IPS and deep packet inspection\n\n• Round-the-clock security event monitoring by SLT Cyber Security Operation Center (SOC)\n\n• Customized firewall policies based on corporate risk compliance\n\nExpected Value: Improves security posture with 24/7 threat monitoring, faster containment of attacks, and less operational load on internal IT teams. The managed model can reduce security response gaps and support compliance-oriented network protection.",
+        "Source": "Knowledge Base",
+        "Priority": "High"
+      },
+      {
+        "Product": "Cloud Firewall",
+        "Category": "3. CYBER SECURITY",
+        "Why Recommended": "Problem Solved: Secures cloud-hosted workloads and hybrid environments where traditional hardware firewalls are difficult to scale or manage. It is especially useful for organizations moving applications to the cloud and needing consistent policy control across virtual infrastructure.\n\nKey Features:\n• On-demand scaling to protect virtual servers and cloud environments\n\n• Centralized dashboard for multi-cloud security management\n\n• Zero-hardware maintenance with instant provisioning\n\nExpected Value: Delivers elastic security controls without the cost and delay of appliance procurement, helping protect cloud assets with faster rollout and simplified administration. This can reduce maintenance overhead while improving protection for hybrid and multi-cloud deployments.",
+        "Source": "Knowledge Base",
+        "Priority": "Medium"
+      },
+      {
+        "Product": "Univo",
+        "Category": "6. ENTERPRISE VOICE",
+        "Why Recommended": "Problem Solved: Helps businesses modernize internal and external communication without investing in on-premise PBX hardware. It is a strong fit for multi-branch firms that want scalable call handling, internal extension dialing, and better mobility for staff.\n\nKey Features:\n• Zero capital expenditure cloud PBX with monthly operational pricing\n\n• Rich PBX features: IVR, extension transfer, voicemail-to-email, call recording\n\n• Multi-branch connectivity using unified internal numbering\n\nExpected Value: Lowers telephony infrastructure costs and improves call handling efficiency through intelligent routing and cloud-managed voice services. Mobile app integration also supports flexible work arrangements and faster employee reachability.",
+        "Source": "Knowledge Base",
+        "Priority": "Medium"
+      }
+    ],
+    "timestamp": "2026-10-26T01:21:30.136Z",
+    "updatedAt": "2026-10-26T01:21:30.136Z"
+  },
+  {
+    "id": "sh_1792725913532_rokzan",
+    "userEmail": "dineshpi@slt.com.lk",
+    "agentId": "research",
+    "agentName": "Customer Research",
+    "prompt": "john keels holdings",
+    "resultsCount": 7,
+    "results": [
+      {
+        "Category": "Company Overview",
+        "Details": "Company name: John Keells Holdings PLC (John Keells Group). Primary industry: Diversified conglomerate / holding company. Head office: 130, Glennie Street, Colombo 02, Sri Lanka. Website: https://www.keells.com/. Core business operations in Sri Lanka: Retail (Keells supermarkets and consumer retail), leisure and hospitality (Cinnamon Hotels & Resorts, resorts, travel-related services, and major tourism assets), property and infrastructure (real estate, integrated mixed-use developments, logistics-linked infrastructure, and port-related investments), consumer foods & beverages (Ceylon Cold Stores and related manufacturing/distribution businesses), transportation & logistics (ports, shipping, aviation, and logistics services), financial services (including strategic holdings such as Nations Trust Bank and stockbroking), and information technology / office automation (enterprise IT, digital enablement, automation solutions, and group-wide technology services). The group is Sri Lanka’s largest conglomerate listed on the Colombo Stock Exchange, with a heritage of over 150 years and large-scale operations across multiple sectors and regional markets."
+      },
+      {
+        "Category": "Key Decision Makers & Leadership",
+        "Details": "1. Krishan Balendra - Chairperson-CEO, John Keells Holdings PLC\nLinkedIn: Not found\n\n2. Gihan Cooray - Deputy Chairperson & Group Finance Director, John Keells Holdings PLC\nLinkedIn: Not found\n\n3. Dr. Ramesh Shanmuganathan - Executive Vice President / Group CIO, John Keells Holdings PLC; Director/CEO, John Keells IT\nLinkedIn: Not found"
+      },
+      {
+        "Category": "Employees Found & Key Personnel",
+        "Details": "1. Nisansala Paranayapa - Vice President, John Keells Holdings PLC\nLinkedIn: https://lk.linkedin.com/in/nisansala-paranayapa-7291611b1\n\n2. Sajith Dilshan - Executive Administration, John Keells Holdings PLC\nLinkedIn: https://lk.linkedin.com/in/sajith-dilshan-a6867b316\n\n3. Dr. Ramesh Shanmuganathan - Executive Vice President / Group CIO; Director/CEO, John Keells IT\nLinkedIn: Not found\n\n4. Krishan Balendra - Chairperson-CEO, John Keells Holdings PLC\nLinkedIn: Not found\n\n5. Gihan Cooray - Deputy Chairperson & Group Finance Director, John Keells Holdings PLC\nLinkedIn: Not found"
+      },
+      {
+        "Category": "Social Media Presence & Official Channels",
+        "Details": "- Official Facebook: https://www.facebook.com/johnkeells/ (about 81.1K followers; public posts show strong brand visibility, recognition content, investor/community messaging, and sector updates)\n- Official LinkedIn: https://om.linkedin.com/company/john-keells-holdings (about 347.9K followers)\n- Official Website: https://www.keells.com/\n- Public Contact Info: Tel: +94 11 2306739 / +94 11 2306809; Fax: +94 11 2306160; Head office address: 130, Glennie Street, Colombo 02, Sri Lanka"
+      },
+      {
+        "Category": "Recent News & Developments",
+        "Details": "1. Annual report and ESG reporting refresh: The latest annual report referenced in search results is John Keells Holdings PLC Annual Report 2025/26, highlighting integrated financial, operational, ESG, and climate-related performance disclosures.\n\n2. Major strategic project updates: Search results referenced the City of Dreams Sri Lanka and the West Container Terminal at the Port of Colombo as significant recent projects and growth platforms.\n\n3. Market recognition and brand strength: Facebook and LinkedIn content shows recurring recognition as Sri Lanka’s No. 1 Most Respected Entity and one of the country’s most admired companies.\n\n4. Retail expansion: Public Facebook content indicates Keells supermarkets continue expanding island-wide, with around 150 outlets mentioned in visible snippets.\n\n5. Investor-relations emphasis: The corporate website and investor relations pages indicate ongoing focus on annual financial reports, sector performance, and financial calendar communications."
+      },
+      {
+        "Category": "Current Technology & Infrastructure",
+        "Details": "1. Group-level IT and innovation capability: JKH maintains an explicit IT & Innovation focus through its investor-relations and corporate content, suggesting centralized digital enablement across businesses.\n\n2. Enterprise automation and office technology: John Keells Office Automation and related enterprise solutions are part of the group’s operating ecosystem, indicating internal demand for managed print, workplace productivity, and infrastructure services.\n\n3. Digital reporting and stakeholder engagement: Public search snippets reference an AI-powered reporting assistant/chatbot and digital annual-report delivery, showing active use of modern digital communication tools.\n\n4. Multi-sector infrastructure footprint: The group operates complex assets across retail, hotels, ports, property, logistics, and consumer manufacturing, which implies distributed connectivity, branch networking, security, and integration requirements.\n\n5. High operational scale: The size of the group and breadth of businesses imply dependence on resilient WAN/MPLS, cloud readiness, cybersecurity, data governance, and business continuity services."
+      },
+      {
+        "Category": "Potential Pain Points & SLT-Mobitel Enterprise Opportunities",
+        "Details": "1. Multi-site connectivity complexity: JKH’s retail, hotel, logistics, property, and industrial footprint likely requires secure, high-availability connectivity across many locations; SLT-Mobitel can position SD-WAN, MPLS, internet leased lines, and managed network services.\n\n2. Business continuity and uptime requirements: Hospitality, supermarkets, ports, and finance-linked operations are highly sensitive to outages; SLT-Mobitel can offer redundant links, failover internet, disaster recovery connectivity, and 24/7 managed services.\n\n3. Cybersecurity and data protection: A diversified conglomerate with customer-facing retail and digital systems faces elevated cyber risk; SLT-Mobitel can propose SOC services, firewall/UEM, secure access, DDoS protection, and endpoint security.\n\n4. Branch and workforce communications: Large retail and operational teams need unified communications and collaboration tools; SLT-Mobitel can sell cloud PBX, SIP trunking, UCaaS, mobile enterprise plans, and contact-center enablement.\n\n5. Cloud and application modernization: JKH’s innovation-led reporting and enterprise IT environment create demand for hybrid cloud, hosting, backup, and application connectivity; SLT-Mobitel can support cloud connectivity, secure hosting, and managed backup solutions."
+      }
+    ],
+    "timestamp": "2026-10-23T03:25:13.532Z",
+    "updatedAt": "2026-10-23T03:25:13.532Z"
+  },
+  {
+    "id": "sh_1792697372353_z6jon2",
+    "userEmail": "dineshpi@slt.com.lk",
+    "agentId": "lead",
+    "agentName": "Lead Discovery & Prospecting",
+    "prompt": "hnb",
+    "resultsCount": 10,
+    "results": [
+      {
+        "Company Name": "HNB Head Office Branch",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "479 T. B. Jayah Mawatha, Colombo 01000, Sri Lanka",
+        "Contact Number": "+94 112 660 160",
+        "Customer Rating": "3.1",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Large banking branch in Colombo; suitable for Mobitel enterprise connectivity, secure data links, and managed communications solutions."
+      },
+      {
+        "Company Name": "Hatton National Bank PLC",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "New Building, 2nd Floor, Nawaloka Hospital, Colombo 00200, Sri Lanka",
+        "Contact Number": "N/A",
+        "Customer Rating": "3.4",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Banking presence in a prime Colombo location; potential fit for dedicated internet, branch connectivity, and secure cloud communications."
+      },
+      {
+        "Company Name": "Hnb Card Centre",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "15 T. B. Jayah Mawatha, Colombo 01000, Sri Lanka",
+        "Contact Number": "N/A",
+        "Customer Rating": "2.2",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "N/A",
+        "Reason": "Card operations center likely depends on reliable secure connectivity; opportunity for resilient internet and enterprise networking services."
+      },
+      {
+        "Company Name": "HNB Colombo Metro",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "10 Sri Uttarananda Mawatha, Colombo, Sri Lanka",
+        "Contact Number": "+94 112 304 915",
+        "Customer Rating": "3.5",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://www.hnb.lk/",
+        "Reason": "Metro branch in Colombo with clear enterprise communication needs; suitable for branch connectivity, SD-WAN, and managed voice solutions."
+      },
+      {
+        "Company Name": "HNB KANDY ATM , CDM & Cheque Deposit",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "1 Sri Dalada Veediya, Kandy 20000, Sri Lanka",
+        "Contact Number": "+94 812 224 204",
+        "Customer Rating": "2.8",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://www.hnb.net/",
+        "Reason": "Banking service point in Kandy; relevant for secure connectivity, ATM network uptime, and branch network redundancy solutions."
+      },
+      {
+        "Company Name": "HNB Asiri Central Branch",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "3rd floor, Asiri Central Hospital, 10 Norris Canal Rd, Colombo, Sri Lanka",
+        "Contact Number": "N/A",
+        "Customer Rating": "4.3",
+        "Lead Score": "High",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Branch embedded in a major hospital environment; good fit for secure enterprise connectivity and high-availability communication services."
+      },
+      {
+        "Company Name": "Hatton National Bank",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "5VFP+FP8, Canada Friendship Rd, Katunayake 11450, Sri Lanka",
+        "Contact Number": "+94 112 253 808",
+        "Customer Rating": "4.8",
+        "Lead Score": "High",
+        "LinkedIn URL": "N/A",
+        "Website": "http://www.hnb.net/",
+        "Reason": "High-rated branch near a strategic commercial zone; strong prospect for resilient internet, branch networking, and secure digital services."
+      },
+      {
+        "Company Name": "HNB Wellawatte (Hatton National Bank)",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "No. 100, 102 Galle Rd, Colombo 00600, Sri Lanka",
+        "Contact Number": "+94 112 588 702",
+        "Customer Rating": "3.4",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://www.hnb.net/",
+        "Reason": "Busy Colombo 06 branch on Galle Road; suitable for enterprise internet, secure WAN, and customer-facing digital connectivity."
+      },
+      {
+        "Company Name": "HNB City Office (Hatton National Bank)",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "16 Janadhipathi Mawatha, Colombo 00100, Sri Lanka",
+        "Contact Number": "+94 112 421 466",
+        "Customer Rating": "5",
+        "Lead Score": "High",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Central city office with premium operational profile; strong opportunity for dedicated internet, enterprise networking, and secure communications."
+      },
+      {
+        "Company Name": "Hatton National Bank",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "324 Galle Rd, Colombo 00300, Sri Lanka",
+        "Contact Number": "+94 112 576 763",
+        "Customer Rating": "3.2",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Branch on a major Colombo commercial corridor; suitable for managed connectivity, secure branch networking, and business continuity services."
+      }
+    ],
+    "timestamp": "2026-10-22T19:29:32.352Z",
+    "updatedAt": "2026-10-22T19:29:32.352Z"
+  },
+  {
+    "id": "sh_1792697221513_gvufb5",
+    "userEmail": "dineshpi@slt.com.lk",
+    "agentId": "allResults",
+    "agentName": "All Search Results (All Scores)",
+    "prompt": "hnb",
+    "resultsCount": 10,
+    "results": [
+      {
+        "Company Name": "Hatton National Bank PLC",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "Colombo 10, Sri Lanka",
+        "Contact Number": "+9411 2661206",
+        "Customer Rating": "N/A",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "https://lk.linkedin.com/company/hatton-national-bank-plc",
+        "Website": "https://www.hnb.lk/corporate-information",
+        "Reason": "Major island-wide banking network with 250+ branches; strong fit for enterprise connectivity, SD-WAN, secure MPLS, Cloud PBX, and resilient branch internet solutions."
+      },
+      {
+        "Company Name": "HNB Head Office Branch",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "479 T. B. Jayah Mawatha, Colombo",
+        "Contact Number": "+94 112 660 160",
+        "Customer Rating": "3.1",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Large banking branch with enterprise telecom needs; suitable for dedicated internet access, secure SD-WAN, and branch connectivity solutions."
+      },
+      {
+        "Company Name": "HNB Card Centre",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "15 T. B. Jayah Mawatha, Colombo",
+        "Contact Number": "N/A",
+        "Customer Rating": "2.2",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "N/A",
+        "Reason": "Central card operations site likely requires secure connectivity, redundant links, and voice/data infrastructure for reliable service delivery."
+      },
+      {
+        "Company Name": "HNB Colombo Metro",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "10 Sri Uttarananda Mawatha, Colombo",
+        "Contact Number": "+94 112 304 915",
+        "Customer Rating": "3.5",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://www.hnb.lk/",
+        "Reason": "Metro branch location can benefit from branch networking, managed Wi-Fi, and secure cloud-ready connectivity for banking operations."
+      },
+      {
+        "Company Name": "HNB KANDY ATM , CDM & Cheque Deposit",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "1 Sri Dalada Veediya, Kandy",
+        "Contact Number": "+94 812 224 204",
+        "Customer Rating": "2.8",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://www.hnb.net/",
+        "Reason": "ATM and deposit services site needs reliable always-on connectivity and secure networking for transaction availability and uptime."
+      },
+      {
+        "Company Name": "HNB Rajagiriya",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "Sri Jayawardenepura Kotte",
+        "Contact Number": "N/A",
+        "Customer Rating": "3.3",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://www.hnb.lk/",
+        "Reason": "Branch in a major business district; good fit for enterprise connectivity, SIP voice, and resilient network services."
+      },
+      {
+        "Company Name": "HNB Wellawatte (Hatton National Bank)",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "No. 100, 102 Galle Rd, Colombo",
+        "Contact Number": "+94 112 588 702",
+        "Customer Rating": "3.4",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://www.hnb.net/",
+        "Reason": "High-footfall branch and ATM point suitable for reliable connectivity, security monitoring, and branch network upgrades."
+      },
+      {
+        "Company Name": "HNB Asiri Central Branch",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "3rd floor, Asiri Central Hospital, 10 Norris Canal Rd, Colombo",
+        "Contact Number": "N/A",
+        "Customer Rating": "4.3",
+        "Lead Score": "High",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Hospital-based branch can use secure high-availability connectivity and managed network solutions for dependable customer service."
+      },
+      {
+        "Company Name": "HNB Bambalapitiya (Hatton National Bank)",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "285, Galle Road, 4, Colombo",
+        "Contact Number": "+94 112 501 698",
+        "Customer Rating": "3.4",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Busy urban branch that would benefit from secure internet, branch networking, and enterprise voice solutions."
+      },
+      {
+        "Company Name": "HNB Cinnamon Gardens (Hatton National Bank)",
+        "Industry": "Banking",
+        "Size": "Enterprise",
+        "Location": "85A, 87 Barnes Pl, Colombo",
+        "Contact Number": "+94 112 681 718",
+        "Customer Rating": "3.2",
+        "Lead Score": "Medium",
+        "LinkedIn URL": "N/A",
+        "Website": "https://hnb.lk/",
+        "Reason": "Premium Colombo branch suitable for resilient connectivity, secure WAN, and quality customer-facing digital services."
+      }
+    ],
+    "timestamp": "2026-10-22T19:27:01.513Z",
+    "updatedAt": "2026-10-22T19:28:21.415Z"
+  },
+  {
     "id": "sh_1788849115574_mb7czg",
     "userEmail": "dineshpi@slt.com.lk",
     "agentId": "allResults",

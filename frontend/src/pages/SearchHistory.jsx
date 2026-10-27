@@ -33,6 +33,7 @@ import {
   deleteSearchHistoryItem,
   clearAllSearchHistory
 } from '../api';
+import ConfirmModal from '../components/ConfirmModal';
 
 const AGENT_ICONS = {
   allResults: Compass,
@@ -87,6 +88,16 @@ const SearchHistory = () => {
   const [selectedAgentFilter, setSelectedAgentFilter] = useState('all');
   const [expandedSearchId, setExpandedSearchId] = useState(null);
   const [toast, setToast] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    variant: 'danger',
+    icon: null,
+    onConfirm: () => {}
+  });
 
   const showToast = (message, type = 'info') => {
     setToast({ message, type });
@@ -113,30 +124,52 @@ const SearchHistory = () => {
     loadHistory();
   }, [userEmail]);
 
-  const handleDelete = async (id, promptText) => {
-    if (!window.confirm(`Are you sure you want to delete the saved search for "${promptText}"?`)) return;
-    try {
-      await deleteSearchHistoryItem(id, userEmail);
-      setHistory(prev => prev.filter(item => item.id !== id));
-      if (expandedSearchId === id) setExpandedSearchId(null);
-      showToast('Search record deleted.', 'success');
-    } catch (err) {
-      console.error('[Delete Error]', err);
-      showToast('Failed to delete search record.', 'error');
-    }
+  const handleDelete = (id, promptText) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Saved Search?',
+      message: `Are you sure you want to delete the saved search record for "${promptText}"?`,
+      confirmText: 'Yes, Delete Search',
+      cancelText: 'Keep Search',
+      variant: 'danger',
+      icon: <Trash2 size={24} color="#ef4444" />,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          await deleteSearchHistoryItem(id, userEmail);
+          setHistory(prev => prev.filter(item => item.id !== id));
+          if (expandedSearchId === id) setExpandedSearchId(null);
+          showToast('Search record deleted.', 'success');
+        } catch (err) {
+          console.error('[Delete Error]', err);
+          showToast('Failed to delete search record.', 'error');
+        }
+      }
+    });
   };
 
-  const handleClearAll = async () => {
-    if (!window.confirm('Are you sure you want to delete ALL your saved search history? This cannot be undone.')) return;
-    try {
-      await clearAllSearchHistory(userEmail);
-      setHistory([]);
-      setExpandedSearchId(null);
-      showToast('All search history has been cleared.', 'success');
-    } catch (err) {
-      console.error('[Clear All Error]', err);
-      showToast('Failed to clear search history.', 'error');
-    }
+  const handleClearAll = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Clear Entire Search History?',
+      message: 'Are you sure you want to permanently delete all your saved search history? This action cannot be undone.',
+      confirmText: 'Yes, Clear All History',
+      cancelText: 'Keep History',
+      variant: 'danger',
+      icon: <Trash2 size={24} color="#ef4444" />,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          await clearAllSearchHistory(userEmail);
+          setHistory([]);
+          setExpandedSearchId(null);
+          showToast('All search history has been cleared.', 'success');
+        } catch (err) {
+          console.error('[Clear All Error]', err);
+          showToast('Failed to clear search history.', 'error');
+        }
+      }
+    });
   };
 
   const handleReRun = (item) => {
@@ -265,7 +298,7 @@ const SearchHistory = () => {
       )}
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, padding: '2rem 3rem', maxWidth: '1440px', margin: '0 auto', width: '100%' }}>
+      <div className="search-history-container" style={{ flex: 1, maxWidth: '1440px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         
         {/* Top Header */}
         <div style={{
@@ -762,8 +795,8 @@ const SearchHistory = () => {
                       {leads.length === 0 ? (
                         <p style={{ color: '#64748b', fontSize: '0.85rem' }}>No leads returned for this session.</p>
                       ) : (
-                        <div style={{ overflowX: 'auto', background: '#ffffff', borderRadius: '0.75rem', border: '1px solid #e2e8f0' }}>
-                          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
+                        <div className="table-responsive" style={{ overflowX: 'auto', background: '#ffffff', borderRadius: '0.75rem', border: '1px solid #e2e8f0', WebkitOverflowScrolling: 'touch' }}>
+                          <table style={{ width: '100%', minWidth: '850px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.86rem' }}>
                             <thead>
                               <tr style={{ background: '#f8fafc', borderBottom: '1.5px solid #e2e8f0', color: '#475569' }}>
                                 <th style={{ padding: '0.75rem 1rem', fontWeight: 700 }}>Company Name</th>
@@ -873,6 +906,19 @@ const SearchHistory = () => {
           </div>
         )}
       </div>
+
+      {/* Modern In-App Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        icon={confirmModal.icon}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

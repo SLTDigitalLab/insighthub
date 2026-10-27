@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Sparkles, Compass, Filter, ShieldCheck, History, ClipboardList } from 'lucide-react';
+import { Search, LogOut, Users, Briefcase, FileText, Package, Download, Loader2, AlertCircle, ChevronRight, Mail, Star, Phone, ExternalLink, CheckCircle, UploadCloud, X, Database, Trash2, Sparkles, Compass, Filter, ShieldCheck, History, ClipboardList, Menu } from 'lucide-react';
 import axios from 'axios';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
@@ -22,6 +22,7 @@ import {
   saveSearchHistory
 } from '../api';
 import ProposalAgent from '../components/ProposalAgent';
+import ConfirmModal from '../components/ConfirmModal';
 
 
 const agents = [
@@ -432,22 +433,43 @@ const Dashboard = () => {
     }
   };
 
-  const handleDeleteDoc = async (id, name) => {
-    if (!window.confirm(`Are you sure you want to delete "${name}" from server storage and vector store?`)) return;
-    try {
-      await deleteKnowledgeBaseDocument(id);
-      showToast(`Deleted "${name}" from server`, 'success');
-      loadKbDocuments();
-    } catch (err) {
-      showToast(err.response?.data?.error || err.message || 'Failed to delete document', 'error');
-    }
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    variant: 'danger',
+    icon: null,
+    onConfirm: () => {}
+  });
+
+  const handleDeleteDoc = (id, name) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Remove Knowledge Base Document?',
+      message: `Are you sure you want to remove "${name}"? It will be deleted from the system and will no longer be used for AI research and proposal generation.`,
+      confirmText: 'Yes, Delete Document',
+      cancelText: 'Cancel',
+      variant: 'danger',
+      icon: <Trash2 size={24} color="#ef4444" />,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          await deleteKnowledgeBaseDocument(id);
+          showToast(`Deleted "${name}" from server`, 'success');
+          loadKbDocuments();
+        } catch (err) {
+          showToast(err.response?.data?.error || err.message || 'Failed to delete document', 'error');
+        }
+      }
+    });
   };
-
-
 
   const [toast, setToast] = useState(null);
   const [scoreFilter, setScoreFilter] = useState('all');
   const [tableSearch, setTableSearch] = useState('');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const userEmail = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
@@ -729,25 +751,99 @@ const Dashboard = () => {
   const showRetryBanner = Boolean(results && Array.isArray(results) && results.length > 0 && !loading && isLikelyFailedResult(results));
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-color)' }}>
-      {toast && (
-        <div className={`toast ${toast.type}`}>
-          <CheckCircle size={18} />
-          {toast.message}
+    <div className="dashboard-container">
+      {/* Mobile Top Header (<= 1024px) */}
+      <div className="dashboard-mobile-header">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(prev => !prev)}
+            aria-label="Toggle navigation drawer"
+            style={{
+              background: '#f1f5f9',
+              border: '1px solid #cbd5e1',
+              borderRadius: '0.5rem',
+              color: '#0f172a',
+              padding: '0.45rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+          <img
+            src="/insighthub-logo.png"
+            alt="InsightHub Logo"
+            style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
+          />
         </div>
-      )}
 
-      <div style={{
-        width: '300px',
-        background: '#ffffff',
-        borderRight: '1px solid #e2e8f0',
-        display: 'flex',
-        flexDirection: 'column',
-        flexShrink: 0,
-        boxShadow: '4px 0 20px rgba(0, 0, 0, 0.04)',
-        zIndex: 10
-      }}>
-        <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: '#ffffff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <button
+            type="button"
+            onClick={() => window.open('/search-history', '_blank')}
+            title="Search History"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+              background: '#eff6ff',
+              border: '1px solid #bfdbfe',
+              borderRadius: '0.5rem',
+              padding: '0.45rem 0.75rem',
+              fontSize: '0.78rem',
+              fontWeight: 700,
+              color: '#0066FF',
+              cursor: 'pointer'
+            }}
+          >
+            <History size={14} /> History
+          </button>
+        </div>
+      </div>
+
+      {/* Backdrop overlay for mobile drawer */}
+      <div
+        className={`dashboard-sidebar-overlay ${mobileMenuOpen ? 'overlay-open' : ''}`}
+        onClick={() => setMobileMenuOpen(false)}
+      />
+
+      {/* Sidebar Drawer */}
+      <div
+        className={`dashboard-sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}
+        style={{
+          width: '300px',
+          background: '#ffffff',
+          borderRight: '1px solid #e2e8f0',
+          display: 'flex',
+          flexDirection: 'column',
+          flexShrink: 0,
+          boxShadow: '4px 0 20px rgba(0, 0, 0, 0.04)',
+          zIndex: 10
+        }}
+      >
+        <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: '#ffffff', position: 'relative' }}>
+          {/* Close button inside sidebar on mobile */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(false)}
+            aria-label="Close sidebar"
+            style={{
+              position: 'absolute',
+              top: '0.75rem',
+              right: '0.75rem',
+              background: 'transparent',
+              border: 'none',
+              color: '#94a3b8',
+              cursor: 'pointer',
+              padding: '0.25rem',
+              display: mobileMenuOpen ? 'flex' : 'none'
+            }}
+          >
+            <X size={18} />
+          </button>
           <div style={{
             width: '100%',
             display: 'flex',
@@ -758,7 +854,7 @@ const Dashboard = () => {
             <img 
               src="/insighthub-logo.png" 
               alt="InsightHub Logo" 
-              style={{ maxHeight: '100px', maxWidth: '250px', width: '100%', height: 'auto', objectFit: 'contain' }} 
+              style={{ maxHeight: '90px', maxWidth: '230px', width: '100%', height: 'auto', objectFit: 'contain' }} 
             />
           </div>
           <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', marginTop: '0.25rem' }}>
@@ -776,6 +872,7 @@ const Dashboard = () => {
               <button
                 key={agent.id}
                 onClick={() => {
+                  setMobileMenuOpen(false);
                   if (isProposalAgent && isAdmin) {
                     window.open('/proposals', '_blank');
                     return;
@@ -919,24 +1016,24 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div style={{ flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
-        <div className="animate-fade-in" key={activeAgent.id} style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      <div className="dashboard-main" style={{ flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+        <div className="animate-fade-in" key={activeAgent.id} style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
               <div style={{
                 width: '42px', height: '42px', borderRadius: '0.75rem',
                 background: 'linear-gradient(135deg, rgb(0, 102, 255) 0%, rgb(16, 185, 129) 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                boxShadow: '0 4px 15px rgba(0, 102, 255, 0.25)'
+                boxShadow: '0 4px 15px rgba(0, 102, 255, 0.25)', flexShrink: 0
               }}>
                 <activeAgent.icon size={22} color="#ffffff" />
               </div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#0f172a' }}>{activeAgent.name}</h1>
+              <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', color: '#0f172a', margin: 0 }}>{activeAgent.name}</h1>
             </div>
-            <p style={{ color: 'var(--text-muted)', marginLeft: '3.25rem' }}>{activeAgent.desc}</p>
+            <p style={{ color: 'var(--text-muted)', marginTop: '0.25rem', maxWidth: '700px', lineHeight: 1.5 }}>{activeAgent.desc}</p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
             <button
               onClick={() => window.open('/search-history', '_blank')}
               id="btn-search-history-header"
@@ -1065,8 +1162,8 @@ const Dashboard = () => {
           </div>
         )}
 
-        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
+        <form onSubmit={handleSearch} style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: '1 1 260px' }}>
             <Search size={20} style={{ position: 'absolute', top: '50%', left: '1rem', transform: 'translateY(-50%)', color: '#94a3b8' }} />
             <input
               type="text"
@@ -1353,8 +1450,8 @@ const Dashboard = () => {
               </div>
             )}
 
-            <div style={{ overflowX: 'auto' }}>
-              <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+            <div className="table-responsive" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+              <table style={{ width: '100%', minWidth: '700px', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
                   <tr style={{ background: '#f8fafc', borderBottom: `2px solid #e2e8f0` }}>
                     {(isLeadResults ? leadDisplayColumns : Object.keys(results[0])).map(key => (
@@ -1705,6 +1802,18 @@ const Dashboard = () => {
         </div>
       )}
 
+      {/* Modern In-App Confirmation Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        icon={confirmModal.icon}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 };

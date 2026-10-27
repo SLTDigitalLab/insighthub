@@ -306,3 +306,364 @@ input:focus, select:focus, textarea:focus {
   padding-bottom: 0.75rem;
   border-bottom: 1px solid #f1f5f9;
 }
+
+/* ============================================================
+   Comprehensive Mobile & Tablet Responsive Design System
+   Breakpoints:
+   - <= 1024px: Tablet & small laptops (collapsible dashboard sidebar)
+   - <= 768px: Mobile landscape & tablets (stacked headers, compact tables)
+   - <= 640px: Mobile portrait (single column, full width touch targets)
+   - <= 480px: Small phones
+   ============================================================ */
+
+/* Generic Responsive Utility Classes */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-responsive table {
+  min-width: 600px;
+}
+
+/* Touch Friendly Targets */
+@media (hover: none) and (pointer: coarse) {
+  button, input, select, textarea, a {
+    min-height: 38px;
+  }
+}
+
+/* Dashboard Responsive Layout */
+.dashboard-container {
+  display: flex;
+  min-height: 100vh;
+  background: var(--bg-color);
+  position: relative;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+.dashboard-mobile-header {
+  display: none;
+}
+
+.dashboard-sidebar-overlay {
+  display: none;
+}
+
+/* Tablet & Mobile Dashboard Styles (<= 1024px) */
+@media (max-width: 1024px) {
+  .dashboard-container {
+    flex-direction: column;
+  }
+
+  .dashboard-mobile-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+    background: #ffffff;
+    border-bottom: 1px solid var(--border-color);
+    position: sticky;
+    top: 0;
+    z-index: 900;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  }
+
+  .dashboard-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    bottom: 0 !important;
+    width: 290px !important;
+    max-width: 85vw !important;
+    height: 100vh !important;
+    z-index: 1000 !important;
+    background: #ffffff !important;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.25) !important;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    overflow-y: auto !important;
+  }
+
+  .dashboard-sidebar.sidebar-open {
+    transform: translateX(0) !important;
+  }
+
+  .dashboard-sidebar-overlay {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.25s ease;
+  }
+
+  .dashboard-sidebar-overlay.overlay-open {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .dashboard-main {
+    padding: 1.25rem 1rem !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* Mobile Portrait Dashboard & Pages (<= 768px) */
+@media (max-width: 768px) {
+  .dashboard-main {
+    padding: 1rem 0.75rem !important;
+  }
+
+  .toast {
+    bottom: 1rem;
+    right: 1rem;
+    left: 1rem;
+    max-width: calc(100% - 2rem);
+    padding: 0.75rem 1rem;
+    font-size: 0.85rem;
+  }
+
+  .business-detail-hero {
+    padding: 1.25rem 1rem;
+  }
+
+  .business-detail-hero h1 {
+    font-size: 1.45rem;
+  }
+
+  .action-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .result-section {
+    padding: 1rem;
+  }
+}
+
+/* Small Smartphone Screen (<= 480px) */
+@media (max-width: 480px) {
+  .dashboard-main {
+    padding: 0.85rem 0.5rem !important;
+  }
+
+  .btn-brand-gradient {
+    padding: 0.65rem 1rem;
+    font-size: 0.82rem;
+  }
+}
+
+/* ==========================================================================
+   Mobile Responsive Utilities across InsightHub
+   ========================================================================== */
+
+/* Responsive Containers & Padding */
+.search-history-container {
+  padding: 2rem 3rem;
+  box-sizing: border-box;
+}
+
+.business-detail-container {
+  padding: 1.5rem 2rem;
+  box-sizing: border-box;
+}
+
+.admin-portal-container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  padding: 0 1.5rem;
+  box-sizing: border-box;
+}
+
+.proposal-hub-main {
+  flex: 1;
+  padding: 20px 24px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.proposal-hub-header {
+  background: #ffffff;
+  border-bottom: 1px solid #e2e8f0;
+  padding: 14px 28px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+.proposal-hub-tabs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #f1f5f9;
+  padding: 4px;
+  border-radius: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.proposal-hub-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+/* Proposal Agent Split Editor & Preview */
+.proposal-split-container {
+  display: grid;
+  grid-template-columns: minmax(320px, 440px) minmax(0, 1fr);
+  gap: 18px;
+  align-items: start;
+}
+
+.proposal-split-left {
+  max-height: calc(100vh - 250px);
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.proposal-split-right {
+  border: 1px solid var(--border-color, #e2e8f0);
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: hidden;
+}
+
+.proposal-mobile-tab-toggle {
+  display: none;
+}
+
+.proposal-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+/* Auth Cards */
+.auth-card {
+  box-sizing: border-box;
+}
+
+/* Responsive Table Wrapper */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Tablet Breakpoints (<= 960px / <= 1024px) */
+@media (max-width: 960px) {
+  .proposal-split-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+  }
+
+  .proposal-mobile-tab-toggle {
+    display: flex !important;
+    align-items: center !important;
+    background: #f1f5f9 !important;
+    padding: 4px !important;
+    border-radius: 10px !important;
+    margin-bottom: 14px !important;
+    gap: 6px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .proposal-mobile-tab-btn {
+    flex: 1 !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px !important;
+    padding: 10px 14px !important;
+    font-size: 0.88rem !important;
+    font-weight: 700 !important;
+    border-radius: 8px !important;
+    border: none !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+  }
+
+  .proposal-split-left {
+    max-height: none !important;
+    overflow-y: visible !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .proposal-split-right {
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .mobile-hidden-pane {
+    display: none !important;
+  }
+
+  .proposal-hub-header {
+    flex-wrap: wrap !important;
+    gap: 12px !important;
+    padding: 12px 16px !important;
+  }
+}
+
+/* Mobile Screen Breakpoints (<= 768px) */
+@media (max-width: 768px) {
+  .search-history-container {
+    padding: 1rem 0.75rem !important;
+  }
+
+  .business-detail-container {
+    padding: 0.85rem 0.6rem !important;
+  }
+
+  .admin-portal-container {
+    margin: 1rem auto !important;
+    padding: 0 0.75rem !important;
+  }
+
+  .admin-portal-header {
+    flex-wrap: wrap !important;
+    gap: 0.75rem !important;
+    padding: 0.85rem 1rem !important;
+  }
+
+  .proposal-hub-main {
+    padding: 12px 10px !important;
+  }
+
+  .auth-card {
+    padding: 2rem 1.25rem !important;
+    border-radius: 1rem !important;
+  }
+}
+
+/* Small Smartphone Breakpoints (<= 560px) */
+@media (max-width: 560px) {
+  .proposal-two-col {
+    grid-template-columns: 1fr !important;
+  }
+
+  .auth-card {
+    padding: 1.5rem 1rem !important;
+  }
+
+  .search-history-container {
+    padding: 0.75rem 0.5rem !important;
+  }
+}

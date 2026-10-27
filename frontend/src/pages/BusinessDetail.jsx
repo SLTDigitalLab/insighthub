@@ -292,8 +292,8 @@ const BusinessDetail = () => {
     if (!data || data.length === 0) return null;
     const columns = Object.keys(data[0]);
     return (
-      <div style={{ overflowX: 'auto', marginTop: '1rem' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
+      <div className="table-responsive" style={{ overflowX: 'auto', marginTop: '1rem', WebkitOverflowScrolling: 'touch' }}>
+        <table style={{ width: '100%', minWidth: '650px', borderCollapse: 'collapse', textAlign: 'left' }}>
           <thead>
             <tr style={{ borderBottom: `2px solid ${color}40` }}>
               {columns.map(key => (
@@ -355,7 +355,7 @@ const BusinessDetail = () => {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg-color)', padding: '1.5rem 2rem' }}>
+    <div className="business-detail-container" style={{ minHeight: '100vh', background: 'var(--bg-color)', boxSizing: 'border-box' }}>
       {/* Toast */}
       {toast && (
         <div className={`toast ${toast.type}`}>
@@ -369,6 +369,8 @@ const BusinessDetail = () => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '0.75rem',
         background: '#ffffff',
         padding: '0.75rem 1.5rem',
         borderRadius: '1rem',

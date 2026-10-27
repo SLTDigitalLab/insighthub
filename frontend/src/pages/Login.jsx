@@ -251,7 +251,7 @@ const Login = () => {
       padding: '2rem 1.5rem'
     }}>
       <div
-        className="animate-fade-in"
+        className="animate-fade-in auth-card"
         style={{
           background: '#ffffff',
           padding: '3.5rem 2.75rem',

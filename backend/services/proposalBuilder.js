@@ -12,6 +12,7 @@ const { execFile } = require('child_process');
 // Runs LibreOffice to convert the .docx to PDF
 const pdfParse = require('pdf-parse');
 // Reads the rendered PDF's page text to find which page each Contents heading landed on
+const axios = require('axios');
 
 const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'proposal_template.docx');
 // SLT proposal template (built by scripts/make_template.py + fix_template_layout.py) with every variable part as a {placeholder}
@@ -19,8 +20,26 @@ const DIAGRAM_DIR = path.join(__dirname, '..', 'templates', 'diagrams');
 // Network diagrams: one PNG per product id (e.g. bil.png). A product without one shows its requirement text only.
 const PRODUCTS = require('../data/products.json');
 // 70 products parsed from "SLTMobitel Product & Solution Portfolio - Knowledge Base v1.1" (the same PDF that is in the vector DB)
-const PRODUCT_BY_ID = Object.fromEntries(PRODUCTS.map(p => [p.id, p]));
-// Quick lookup: PRODUCT_BY_ID['bil'] -> the BIL product
+const ID_ALIASES = {
+  'bil': 'bil-business-internet-line',
+  'ssl-vpn': 'ssl-vpn-remote-vpn',
+  'apn': 'apn-access-point-name',
+  'edl': 'edl-ethernet-dedicated-line',
+  'sd-wan': 'sd-wan-software-defined-wide-area-network',
+  'mdr': 'mdr-managed-detection-and-response',
+  'cloud-pos': 'cloud-pos-point-of-sale',
+  'enterprise-premium-cloud': 'enterprise-premium-cloud-vmware',
+  'surveillance-security-solutions': 'surveillance-and-security-solutions',
+  'integrated-internet-service': 'broadband-internet',
+};
+const PRODUCT_BY_ID = Object.fromEntries([
+  ...PRODUCTS.map(p => [p.id, p]),
+  ...Object.entries(ID_ALIASES).map(([alias, targetId]) => {
+    const target = PRODUCTS.find(p => p.id === targetId);
+    return target ? [alias, target] : null;
+  }).filter(Boolean)
+]);
+// Quick lookup: PRODUCT_BY_ID['bil'] -> the BIL product (supporting canonical IDs and short aliases)
 
 const SOLUTION_SUMMARY = 'After careful study on your requirement, we have designed following solutions for your requirements. Total solution includes following components.';
 // The template's own intro sentence above the Proposed Solution table
@@ -41,7 +60,7 @@ const ABOUT_HEADING = 'ABOUT YOU AND HOW WE CAN HELP YOU';
 // Heading of the page between YOUR REQUIREMENTS and PROPOSED SOLUTION (as in the template)
 const TOC_HEADINGS = ['COMPANY OVERVIEW', 'OUR STRENGTHS', 'WHY WITH US', 'YOUR REQUIREMENTS', ABOUT_HEADING, 'PROPOSED SOLUTION', 'NETWORK ARCHITECTURE', 'SOLUTION DIAGRAM', 'YOUR INVESTMENT', 'TERMS AND CONDITIONS', 'CUSTOMER ACKNOWLEDGEMENTS', 'SME SOLUTIONS', 'AWARDS AND ACCOLADES', 'CONTACT US'];
 // Page heading for each Contents line {toc0}..{toc13}, in the template's order
-const TOC_TEMPLATE_PAGES = [3, 4, 5, 6, 7, 8, 8, 9, 10, 11, 12, 13, 14, 16];
+const TOC_TEMPLATE_PAGES = [3, 4, 5, 6, 7, 8, 8, 9, 11, 12, 13, 14, 15, 18];
 const ABOUT_LIMITS = [null, { sentences: 3, descWords: 90, reasonWords: 16, max: 5 }, { sentences: 2, descWords: 60, reasonWords: 12, max: 5 }, { sentences: 2, descWords: 50, reasonWords: 10, max: 4 }, { sentences: 2, descWords: 40, reasonWords: 8, max: 3 }];
 // "About you" shortening steps tried after a render if the section spills past one page: level 0 = as written,
 // then fewer sentences / shorter reasons, and only in the last two steps fewer products (never below 3)
@@ -50,17 +69,17 @@ const MIN_RECOMMENDATIONS = 3;
 // The template's printed numbers, used only if the PDF can't be rendered to measure the real ones
 
 const SUGGESTIONS = [
-  { match: /hotel|resort|villa|guest ?house|inn|lodge|hostel|bungalow/i, ids: ['bil', 'managed-wifi-solutions', 'enterprise-tv', 'managed-firewall', 'surveillance-security-solutions', 'univo'] },
-  { match: /bank|finance|insurance|leasing|credit|microfinance/i, ids: ['premium-vpn', 'sd-wan', 'managed-firewall', 'mdr', 'ddos-protection-service', 'backup-services'] },
-  { match: /hospital|clinic|medical|pharmacy|health|channel/i, ids: ['integrated-internet-service', 'enterprise-wifi', 'enterprise-premium-cloud', 'backup-services', 'queue-management-system', 'surveillance-security-solutions'] },
-  { match: /school|college|university|institute|academy|tuition|campus|education/i, ids: ['data-one', 'enterprise-wifi', 'slt-esiphala', 'akaza-lms', 'google-workspace', 'surveillance-security-solutions'] },
-  { match: /restaurant|cafe|café|bakery|food|bar|pub/i, ids: ['data-one', 'cloud-pos', 'managed-wifi-solutions', 'surveillance-security-solutions', 'peotv-biz'] },
-  { match: /shop|store|supermarket|retail|mall|boutique|pharma|hardware/i, ids: ['data-one', 'cloud-pos', 'ssl-vpn', 'apn', 'surveillance-security-solutions'] },
-  { match: /factory|manufactur|industr|logistic|transport|warehouse|garment|apparel/i, ids: ['sd-wan', 'integrated-internet-service', 'fleet-management-service', 'akaza-erp', 'surveillance-security-solutions'] },
-  { match: /software|it |technology|tech|digital|agency|consult|office|company|corporate/i, ids: ['bil', 'enet', 'managed-firewall', 'microsoft-365-enterprise', 'univo', 'enterprise-premium-cloud'] },
+  { match: /hotel|resort|villa|guest ?house|inn|lodge|hostel|bungalow/i, ids: ['bil-business-internet-line', 'managed-wifi-solutions', 'enterprise-tv', 'managed-firewall', 'surveillance-and-security-solutions', 'univo'] },
+  { match: /bank|finance|insurance|leasing|credit|microfinance/i, ids: ['premium-vpn', 'sd-wan-software-defined-wide-area-network', 'managed-firewall', 'mdr-managed-detection-and-response', 'ddos-protection-service', 'backup-services'] },
+  { match: /hospital|clinic|medical|pharmacy|health|channel/i, ids: ['broadband-internet', 'enterprise-wifi', 'enterprise-premium-cloud-vmware', 'backup-services', 'queue-management-system', 'surveillance-and-security-solutions'] },
+  { match: /school|college|university|institute|academy|tuition|campus|education/i, ids: ['data-one', 'enterprise-wifi', 'slt-esiphala', 'akaza-lms', 'google-workspace', 'surveillance-and-security-solutions'] },
+  { match: /restaurant|cafe|café|bakery|food|bar|pub/i, ids: ['data-one', 'cloud-pos-point-of-sale', 'managed-wifi-solutions', 'surveillance-and-security-solutions', 'peotv-biz'] },
+  { match: /shop|store|supermarket|retail|mall|boutique|pharma|hardware/i, ids: ['data-one', 'cloud-pos-point-of-sale', 'ssl-vpn-remote-vpn', 'apn-access-point-name', 'surveillance-and-security-solutions'] },
+  { match: /factory|manufactur|industr|logistic|transport|warehouse|garment|apparel/i, ids: ['sd-wan-software-defined-wide-area-network', 'broadband-internet', 'fleet-management-service', 'akaza-erp', 'surveillance-and-security-solutions'] },
+  { match: /software|it |technology|tech|digital|agency|consult|office|company|corporate/i, ids: ['bil-business-internet-line', 'enet', 'managed-firewall', 'microsoft-365-enterprise', 'univo', 'enterprise-premium-cloud-vmware'] },
 ];
 // Google Maps category -> products to highlight as "Suggested" (the rep can still pick anything)
-const DEFAULT_SUGGESTIONS = ['bil', 'data-one', 'managed-firewall', 'univo', 'microsoft-365-enterprise'];
+const DEFAULT_SUGGESTIONS = ['bil-business-internet-line', 'data-one', 'managed-firewall', 'univo', 'microsoft-365-enterprise'];
 // Used when the category doesn't match any rule above
 
 const SECTORS = [
@@ -89,7 +108,8 @@ const DESIGNATIONS = [
 function suggestFor(category = '') {
   const rule = SUGGESTIONS.find(r => r.match.test(` ${category} `));
   // First rule whose keywords appear in the category (spaces added so "it " matches at the end)
-  return rule ? rule.ids : DEFAULT_SUGGESTIONS;
+  const ids = rule ? rule.ids : DEFAULT_SUGGESTIONS;
+  return ids.map(id => (PRODUCT_BY_ID[id] ? PRODUCT_BY_ID[id].id : id)).filter(id => PRODUCT_BY_ID[id]);
 }
 
 function designationFor(category = '') {
@@ -149,6 +169,28 @@ function pngSize(buf) {
   // PNG width/height are stored at bytes 16–23 of the file header
 }
 
+function getImageDimensions(buf) {
+  if (!buf || buf.length < 24) return { w: 200, h: 80 };
+  if (buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47) {
+    return { w: buf.readUInt32BE(16) || 200, h: buf.readUInt32BE(20) || 80 };
+  }
+  if (buf[0] === 0xFF && buf[1] === 0xD8) {
+    let offset = 2;
+    while (offset < buf.length - 8) {
+      if (buf[offset] !== 0xFF) { offset++; continue; }
+      const marker = buf[offset + 1];
+      if (marker === 0xC0 || marker === 0xC1 || marker === 0xC2) {
+        const h = buf.readUInt16BE(offset + 5);
+        const w = buf.readUInt16BE(offset + 7);
+        if (w && h) return { w, h };
+      }
+      const len = buf.readUInt16BE(offset + 2);
+      offset += 2 + len;
+    }
+  }
+  return { w: 200, h: 80 };
+}
+
 function textPara(runsXml, { before = 120, after = 60, keepNext = false } = {}) {
   return `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${keepNext ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="${before}" w:after="${after}"/><w:ind w:left="360" w:right="360"/><w:jc w:val="both"/></w:pPr>${runsXml}</w:p>`;
   // widowControl: the template's Body Text style turns it off, and without it Word splits "keep with next" groups across pages
@@ -160,20 +202,25 @@ function run(text, { bold = false, color = null } = {}) {
   // One piece of text, optionally bold/coloured
 }
 
-function imagePara(rId, docPrId, name, size) {
-  const cx = CONTENT_WIDTH_EMU;
-  // Image width: the full text width of the page
-  const cy = Math.round(cx * size.h / size.w);
-  // Height keeps the diagram's aspect ratio
-  return `<w:p><w:pPr><w:keepLines/><w:spacing w:before="60" w:after="240"/><w:ind w:left="360"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${docPrId}" name="${esc(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="${esc(name)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
-  // Standard Word inline picture XML pointing at the image relationship rId
+function imagePara(rId, docPrId, name, size, isFirstProduct = false) {
+  const maxCx = isFirstProduct ? 4800000 : 5600000;
+  const maxCy = isFirstProduct ? 1850000 : 2900000;
+
+  let cx = maxCx;
+  let cy = Math.round(cx * size.h / size.w);
+  if (cy > maxCy) {
+    cy = maxCy;
+    cx = Math.round(cy * size.w / size.h);
+  }
+
+  return `<w:p><w:pPr><w:keepLines/><w:spacing w:before="40" w:after="${isFirstProduct ? 40 : 80}"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${docPrId}" name="${esc(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="${esc(name)}"/><pic:cNvPicPr><a:picLocks noChangeAspect="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 }
 
 function customerBenefitsXml(product, beforeDiagram) {
   const benefits = product ? (product.customerBenefits || []).map(b => String(b || '').trim()).filter(Boolean) : [];
   if (!benefits.length) return '';
-  return textPara(run('Customer Benefits', { bold: true, color: '0B2A6F' }), { before: 100, after: 20, keepNext: true })
-    + benefits.map((b, j) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${j < benefits.length - 1 || beforeDiagram ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="20" w:after="20"/><w:ind w:left="720" w:right="360" w:hanging="300"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
+  return textPara(run('Customer Benefits', { bold: true, color: '0B2A6F' }), { before: 80, after: 20, keepNext: true })
+    + benefits.map((b, j) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${j < benefits.length - 1 || beforeDiagram ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="15" w:after="15"/><w:ind w:left="720" w:right="360" w:hanging="300"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
 }
 
 function termsAndConditionsXml(products) {
@@ -211,13 +258,13 @@ function addDiagramsAndBuildRequirements(zip, requirements) {
   // List of files (images etc.) the document links to
   let xml = '';
   requirements.forEach((r, i) => {
-    // Reserve one page for each product: insert page break before product 1, 2, ...
+    // Product 1 (i = 0) stays with Proposed Solution table on Page 8. Remaining products (i > 0) get dedicated page.
     if (i > 0) {
       xml += '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
     }
-    xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 120 : 160, keepNext: true });
+    xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 80 : 120, keepNext: true });
     // Numbered requirement title in SLT navy (editable by the rep)
-    if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 40, keepNext: true });
+    if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 30, after: 30, keepNext: true });
     // Requirement description (editable by the rep)
     const product = PRODUCT_BY_ID[r.id];
     const own = product && path.join(DIAGRAM_DIR, `${product.id}.png`);
@@ -234,9 +281,8 @@ function addDiagramsAndBuildRequirements(zip, requirements) {
     if (!rels.includes(`Id="${rId}"`)) {
       rels = rels.replace('</Relationships>', `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaName}"/></Relationships>`);
     }
-    // Registers the image so the document can reference it
-    xml += imagePara(rId, 9000 + i, `${product.name} diagram`, pngSize(buf));
-    // The diagram goes under the requirement
+    // Registers the image so the document can reference it (isFirstProduct = i === 0)
+    xml += imagePara(rId, 9000 + i, `${product.name} diagram`, pngSize(buf), i === 0);
   });
   zip.file(relsPath, rels);
   // Saves the updated relationships
@@ -284,10 +330,11 @@ function describeBusiness(business = {}) {
 }
 
 function reasonFor(product, sector) {
+  if (!product) return '';
   const sentence = firstSentences(product.description, 1);
-  if (sector && sector.words.test(sentence) && sentence.split(' ').length <= 20) return sentence;
+  if (sector && sector.words && sector.words.test(sentence) && sentence.split(' ').length <= 20) return sentence;
   // The catalogue's own first sentence when it names this kind of business ("… for hotels, resorts …") and is short
-  const feature = String(product.features[0] || '').trim().replace(/\.$/, '');
+  const feature = String((product.features && product.features[0]) || '').trim().replace(/\.$/, '');
   return feature ? `${feature}.` : shortProductSentence(product.description, product, 18);
   // Otherwise its first key feature from the catalogue
 }
@@ -296,14 +343,19 @@ function recommendFor(business = {}, productIds = []) {
   const sector = sectorFor(business.category);
   const rule = SUGGESTIONS.find(r => r.match.test(` ${business.category || ''} `));
   const mentions = sector
-    ? PRODUCTS.map(p => ({ id: p.id, n: (`${p.name} ${p.description} ${p.features.join(' ')}`.match(new RegExp(sector.words.source, 'gi')) || []).length }))
+    ? PRODUCTS.map(p => ({ id: p.id, n: (`${p.name} ${p.description} ${(p.features || []).join(' ')}`.match(new RegExp(sector.words.source, 'gi')) || []).length }))
       .filter(m => m.n > 0).sort((a, b) => b.n - a.n).map(m => m.id)
     : [];
   // Catalogue products whose own text mentions this sector, most mentions first
   const typed = [...new Set([...(rule ? rule.ids : []), ...mentions])].filter(id => PRODUCT_BY_ID[id]);
   const ticked = productIds.filter(id => PRODUCT_BY_ID[id]);
   const pick = [];
-  const add = (ids, upTo) => ids.forEach(id => { if (pick.length < upTo && !pick.includes(id)) pick.push(id); });
+  const add = (ids, upTo) => ids.forEach(id => {
+    const canonical = PRODUCT_BY_ID[id] ? PRODUCT_BY_ID[id].id : id;
+    if (PRODUCT_BY_ID[canonical] && pick.length < upTo && !pick.includes(canonical)) {
+      pick.push(canonical);
+    }
+  });
   add(typed, 3);
   // 1. Up to 3 products for this business type
   add(ticked, 4);
@@ -311,8 +363,9 @@ function recommendFor(business = {}, productIds = []) {
   add(typed, 4);
   add(DEFAULT_SUGGESTIONS, 3);
   // 3. Keep exactly 3–4 recommendations so they fit comfortably on one single page
-  return pick.slice(0, 4).map((id, i) => ({
-    id,
+  const valid = pick.filter(id => PRODUCT_BY_ID[id]);
+  return valid.slice(0, 4).map((id, i) => ({
+    id: PRODUCT_BY_ID[id].id,
     name: PRODUCT_BY_ID[id].name,
     reason: reasonFor(PRODUCT_BY_ID[id], sector),
     highPriority: true // High priority recommendations from knowledge base
@@ -333,6 +386,7 @@ function generateFields({ business, productIds = [], user = {}, refNo, defaults 
 
   return {
     companyName: business.name,
+    leadLogo: business.leadLogo || business.logo || business.logoUrl || '',
     // Business name (cover, letter, T&C)
     refNo: refNo || '',
     // Unique reference issued on the server by /generate (services/refService.js); read-only in the editor
@@ -562,7 +616,9 @@ function aboutXml(fields, level = 0) {
   if (recs.length) {
     xml += textPara(run('How we can help you', { bold: true, color: '0B2A6F' }), { before: 180, after: 40, keepNext: true });
     recs.slice(0, 4).forEach((r, i) => {
-      xml += textPara(run(`${i + 1}.  ${PRODUCT_BY_ID[r.id].name}`, { bold: true, color: '0B2A6F' }) + (r.highPriority ? PRIORITY_TAG : ''), { before: i ? 120 : 60, after: 0, keepNext: true });
+      const prod = PRODUCT_BY_ID[r.id];
+      const rName = prod ? prod.name : (r.name || r.id);
+      xml += textPara(run(`${i + 1}.  ${rName}`, { bold: true, color: '0B2A6F' }) + (r.highPriority ? PRIORITY_TAG : ''), { before: i ? 120 : 60, after: 0, keepNext: true });
       // Product name exactly as in the catalogue, plus the HIGH PRIORITY label when ticked
       if (String(r.reason || '').trim()) xml += textPara(run(String(r.reason).trim()), { before: 30, after: 0 });
       // The one-line reason under it
@@ -610,13 +666,107 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   // Pre-process word/document.xml to clean field codes, Lotus Road address, and Terms & Conditions
   let xml = zip.file('word/document.xml').asText();
 
+  // Ensure no red text remains anywhere in the template or generated XML
+  xml = xml.replace(/<w:color\s+w:val="FF0000"\/>/gi, '<w:color w:val="0B2A6F"/>');
+  zip.file(/word\/(header\d+|footer\d+)\.xml/).forEach(f => {
+    let content = f.asText();
+    if (/FF0000/i.test(content)) {
+      zip.file(f.name, content.replace(/<w:color\s+w:val="FF0000"\/>/gi, '<w:color w:val="002060"/>'));
+    }
+  });
+
   // 1. Cover page: cleanly replace field codes so {companyName} displays directly
   const pStart = xml.indexOf('SET CustomerName4');
   if (pStart !== -1) {
     const paraStart = xml.lastIndexOf('<w:p ', pStart);
     const paraEnd = xml.indexOf('</w:p>', pStart) + 6;
-    const cleanCoverPara = '<w:p w:rsidR="00F86C5E" w:rsidRPr="0073313B" w:rsidRDefault="00F86C5E" w:rsidP="004C153B"><w:pPr><w:pStyle w:val="Title"/><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/></w:rPr></w:pPr><w:r><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:t>{companyName}</w:t></w:r><w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:br/></w:r><w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:br/><w:t xml:space="preserve">Proposal Ref. No. </w:t></w:r><w:r w:rsidR="008B026C"><w:rPr><w:color w:val="FF0000"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t>{refNo}</w:t></w:r></w:p>';
+    const cleanCoverPara = '<w:p w:rsidR="00F86C5E" w:rsidRPr="0073313B" w:rsidRDefault="00F86C5E" w:rsidP="004C153B"><w:pPr><w:pStyle w:val="Title"/><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/></w:rPr></w:pPr><w:r><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:t>{companyName}</w:t></w:r><w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:br/></w:r><w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:br/><w:t xml:space="preserve">Proposal Ref. No. </w:t></w:r><w:r w:rsidR="008B026C"><w:rPr><w:color w:val="124162"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t>{refNo}</w:t></w:r></w:p>';
     xml = xml.substring(0, paraStart) + cleanCoverPara + xml.substring(paraEnd);
+  }
+
+  // 1b. Cover page logo table: populate Cell 2 (right side of Mobitel logo) with client logo or styled company name
+  const col2Idx = xml.indexOf('<w:gridCol w:w="5255"/>');
+  if (col2Idx !== -1) {
+    const trStart = xml.indexOf('<w:tr', col2Idx);
+    const cell1Start = trStart !== -1 ? xml.indexOf('<w:tc>', trStart) : -1;
+    const cell1End = cell1Start !== -1 ? xml.indexOf('</w:tc>', cell1Start) + 7 : -1;
+    const cell2Start = cell1End !== -1 ? xml.indexOf('<w:tc>', cell1End) : -1;
+    const cell2End = cell2Start !== -1 ? xml.indexOf('</w:tc>', cell2Start) + 7 : -1;
+
+    if (cell2Start !== -1 && cell2End !== -1) {
+      let clientLogoXml = '';
+      let logoBuf = null;
+
+      if (fields.leadLogo) {
+        if (Buffer.isBuffer(fields.leadLogo)) {
+          logoBuf = fields.leadLogo;
+        } else if (typeof fields.leadLogo === 'string') {
+          if (fields.leadLogo.startsWith('data:image/')) {
+            try {
+              const base64Data = fields.leadLogo.split(',')[1];
+              logoBuf = Buffer.from(base64Data, 'base64');
+            } catch (e) {}
+          } else if (/^[A-Za-z0-9+/=]+$/.test(fields.leadLogo.trim()) && fields.leadLogo.trim().length > 100) {
+            try {
+              logoBuf = Buffer.from(fields.leadLogo.trim(), 'base64');
+            } catch (e) {}
+          }
+        }
+      }
+
+      if (logoBuf && logoBuf.length > 0) {
+        const isPng = logoBuf[0] === 0x89 && logoBuf[1] === 0x50;
+        const ext = isPng ? 'png' : 'jpg';
+        const mediaName = `ih_client_logo.${ext}`;
+        zip.file(`word/media/${mediaName}`, logoBuf);
+
+        const relsPath = 'word/_rels/document.xml.rels';
+        let rels = zip.file(relsPath).asText();
+        const rId = 'rIdClientLogo';
+        if (!rels.includes(`Id="${rId}"`)) {
+          rels = rels.replace('</Relationships>', `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaName}"/></Relationships>`);
+          zip.file(relsPath, rels);
+        }
+
+        const sizePref = String(fields.leadLogoSize || 'medium').toLowerCase();
+        let maxCx = 2350000;
+        let maxCy = 980000;
+        if (sizePref === 'large') {
+          maxCx = 2950000;
+          maxCy = 1250000;
+        } else if (sizePref === 'small') {
+          maxCx = 1600000;
+          maxCy = 750000;
+        }
+
+        const dims = getImageDimensions(logoBuf);
+        let w = dims.w || 200;
+        let h = dims.h || 80;
+
+        let cx = maxCx;
+        let cy = Math.round(cx * h / w);
+        if (cy > maxCy) {
+          cy = maxCy;
+          cx = Math.round(cy * w / h);
+        }
+
+        clientLogoXml = 
+          `<w:tc><w:tcPr><w:tcW w:w="5255" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>` +
+          `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="60" w:after="60"/></w:pPr>` +
+          `<w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0">` +
+          `<wp:extent cx="${cx}" cy="${cy}"/>` +
+          `<wp:docPr id="9988" name="Client Logo"/>` +
+          `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="9988" name="Client Logo"/><pic:cNvPicPr><a:picLocks noChangeAspect="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>` +
+          `</wp:inline></w:drawing></w:r></w:p></w:tc>`;
+      } else {
+        clientLogoXml = 
+          `<w:tc><w:tcPr><w:tcW w:w="5255" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>` +
+          `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="80" w:after="60"/></w:pPr>` +
+          `<w:r><w:rPr><w:rFonts w:ascii="Verdana" w:hAnsi="Verdana"/><w:b/><w:sz w:val="28"/><w:szCs w:val="28"/><w:color w:val="0B2A6F"/></w:rPr><w:t>{companyName}</w:t></w:r>` +
+          `</w:p></w:tc>`;
+      }
+      xml = xml.substring(0, cell2Start) + clientLogoXml + xml.substring(cell2End);
+    }
   }
 
   // 2. Letter page: remove duplicate Lotus Road address paragraph completely
@@ -626,53 +776,69 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET Designation ""\s*<\/w:instrText>/g, '');
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*REF\s+Designation\b[^<]*<\/w:instrText>/g, '');
 
-  // 3. Terms & Conditions section: inject {@termsAndConditionsXml}
-  const termsIdx = xml.indexOf('TERMS AND CONDITIONS');
+  // 3. Terms & Conditions section: inject {@termsAndConditionsXml} into body table (occurrence 2)
+  const tocTerms = xml.indexOf('TERMS AND CONDITIONS');
+  const termsIdx = tocTerms !== -1 ? xml.indexOf('TERMS AND CONDITIONS', tocTerms + 1) : -1;
   if (termsIdx !== -1) {
-    const tblStart = xml.lastIndexOf('<w:tbl', termsIdx);
-    const tblEnd = xml.indexOf('</w:tbl>', termsIdx) + 8;
-    let termsTbl = xml.substring(tblStart, tblEnd);
-    termsTbl = termsTbl.replace(/<w:trHeight w:val="10982"\/>/g, '');
-    termsTbl = termsTbl.replace(
-      /(<w:tcPr><w:tcW w:w="9648" w:type="dxa"\/><\/w:tcPr>)(?:<w:p\b[^>]*\/?>(?:(?!<\/w:p>).)*?(?:<\/w:p>)?)+/s,
-      '$1<w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p>'
-    );
-    xml = xml.substring(0, tblStart) + termsTbl + xml.substring(tblEnd);
+    const trTermsEnd = xml.indexOf('</w:tr>', termsIdx) + 7;
+    const tblEnd = xml.indexOf('</w:tbl>', termsIdx);
+    const termsContentRow = '<w:tr><w:tc><w:tcPr><w:tcW w:w="9648" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p></w:tc></w:tr>';
+    xml = xml.substring(0, trTermsEnd) + termsContentRow + xml.substring(tblEnd);
+  }
 
-    const generalTermsStart = xml.indexOf('All prices are valid for 30 days');
-    if (generalTermsStart !== -1) {
-      let pStart = xml.lastIndexOf('<w:p', generalTermsStart);
-      while (pStart !== -1 && (xml[pStart + 4] !== ' ' && xml[pStart + 4] !== '>')) {
-        pStart = xml.lastIndexOf('<w:p', pStart - 1);
-      }
-      const generalTermsEnd = xml.indexOf('Customer shall bear the cost of any transfer', generalTermsStart);
-      if (generalTermsEnd !== -1) {
-        let pEnd = xml.indexOf('</w:p>', generalTermsEnd) + 6;
-        const trailingBookmark = '<w:bookmarkEnd w:id="5"/>';
-        if (xml.substring(pEnd).startsWith(trailingBookmark)) {
-          pEnd += trailingBookmark.length;
-        }
-        xml = xml.substring(0, pStart) + xml.substring(pEnd);
-      }
+  // 4. In "ABOUT YOU & HOW WE CAN HELP YOU":
+  // Remove tall empty spacer rows and place {@aboutXml} directly under the header
+  // so there is no giant blank white space gap.
+  const aboutHeading = xml.indexOf('ABOUT YOU &amp; HOW WE CAN HELP YOU', 600000);
+  const propHeading = xml.indexOf('PROPOSED SOLUTION', 600000);
+  if (aboutHeading !== -1 && propHeading !== -1) {
+    const r3End = xml.indexOf('</w:tr>', aboutHeading) + 7;
+    const r8Start = Math.max(xml.lastIndexOf('<w:tr>', propHeading), xml.lastIndexOf('<w:tr ', propHeading));
+    if (r3End !== -1 && r8Start !== -1 && r3End < r8Start) {
+      const aboutRow = '<w:tr><w:tc><w:tcPr><w:tcW w:w="9738" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>{@aboutXml}</w:t></w:r></w:p></w:tc></w:tr>';
+      xml = xml.substring(0, r3End) + aboutRow + xml.substring(r8Start);
     }
   }
 
-  // 4. "About you and how we can help you" section: inject {@aboutXml}
-  const aboutHdr = 'ABOUT YOU &amp; HOW WE CAN HELP YOU';
-  const aboutIdx = xml.indexOf(aboutHdr, xml.indexOf(aboutHdr) + 1);
-  const solIdx = xml.indexOf('PROPOSED SOLUTION', aboutIdx !== -1 ? aboutIdx : 0);
-  if (aboutIdx !== -1 && solIdx !== -1) {
-    const trEnd = xml.indexOf('</w:tr>', aboutIdx) + 7;
-    let solTrStart = xml.lastIndexOf('<w:tr ', solIdx);
-    if (solTrStart === -1) solTrStart = xml.lastIndexOf('<w:tr>', solIdx);
-    const aboutContentRow = '<w:tr><w:tc><w:tcPr><w:tcW w:w="9738" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>{@aboutXml}</w:t></w:r></w:p></w:tc></w:tr>';
-    xml = xml.substring(0, trEnd) + aboutContentRow + xml.substring(solTrStart);
+  // 5. In "PROPOSED SOLUTION":
+  // (a) Ensure pageBreakBefore so PROPOSED SOLUTION starts on a fresh page (never stranded at page bottom).
+  // (b) Replace old components table and empty spacer paragraphs/rows with {@requirementsXml}
+  //     so Product 1 starts immediately on that same page directly below PROPOSED SOLUTION.
+  // (c) Remove floating table properties (tblpPr) from Table 5 so Word handles natural page flow.
+  const propIdx = xml.indexOf('PROPOSED SOLUTION', 600000);
+  if (propIdx !== -1) {
+    const propPStart = Math.max(xml.lastIndexOf('<w:p>', propIdx), xml.lastIndexOf('<w:p ', propIdx));
+    const propPPrEnd = xml.indexOf('</w:pPr>', propPStart);
+    if (propPPrEnd !== -1 && !xml.substring(propPStart, propPPrEnd).includes('pageBreakBefore')) {
+      xml = xml.substring(0, propPPrEnd) + '<w:pageBreakBefore/>' + xml.substring(propPPrEnd);
+    }
 
-    // Ensure PROPOSED SOLUTION heading paragraph has pageBreakBefore so it starts cleanly on page 8
-    const newSolIdx = xml.indexOf('PROPOSED SOLUTION', trEnd);
-    const solPPrStart = xml.lastIndexOf('<w:pPr>', newSolIdx);
-    if (solPPrStart !== -1 && !xml.substring(solPPrStart, newSolIdx).includes('pageBreakBefore')) {
-      xml = xml.substring(0, solPPrStart + 7) + '<w:pageBreakBefore/>' + xml.substring(solPPrStart + 7);
+    const r8End = xml.indexOf('</w:tr>', propIdx) + 7;
+    const invIdx = xml.indexOf('investment', 600000);
+    const tblInvStart = invIdx !== -1 ? Math.max(xml.lastIndexOf('<w:tbl>', invIdx), xml.lastIndexOf('<w:tbl ', invIdx)) : -1;
+
+    if (r8End !== -1 && tblInvStart !== -1 && r8End < tblInvStart) {
+      // Close Table 5 right after PROPOSED SOLUTION banner, place {@requirementsXml}
+      // in regular document flow (so page breaks between products work natively in Word),
+      // and ensure the Investment table starts cleanly on a fresh page.
+      const flowXml = '</w:tbl><w:p><w:r><w:t>{@requirementsXml}</w:t></w:r></w:p><w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
+      xml = xml.substring(0, r8End) + flowXml + xml.substring(tblInvStart);
+    }
+
+    const tbl5Start = xml.lastIndexOf('<w:tbl>', propIdx);
+    if (tbl5Start !== -1) {
+      const tblPrStart = xml.indexOf('<w:tblPr>', tbl5Start);
+      const tblPrEnd = xml.indexOf('</w:tblPr>', tblPrStart);
+      if (tblPrStart !== -1 && tblPrEnd !== -1) {
+        let prXml = xml.substring(tblPrStart, tblPrEnd);
+        if (prXml.includes('<w:tblpPr')) {
+          prXml = prXml.replace(/<w:tblpPr\b[^>]*\/>/g, '');
+          if (!prXml.includes('<w:jc')) {
+            prXml = prXml.replace(/(<w:tblW\b[^>]*\/>)/, '$1<w:jc w:val="center"/>');
+          }
+          xml = xml.substring(0, tblPrStart) + prXml + xml.substring(tblPrEnd);
+        }
+      }
     }
   }
 
@@ -797,7 +963,24 @@ async function tocPagesFromPdf(pdf) {
   });
 }
 
-async function renderProposal(fields, format = 'docx') {
+async function resolveLeadLogo(fields) {
+  if (!fields || !fields.leadLogo || typeof fields.leadLogo !== 'string') return fields;
+  const s = fields.leadLogo.trim();
+  if (s.startsWith('http://') || s.startsWith('https://')) {
+    try {
+      const resp = await axios.get(s, { responseType: 'arraybuffer', timeout: 3500 });
+      const ct = resp.headers['content-type'] || 'image/png';
+      const b64 = Buffer.from(resp.data).toString('base64');
+      return { ...fields, leadLogo: `data:${ct};base64,${b64}` };
+    } catch (err) {
+      console.warn('[proposal] Could not fetch remote client logo:', err.message);
+    }
+  }
+  return fields;
+}
+
+async function renderProposal(rawFields, format = 'docx') {
+  const fields = await resolveLeadLogo(rawFields);
   if (format === 'docx') {
     return renderDocx(fields);
   }
@@ -807,14 +990,20 @@ async function renderProposal(fields, format = 'docx') {
   let pdf;
   try {
     pdf = await docxToPdf(first.buffer);
+    try {
+      const realToc = await tocPagesFromPdf(pdf);
+      const finalDoc = buildDocx(fields, realToc, layout);
+      pdf = await docxToPdf(finalDoc.buffer);
+      return { buffer: pdf, baseName: finalDoc.baseName };
+    } catch (tocErr) {
+      return { buffer: pdf, baseName: first.baseName };
+    }
   } catch (err) {
     if (format === 'pdf') throw err;
     console.warn('[proposal] PDF conversion failed:', err.message);
     return first;
     // Word export still works, with the template's page numbers
   }
-
-  return { buffer: pdf, baseName: first.baseName };
 }
 
 function findLibreOffice() {
@@ -897,5 +1086,5 @@ function convertDocxToPdf(docxBuffer) {
   });
 }
 
-module.exports = { PRODUCTS, PRODUCT_BY_ID, suggestFor, generateFields, applyAgentProposal, renderDocx, renderProposal, docxToPdf };
+module.exports = { PRODUCTS, PRODUCT_BY_ID, suggestFor, recommendFor, generateFields, applyAgentProposal, renderDocx, renderProposal, docxToPdf };
 // Used by routes/proposals.js

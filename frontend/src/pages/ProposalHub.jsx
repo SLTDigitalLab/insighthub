@@ -4,10 +4,11 @@ import {
   FileText, Upload, Download, Trash2, Building2, Sparkles, Clock,
   ShieldCheck, CheckCircle2, AlertCircle, ArrowLeft, RefreshCw, FileUp,
   Layers, ExternalLink, Calendar, User, Search, Eye, FileSpreadsheet,
-  HelpCircle, ChevronRight, Check, Info, FileCode
+  HelpCircle, ChevronRight, Check, Info, FileCode, RotateCcw
 } from 'lucide-react';
 import axios from 'axios';
 import ProposalAgent from '../components/ProposalAgent';
+import ConfirmModal from '../components/ConfirmModal';
 
 export default function ProposalHub() {
   const navigate = useNavigate();
@@ -20,6 +21,16 @@ export default function ProposalHub() {
   const [userName, setUserName] = useState('');
   const [proposalUser, setProposalUser] = useState(null);
   const [toast, setToast] = useState(null);
+  const [confirmModal, setConfirmModal] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    variant: 'primary',
+    icon: null,
+    onConfirm: () => {}
+  });
 
   // Template management state
   const [templateMeta, setTemplateMeta] = useState(null);
@@ -133,18 +144,29 @@ export default function ProposalHub() {
     }
   };
 
-  const handleResetTemplate = async () => {
-    if (!window.confirm('Are you sure you want to restore the official system default proposal template? This will replace the active template with the clean master template.')) return;
-    try {
-      setUploadingTemplate(true);
-      const { data } = await axios.post('/api/proposals/template/reset');
-      showToast(data.message || 'Template restored to official system default!');
-      fetchTemplateInfo();
-    } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to restore default template.', 'error');
-    } finally {
-      setUploadingTemplate(false);
-    }
+  const handleResetTemplate = () => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Restore Default Master Template?',
+      message: 'Are you sure you want to restore the official system default proposal template? This will replace the currently active template with the clean SLT-Mobitel master template.',
+      confirmText: 'Yes, Restore Master Template',
+      cancelText: 'Keep Current Template',
+      variant: 'warning',
+      icon: <RotateCcw size={24} color="#d97706" />,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          setUploadingTemplate(true);
+          const { data } = await axios.post('/api/proposals/template/reset');
+          showToast(data.message || 'Template restored to official system default!');
+          fetchTemplateInfo();
+        } catch (err) {
+          showToast(err.response?.data?.error || 'Failed to restore default template.', 'error');
+        } finally {
+          setUploadingTemplate(false);
+        }
+      }
+    });
   };
 
   const handleStartFreshProposal = () => {
@@ -154,18 +176,29 @@ export default function ProposalHub() {
     } catch {}
   };
 
-  const handleDeleteProposal = async (id, refNo) => {
-    if (!window.confirm(`Are you sure you want to delete proposal ${refNo || id}?`)) return;
-    try {
-      await axios.delete(`/api/proposals/saved/${id}`);
-      showToast('Proposal removed from system.');
-      setSavedProposals(prev => prev.filter(p => p.id !== id && p.refNo !== id));
-      if (selectedProposal && (selectedProposal.id === id || selectedProposal.refNo === id)) {
-        handleStartFreshProposal();
+  const handleDeleteProposal = (id, refNo) => {
+    setConfirmModal({
+      isOpen: true,
+      title: 'Delete Saved Proposal?',
+      message: `Are you sure you want to delete proposal ${refNo || id}? This proposal will be permanently removed from your archived records.`,
+      confirmText: 'Yes, Delete Proposal',
+      cancelText: 'Keep Proposal',
+      variant: 'danger',
+      icon: <Trash2 size={24} color="#ef4444" />,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          await axios.delete(`/api/proposals/saved/${id}`);
+          showToast('Proposal removed from system.');
+          setSavedProposals(prev => prev.filter(p => p.id !== id && p.refNo !== id));
+          if (selectedProposal && (selectedProposal.id === id || selectedProposal.refNo === id)) {
+            handleStartFreshProposal();
+          }
+        } catch (err) {
+          showToast('Failed to delete proposal.', 'error');
+        }
       }
-    } catch (err) {
-      showToast('Failed to delete proposal.', 'error');
-    }
+    });
   };
 
   const handleExportSavedProposal = async (proposal, format) => {
@@ -227,12 +260,13 @@ export default function ProposalHub() {
       )}
 
       {/* Top Header */}
-      <header style={{
+      <header className="proposal-hub-header" style={{
         background: '#ffffff', borderBottom: '1px solid #e2e8f0',
         padding: '14px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        flexWrap: 'wrap', gap: 12,
         position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
           <button
             onClick={() => navigate('/dashboard')}
             style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 6, padding: '6px 12px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', color: '#475569' }}
@@ -240,11 +274,11 @@ export default function ProposalHub() {
             <ArrowLeft size={16} /> Back to Dashboard
           </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)' }}>
+            <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)', flexShrink: 0 }}>
               <FileText size={20} />
             </div>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B2A6F', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B2A6F', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 SLT-MOBITEL Proposal Hub
                 <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>Enterprise</span>
               </div>
@@ -254,12 +288,13 @@ export default function ProposalHub() {
         </div>
 
         {/* Tab Switcher Buttons */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: '#f1f5f9', padding: 4, borderRadius: 8 }}>
+        <div className="proposal-hub-tabs">
           <button
             onClick={() => handleTabChange('generator')}
             style={{
               display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
               fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
+              whiteSpace: 'nowrap',
               background: activeTab === 'generator' ? '#ffffff' : 'transparent',
               color: activeTab === 'generator' ? '#0B2A6F' : '#64748b',
               boxShadow: activeTab === 'generator' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
@@ -274,6 +309,7 @@ export default function ProposalHub() {
             style={{
               display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
               fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
+              whiteSpace: 'nowrap',
               background: activeTab === 'archive' ? '#ffffff' : 'transparent',
               color: activeTab === 'archive' ? '#0B2A6F' : '#64748b',
               boxShadow: activeTab === 'archive' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
@@ -289,6 +325,7 @@ export default function ProposalHub() {
               style={{
                 display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
                 fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
+                whiteSpace: 'nowrap',
                 background: activeTab === 'template' ? '#ffffff' : 'transparent',
                 color: activeTab === 'template' ? '#0B2A6F' : '#64748b',
                 boxShadow: activeTab === 'template' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
@@ -302,11 +339,11 @@ export default function ProposalHub() {
       </header>
 
       {/* Main Content Area */}
-      <main style={{ flex: 1, padding: activeTab === 'generator' ? '20px 24px' : '32px 36px', maxWidth: activeTab === 'generator' ? '100%' : '1350px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
+      <main className="proposal-hub-main" style={{ flex: 1, padding: activeTab === 'generator' ? '20px 24px' : '32px 36px', maxWidth: activeTab === 'generator' ? '100%' : '1350px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         
         {/* TAB 1: Proposal Generator Wizard */}
         <div style={{ display: activeTab === 'generator' ? 'block' : 'none' }}>
-          <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', padding: 24 }}>
+          <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', padding: '20px 16px' }}>
             {selectedProposal && (
               <div style={{
                 marginBottom: 20, padding: '12px 18px', background: '#eff6ff',
@@ -554,10 +591,6 @@ export default function ProposalHub() {
                         <td colSpan={2} style={{ padding: '6px 12px', fontWeight: 700, color: '#0B2A6F', fontSize: '0.78rem' }}>DYNAMIC TABLES (LOOP ROWS)</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{#components} ... {/components}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Repeated solution table rows (service, station, media, NTU)</td>
-                      </tr>
-                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{#investment} ... {/investment}'}</td>
                         <td style={{ padding: '8px 12px' }}>Repeated investment pricing table rows</td>
                       </tr>
@@ -632,8 +665,8 @@ export default function ProposalHub() {
                 </button>
               </div>
             ) : (
-              <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+              <div className="table-responsive" style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflowX: 'auto', WebkitOverflowScrolling: 'touch', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
+                <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                       <th style={{ padding: '12px 18px', color: '#475569', fontWeight: 700 }}>Ref Number</th>
@@ -721,6 +754,18 @@ export default function ProposalHub() {
           </div>
         )}
       </main>
+
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText={confirmModal.cancelText}
+        variant={confirmModal.variant}
+        icon={confirmModal.icon}
+        onConfirm={confirmModal.onConfirm}
+        onCancel={() => setConfirmModal(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   );
 }
