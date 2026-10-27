@@ -776,16 +776,6 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET Designation ""\s*<\/w:instrText>/g, '');
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*REF\s+Designation\b[^<]*<\/w:instrText>/g, '');
 
-  // 3. Terms & Conditions section: inject {@termsAndConditionsXml} into body table (occurrence 2)
-  const tocTerms = xml.indexOf('TERMS AND CONDITIONS');
-  const termsIdx = tocTerms !== -1 ? xml.indexOf('TERMS AND CONDITIONS', tocTerms + 1) : -1;
-  if (termsIdx !== -1) {
-    const trTermsEnd = xml.indexOf('</w:tr>', termsIdx) + 7;
-    const tblEnd = xml.indexOf('</w:tbl>', termsIdx);
-    const termsContentRow = '<w:tr><w:tc><w:tcPr><w:tcW w:w="9648" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p></w:tc></w:tr>';
-    xml = xml.substring(0, trTermsEnd) + termsContentRow + xml.substring(tblEnd);
-  }
-
   zip.file('word/document.xml', xml);
 
   const reqList = Array.isArray(fields.requirements) ? fields.requirements.filter(r => String(r.title || '').trim()) : [];
