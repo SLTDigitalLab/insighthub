@@ -252,42 +252,43 @@ function termsAndConditionsXml(products) {
   return xml || '<w:p/>';
 }
 
-function addDiagramsAndBuildRequirements(zip, requirements) {
+function buildRequirementsXml(zip, requirements, hasDiagramSection = false) {
+  if (!requirements || !requirements.length) return '';
   const relsPath = 'word/_rels/document.xml.rels';
-  let rels = zip.file(relsPath).asText();
-  // List of files (images etc.) the document links to
+  let rels = zip && zip.file(relsPath) ? zip.file(relsPath).asText() : '';
   let xml = '';
   requirements.forEach((r, i) => {
-    // Product 1 (i = 0) stays with Proposed Solution table on Page 8. Remaining products (i > 0) get dedicated page.
-    if (i > 0) {
+    // Only break page if network architecture / solution diagrams are supported
+    if (hasDiagramSection && i > 0) {
       xml += '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
     }
     xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 80 : 120, keepNext: true });
-    // Numbered requirement title in SLT navy (editable by the rep)
     if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 30, after: 30, keepNext: true });
-    // Requirement description (editable by the rep)
     const product = PRODUCT_BY_ID[r.id];
-    const own = product && path.join(DIAGRAM_DIR, `${product.id}.png`);
-    const hasDiagram = !!own && fs.existsSync(own);
-    // Replace Key Features with Customer Benefits from the knowledge base
-    xml += customerBenefitsXml(product, hasDiagram);
-    if (!hasDiagram) return;
-    // A requirement the rep added by hand, or a product without its own diagram, shows its text only
-    const buf = fs.readFileSync(own);
-    const mediaName = `ih_diagram_${i + 1}.png`;
-    zip.file(`word/media/${mediaName}`, buf);
-    // Copies the image into the .docx
-    const rId = `rIdIH${i + 1}`;
-    if (!rels.includes(`Id="${rId}"`)) {
-      rels = rels.replace('</Relationships>', `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaName}"/></Relationships>`);
+
+    // Only inject diagrams if the template explicitly has a Network Architecture / Solution Diagram section
+    if (hasDiagramSection && product && zip) {
+      const own = path.join(DIAGRAM_DIR, `${product.id}.png`);
+      const hasDiagram = fs.existsSync(own);
+      xml += customerBenefitsXml(product, hasDiagram);
+      if (hasDiagram) {
+        const buf = fs.readFileSync(own);
+        const mediaName = `ih_diagram_${i + 1}.png`;
+        zip.file(`word/media/${mediaName}`, buf);
+        const rId = `rIdIH${i + 1}`;
+        if (!rels.includes(`Id="${rId}"`)) {
+          rels = rels.replace('</Relationships>', `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaName}"/></Relationships>`);
+        }
+        xml += imagePara(rId, 9000 + i, `${product.name} diagram`, pngSize(buf), i === 0);
+      }
+    } else if (product) {
+      xml += customerBenefitsXml(product, false);
     }
-    // Registers the image so the document can reference it (isFirstProduct = i === 0)
-    xml += imagePara(rId, 9000 + i, `${product.name} diagram`, pngSize(buf), i === 0);
   });
-  zip.file(relsPath, rels);
-  // Saves the updated relationships
-  return xml || textPara(run(''));
-  // Raw XML that replaces {@requirementsXml} on the "Your Requirements" page
+  if (hasDiagramSection && rels && zip) {
+    zip.file(relsPath, rels);
+  }
+  return xml || '';
 }
 
 function sectorFor(category = '') {
@@ -769,7 +770,77 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     }
   }
 
-  // 2. Letter page: remove duplicate Lotus Road address paragraph completely
+  // 2. Remove floating table positioning ONLY in document body (after first sectPr)
+  const idxSect = xml.indexOf('<w:sectPr');
+  if (idxSect !== -1) {
+    let cover = xml.substring(0, idxSect);
+    let body = xml.substring(idxSect);
+    // Remove large 48pt spacer paragraphs on cover so it fits strictly on 1 page
+    cover = cover.replace(/<w:p\b[^>]*><w:pPr><w:pStyle w:val="BodyText"\/>(?:(?!<\/w:p>).)*?w:val="48"(?:(?!<\/w:p>).)*?<\/w:p>/gis, '');
+    body = body.replace(/<w:tblpPr\b[^>]*\/>/gis, '');
+    xml = cover + body;
+  } else {
+    xml = xml.replace(/<w:tblpPr\b[^>]*\/>/gis, '');
+  }
+
+  // 3. Remove proofErr and gramErr tags that break Word spellchecked placeholders
+  xml = xml.replace(/<w:proofErr\b[^>]*\/>/gis, '');
+  xml = xml.replace(/<w:gramErr\b[^>]*\/>/gis, '');
+
+  // 4. Rejoin split tags across runs like {</w:t></w:r><w:r...><w:t>tag</w:t></w:r><w:r...><w:t>}
+  for (let iter = 0; iter < 12; iter++) {
+    const prev = xml;
+    xml = xml.replace(/\{([^{}]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?<w:rPr>.*?<\/w:rPr><w:t(?: [^>]*)?>([^{}]*?\})/gis, '{$1$2');
+    xml = xml.replace(/\{([^{}]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?<w:t(?: [^>]*)?>([^{}]*?\})/gis, '{$1$2');
+    xml = xml.replace(/\{([^{}]*?)<\/w:t><\/w:r><\/w:p><w:p\b[^>]*><w:r\b[^>]*><w:t(?: [^>]*)?>([^{}]*?\})/gis, '{$1$2');
+    if (xml === prev) break;
+  }
+
+  // 5. Normalize tags: trim whitespace
+  xml = xml.replace(/\{\s*#\s*components\s*\}/gi, '{#components}');
+  xml = xml.replace(/\{\s*\/\s*components\s*\}/gi, '{/components}');
+  xml = xml.replace(/\{\s*service\s*\}/gi, '{service}');
+  xml = xml.replace(/\{\s*station\s*\}/gi, '{station}');
+  xml = xml.replace(/\{\s*media\s*\}/gi, '{media}');
+  xml = xml.replace(/\{\s*accessMedia\s*\}/gi, '{accessMedia}');
+  xml = xml.replace(/\{\s*ntu\s*\}/gi, '{ntu}');
+
+  xml = xml.replace(/\{\s*#\s*investment\s*\}/gi, '{#investment}');
+  xml = xml.replace(/\{\s*\/\s*investment\s*\}/gi, '{/investment}');
+  xml = xml.replace(/\{\s*name\s*\}/gi, '{name}');
+  xml = xml.replace(/\{\s*description\s*\}/gi, '{description}');
+  xml = xml.replace(/\{\s*speed\s*\}/gi, '{speed}');
+  xml = xml.replace(/\{\s*bandwidth\s*\}/gi, '{bandwidth}');
+  xml = xml.replace(/\{\s*qos\s*\}/gi, '{qos}');
+  xml = xml.replace(/\{\s*qosTemplate\s*\}/gi, '{qosTemplate}');
+  xml = xml.replace(/\{\s*oneTime\s*\}/gi, '{oneTime}');
+  xml = xml.replace(/\{\s*oneTimeCharge\s*\}/gi, '{oneTimeCharge}');
+  xml = xml.replace(/\{\s*monthly\s*\}/gi, '{monthly}');
+  xml = xml.replace(/\{\s*monthlyRental\s*\}/gi, '{monthlyRental}');
+
+  xml = xml.replace(/\{\s*companyName\s*\}/gi, '{companyName}');
+  xml = xml.replace(/\{\s*refNo\s*\}/gi, '{refNo}');
+  xml = xml.replace(/\{\s*proposalDate\s*\}/gi, '{proposalDate}');
+  xml = xml.replace(/\{\s*recipientDesignation\s*\}/gi, '{recipientDesignation}');
+  xml = xml.replace(/\{\s*address\s*\}/gi, '{address}');
+  xml = xml.replace(/\{\s*amName\s*\}/gi, '{amName}');
+  xml = xml.replace(/\{\s*amPhone\s*\}/gi, '{amPhone}');
+  xml = xml.replace(/\{\s*amEmail\s*\}/gi, '{amEmail}');
+  xml = xml.replace(/\{\s*ackCompanyName\s*\}/gi, '{ackCompanyName}');
+  xml = xml.replace(/\{\s*ackAddress\s*\}/gi, '{ackAddress}');
+
+  // 6. Clean sample data from designer template
+  xml = xml.replace(/23\/09\/2025\s*23\/09\/2025/g, '');
+  xml = xml.replace(/0701314128\{amPhone\}/g, '{amPhone}');
+  xml = xml.replace(/Hasanthi Lanka\{amName\}/g, '{amName}');
+  xml = xml.replace(/lankahasanthi@gmail\.com\{amEmail\}/g, '{amEmail}');
+
+  // 7. Inject {@aboutXml} into About You section body if missing
+  if (!xml.includes('aboutXml') && xml.includes('26E68EBD')) {
+    xml = xml.replace(/<w:p w14:paraId="26E68EBD"[^>]*>.*?<\/w:p>/s, '<w:p><w:pPr><w:pStyle w:val="Heading2"/><w:jc w:val="both"/></w:pPr><w:r><w:t>{@aboutXml}</w:t></w:r></w:p>');
+  }
+
+  // 8. Letter page: remove duplicate Lotus Road address paragraph completely
   xml = xml.replace(/<w:p\b[^>]*>(?:(?!<\/w:p>).)*?SET Address "No 125, Lotus Road[^"]*"(?:(?!<\/w:p>).)*?<\/w:p>/s, '');
   xml = xml.replace(/<w:fldSimple w:instr="\s*REF\s+Address\b[^"]*">(?:(?!<\/w:fldSimple>).)*?<\/w:fldSimple>/gs, '');
   xml = xml.replace(/No 125, Lotus Road, Colombo 01, Colombo, Western, Sri Lanka, 00100/g, '');
@@ -778,53 +849,47 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
 
   zip.file('word/document.xml', xml);
 
+  const hasDiagramSection = /NETWORK\s*ARCHITECTURE|SOLUTION\s*DIAGRAM/i.test(xml);
   const reqList = Array.isArray(fields.requirements) ? fields.requirements.filter(r => String(r.title || '').trim()) : [];
   const selectedProducts = reqList.map(r => PRODUCT_BY_ID[r.id]).filter(Boolean);
-  const requirementsXml = addDiagramsAndBuildRequirements(zip, reqList);
-  // Adds the diagram images and builds the requirements page
+  const requirementsXml = buildRequirementsXml(zip, reqList, hasDiagramSection);
   const tbc = v => String(v || '').trim() || 'To be confirmed';
 
   const data = {
     ...fields,
     refNo: String(fields.refNo || '').trim(),
-    // Whatever the rep typed prints on the cover, every "Proposal Ref. No." header line and the acknowledgement sentence; empty prints nothing
     ackAddressee1: fields.ackAddressee1 ?? ACK_DEFAULTS.ackAddressee1,
     ackAddressee2: fields.ackAddressee2 ?? ACK_DEFAULTS.ackAddressee2,
     ackDate: fields.ackDate ?? fields.proposalDate,
-    // Older saved proposals without these keys print the template's text
     ...Object.fromEntries(ACK_KEYS.map(key => [key, String(fields[key] || '').trim() || ACK_DOTS])),
-    // Value typed on the edit screen, or the template's dotted line for the customer to fill in by hand
+    ackCompanyName: String(fields.ackCompanyName || fields.companyName || '').trim(),
+    ackAddress: String(fields.ackAddress || addressLine(fields) || '').trim(),
     letterXml: letterXml(shortenLetter(fields, letterLevel)),
     aboutXml: aboutXml(fields, aboutLevel),
-    // "About you and how we can help you" page, shortened only if it didn't fit on one page
     address: addressLine(fields),
     amPhoneClause: String(fields.amPhone || '').trim() ? `on ${String(fields.amPhone).trim()} ` : '',
-    // "reach out to Nimal on 0771234567 should you…" or, with no phone, "reach out to Nimal should you…"
     components: (fields.components || []).filter(c => String(c.service || '').trim()).map(c => ({
       service: c.service,
       station: tbc(shortCell(stationCell(c.station), CELL_MAX_CHARS.station)),
-      accessMedia: tbc(shortCell(c.accessMedia, CELL_MAX_CHARS.accessMedia)),
-      media: tbc(shortCell(c.accessMedia, CELL_MAX_CHARS.accessMedia)), // alias for templates using {media}
+      accessMedia: tbc(shortCell(c.accessMedia || c.media, CELL_MAX_CHARS.accessMedia)),
+      media: tbc(shortCell(c.accessMedia || c.media, CELL_MAX_CHARS.accessMedia)),
       ntu: tbc(shortCell(c.ntu, CELL_MAX_CHARS.ntu)),
     })),
-    // Station = town only; long cells cut to ~2 lines; empty Station / Access Media / NTU cells print "To be confirmed"
-    investment: (fields.investment || []).filter(r => String(r.description || '').trim()).map(r => ({
-      description: r.description,
-      name: r.description, // alias for templates using {name}
-      bandwidth: r.bandwidth || '—',
-      speed: r.bandwidth || '—', // alias for templates using {speed}
-      qosTemplate: String(r.qosTemplate || '').trim() || 'N/A',
-      qos: String(r.qosTemplate || '').trim() || 'N/A', // alias for templates using {qos}
-      oneTimeCharge: formatLKR(r.oneTimeCharge),
-      oneTime: formatLKR(r.oneTimeCharge), // alias for templates using {oneTime}
-      monthlyRental: formatLKR(r.monthlyRental),
-      monthly: formatLKR(r.monthlyRental), // alias for templates using {monthly}
+    investment: (fields.investment || []).filter(r => String(r.description || r.name || '').trim()).map(r => ({
+      description: r.description || r.name,
+      name: r.description || r.name,
+      bandwidth: r.bandwidth || r.speed || '—',
+      speed: r.bandwidth || r.speed || '—',
+      qosTemplate: String(r.qosTemplate || r.qos || '').trim() || 'N/A',
+      qos: String(r.qosTemplate || r.qos || '').trim() || 'N/A',
+      oneTimeCharge: formatLKR(r.oneTimeCharge ?? r.oneTime),
+      oneTime: formatLKR(r.oneTimeCharge ?? r.oneTime),
+      monthlyRental: formatLKR(r.monthlyRental ?? r.monthly),
+      monthly: formatLKR(r.monthlyRental ?? r.monthly),
     })),
-    // Prices formatted as 100,000.00; blank prints "On request"; blank QoS Template prints "N/A"
     requirementsXml,
     termsAndConditionsXml: termsAndConditionsXml(selectedProducts),
     ...Object.fromEntries(tocPages.map((n, i) => [`toc${i}`, String(n)])),
-    // Contents page numbers
   };
 
   const doc = new Docxtemplater(zip, { paragraphLoop: true, linebreaks: true, nullGetter: () => '' });
@@ -924,14 +989,21 @@ async function renderProposal(rawFields, format = 'docx') {
   let pdf;
   try {
     pdf = await docxToPdf(first.buffer);
-    try {
-      const realToc = await tocPagesFromPdf(pdf);
-      const finalDoc = buildDocx(fields, realToc, layout);
-      pdf = await docxToPdf(finalDoc.buffer);
-      return { buffer: pdf, baseName: finalDoc.baseName };
-    } catch (tocErr) {
-      return { buffer: pdf, baseName: first.baseName };
+    const zip = new PizZip(first.buffer);
+    const docXml = zip.file('word/document.xml') ? zip.file('word/document.xml').asText() : '';
+    const hasManualTocTags = /\{toc\d+\}/.test(docXml);
+
+    if (hasManualTocTags) {
+      try {
+        const realToc = await tocPagesFromPdf(pdf);
+        const finalDoc = buildDocx(fields, realToc, layout);
+        pdf = await docxToPdf(finalDoc.buffer);
+        return { buffer: pdf, baseName: finalDoc.baseName };
+      } catch (tocErr) {
+        return { buffer: pdf, baseName: first.baseName };
+      }
     }
+    return { buffer: pdf, baseName: first.baseName };
   } catch (err) {
     if (format === 'pdf') throw err;
     console.warn('[proposal] PDF conversion failed:', err.message);
