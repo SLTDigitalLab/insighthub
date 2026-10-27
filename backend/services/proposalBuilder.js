@@ -60,7 +60,7 @@ const ABOUT_HEADING = 'ABOUT YOU AND HOW WE CAN HELP YOU';
 // Heading of the page between YOUR REQUIREMENTS and PROPOSED SOLUTION (as in the template)
 const TOC_HEADINGS = ['COMPANY OVERVIEW', 'OUR STRENGTHS', 'WHY WITH US', 'YOUR REQUIREMENTS', ABOUT_HEADING, 'PROPOSED SOLUTION', 'NETWORK ARCHITECTURE', 'SOLUTION DIAGRAM', 'YOUR INVESTMENT', 'TERMS AND CONDITIONS', 'CUSTOMER ACKNOWLEDGEMENTS', 'SME SOLUTIONS', 'AWARDS AND ACCOLADES', 'CONTACT US'];
 // Page heading for each Contents line {toc0}..{toc13}, in the template's order
-const TOC_TEMPLATE_PAGES = [3, 4, 5, 6, 7, 8, 8, 9, 11, 12, 13, 14, 15, 18];
+const TOC_TEMPLATE_PAGES = [3, 4, 5, 6, 7, 8, 8, 9, 10, 11, 12, 13, 14, 16];
 const ABOUT_LIMITS = [null, { sentences: 3, descWords: 90, reasonWords: 16, max: 5 }, { sentences: 2, descWords: 60, reasonWords: 12, max: 5 }, { sentences: 2, descWords: 50, reasonWords: 10, max: 4 }, { sentences: 2, descWords: 40, reasonWords: 8, max: 3 }];
 // "About you" shortening steps tried after a render if the section spills past one page: level 0 = as written,
 // then fewer sentences / shorter reasons, and only in the last two steps fewer products (never below 3)
@@ -786,58 +786,26 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     xml = xml.substring(0, trTermsEnd) + termsContentRow + xml.substring(tblEnd);
   }
 
-  // 4. In "ABOUT YOU & HOW WE CAN HELP YOU":
-  // Remove tall empty spacer rows and place {@aboutXml} directly under the header
-  // so there is no giant blank white space gap.
-  const aboutHeading = xml.indexOf('ABOUT YOU &amp; HOW WE CAN HELP YOU', 600000);
-  const propHeading = xml.indexOf('PROPOSED SOLUTION', 600000);
-  if (aboutHeading !== -1 && propHeading !== -1) {
-    const r3End = xml.indexOf('</w:tr>', aboutHeading) + 7;
-    const r8Start = Math.max(xml.lastIndexOf('<w:tr>', propHeading), xml.lastIndexOf('<w:tr ', propHeading));
-    if (r3End !== -1 && r8Start !== -1 && r3End < r8Start) {
-      const aboutRow = '<w:tr><w:tc><w:tcPr><w:tcW w:w="9738" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>{@aboutXml}</w:t></w:r></w:p></w:tc></w:tr>';
-      xml = xml.substring(0, r3End) + aboutRow + xml.substring(r8Start);
-    }
-  }
+  // 4. "About you and how we can help you" section: inject {@aboutXml}
+  const aboutHdr = xml.includes('ABOUT YOU &amp; HOW WE CAN HELP YOU')
+    ? 'ABOUT YOU &amp; HOW WE CAN HELP YOU'
+    : 'ABOUT YOU AND HOW WE CAN HELP YOU';
+  const firstAbout = xml.indexOf(aboutHdr);
+  const aboutIdx = firstAbout !== -1 ? xml.indexOf(aboutHdr, firstAbout + 1) : -1;
+  const solIdx = xml.indexOf('PROPOSED SOLUTION', aboutIdx !== -1 ? aboutIdx : 0);
+  if (aboutIdx !== -1 && solIdx !== -1) {
+    const trEnd = xml.indexOf('</w:tr>', aboutIdx) + 7;
+    let solTrStart = xml.lastIndexOf('<w:tr ', solIdx);
+    if (solTrStart === -1) solTrStart = xml.lastIndexOf('<w:tr>', solIdx);
+    if (trEnd !== -1 && solTrStart !== -1 && trEnd < solTrStart) {
+      const aboutContentRow = '<w:tr><w:tc><w:tcPr><w:tcW w:w="9738" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>{@aboutXml}</w:t></w:r></w:p></w:tc></w:tr>';
+      xml = xml.substring(0, trEnd) + aboutContentRow + xml.substring(solTrStart);
 
-  // 5. In "PROPOSED SOLUTION":
-  // (a) Ensure pageBreakBefore so PROPOSED SOLUTION starts on a fresh page (never stranded at page bottom).
-  // (b) Replace old components table and empty spacer paragraphs/rows with {@requirementsXml}
-  //     so Product 1 starts immediately on that same page directly below PROPOSED SOLUTION.
-  // (c) Remove floating table properties (tblpPr) from Table 5 so Word handles natural page flow.
-  const propIdx = xml.indexOf('PROPOSED SOLUTION', 600000);
-  if (propIdx !== -1) {
-    const propPStart = Math.max(xml.lastIndexOf('<w:p>', propIdx), xml.lastIndexOf('<w:p ', propIdx));
-    const propPPrEnd = xml.indexOf('</w:pPr>', propPStart);
-    if (propPPrEnd !== -1 && !xml.substring(propPStart, propPPrEnd).includes('pageBreakBefore')) {
-      xml = xml.substring(0, propPPrEnd) + '<w:pageBreakBefore/>' + xml.substring(propPPrEnd);
-    }
-
-    const r8End = xml.indexOf('</w:tr>', propIdx) + 7;
-    const invIdx = xml.indexOf('investment', 600000);
-    const tblInvStart = invIdx !== -1 ? Math.max(xml.lastIndexOf('<w:tbl>', invIdx), xml.lastIndexOf('<w:tbl ', invIdx)) : -1;
-
-    if (r8End !== -1 && tblInvStart !== -1 && r8End < tblInvStart) {
-      // Close Table 5 right after PROPOSED SOLUTION banner, place {@requirementsXml}
-      // in regular document flow (so page breaks between products work natively in Word),
-      // and ensure the Investment table starts cleanly on a fresh page.
-      const flowXml = '</w:tbl><w:p><w:r><w:t>{@requirementsXml}</w:t></w:r></w:p><w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
-      xml = xml.substring(0, r8End) + flowXml + xml.substring(tblInvStart);
-    }
-
-    const tbl5Start = xml.lastIndexOf('<w:tbl>', propIdx);
-    if (tbl5Start !== -1) {
-      const tblPrStart = xml.indexOf('<w:tblPr>', tbl5Start);
-      const tblPrEnd = xml.indexOf('</w:tblPr>', tblPrStart);
-      if (tblPrStart !== -1 && tblPrEnd !== -1) {
-        let prXml = xml.substring(tblPrStart, tblPrEnd);
-        if (prXml.includes('<w:tblpPr')) {
-          prXml = prXml.replace(/<w:tblpPr\b[^>]*\/>/g, '');
-          if (!prXml.includes('<w:jc')) {
-            prXml = prXml.replace(/(<w:tblW\b[^>]*\/>)/, '$1<w:jc w:val="center"/>');
-          }
-          xml = xml.substring(0, tblPrStart) + prXml + xml.substring(tblPrEnd);
-        }
+      // Ensure PROPOSED SOLUTION heading paragraph has pageBreakBefore so it starts cleanly on page 8
+      const newSolIdx = xml.indexOf('PROPOSED SOLUTION', trEnd);
+      const solPPrStart = xml.lastIndexOf('<w:pPr>', newSolIdx);
+      if (solPPrStart !== -1 && !xml.substring(solPPrStart, newSolIdx).includes('pageBreakBefore')) {
+        xml = xml.substring(0, solPPrStart + 7) + '<w:pageBreakBefore/>' + xml.substring(solPPrStart + 7);
       }
     }
   }
