@@ -1103,19 +1103,6 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
                     </ul>
                   </div>
                 )}
-
-                {/* Diagram Image */}
-                {r.id && (
-                  <div style={{ marginTop: 12, textAlign: 'center', background: '#ffffff', padding: 12, borderRadius: 6, border: '1px solid #e2e8f0' }}>
-                    <img
-                      src={`/api/proposals/diagrams/${r.id}.png`}
-                      alt={`${r.title} diagram`}
-                      style={{ maxWidth: '100%', maxHeight: '280px', height: 'auto', objectFit: 'contain' }}
-                      onError={e => { e.currentTarget.parentElement.style.display = 'none'; }}
-                    />
-                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 4 }}>{r.title} — Solution Network Architecture</div>
-                  </div>
-                )}
               </div>
             );
           })}

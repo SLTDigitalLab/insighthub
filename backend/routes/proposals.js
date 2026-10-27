@@ -386,15 +386,25 @@ async function sectionPages(pdf) {
   const texts = [];
   await pdfParse(pdf, {
     pagerender: page => page.getTextContent().then(tc => {
-      const t = tc.items.map(it => it.str).join('').replace(/\s+/g, '');
+      const t = tc.items.map(it => it.str).join('').replace(/\s+/g, '').toUpperCase();
       texts.push(t);
       return t;
     }),
   });
-  const find = (text, from = 2) => texts.findIndex((t, k) => k >= from && t.includes(text.replace(/\s+/g, ''))) + 1;
-  // 1-based PDF page of the first page after the cover + Contents that contains `text` (0 = not found)
-  return { cover: 1, letter: find('Dear Sir/ Madam'), requirements: find('YOUR REQUIREMENTS'), about: find('ABOUT YOU AND HOW WE CAN HELP YOU'), solution: find('PROPOSED SOLUTION'), investment: find('YOUR INVESTMENT') };
-  // Pages the preview's quick-jump chips go to
+  const find = (text, from = 1) => {
+    const norm = text.replace(/\s+/g, '').toUpperCase();
+    const idx = texts.findIndex((t, k) => k >= from && t.includes(norm));
+    return idx !== -1 ? idx + 1 : 0;
+  };
+  return {
+    cover: 1,
+    letter: find('DEARSIR') || find('BUSINESSPROPOSALFOR') || 2,
+    about: find('ABOUTYOU') || 0,
+    solution: find('PROPOSEDSOLUTION') || 0,
+    investment: find('YOURINVESTMENT') || 0,
+    terms: find('TERMSANDCONDITIONS') || 0,
+    acknowledgement: find('CUSTOMERACKNOWLEDGEMENTS') || 0
+  };
 }
 
 router.post('/export', async (req, res) => {
