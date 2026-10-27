@@ -259,9 +259,15 @@ function businessType(category) {
 
 function describeBusiness(business = {}) {
   const name = String(business.name || '').trim();
+  if (business.overview && String(business.overview).trim().length > 20) {
+    return firstSentences(business.overview, 3);
+  }
+  if (business.description && String(business.description).trim().length > 20) {
+    return firstSentences(business.description, 3);
+  }
   const town = String(business.city || '').trim() || localityOf(business.address);
   const inSriLanka = /sri lanka/i.test(String(business.address || ''));
-  const type = businessType(business.category) || 'a business';
+  const type = businessType(business.category) || 'an enterprise';
   const where = town ? ` based in ${town}${inSriLanka && !/sri lanka/i.test(town) ? ', Sri Lanka' : ''}` : '';
   const sentences = [`${name} is ${type}${where}.`];
   // 1: what and where — only from the business type and address the rep already has
@@ -274,7 +280,7 @@ function describeBusiness(business = {}) {
   sentences.push((sectorFor(business.category) || {}).sentence || GENERIC_SECTOR_SENTENCE);
   // 3: one general sentence about this TYPE of business (never a claim about this company)
   return sentences.join(' ');
-  // 2–3 sentences; nothing about size, services, awards or years, because none of that is known
+  // 2–3 sentences; crisp corporate description designed to fit neatly on page 7
 }
 
 function reasonFor(product, sector) {
@@ -300,13 +306,17 @@ function recommendFor(business = {}, productIds = []) {
   const add = (ids, upTo) => ids.forEach(id => { if (pick.length < upTo && !pick.includes(id)) pick.push(id); });
   add(typed, 3);
   // 1. Up to 3 products for this business type
-  add(ticked, MAX_RECOMMENDATIONS);
+  add(ticked, 4);
   // 2. Then the products the rep ticked for this proposal
-  add(typed, MAX_RECOMMENDATIONS);
-  add(DEFAULT_SUGGESTIONS, MIN_RECOMMENDATIONS);
-  // 3. Fill with more business-type products; the general list only if fewer than 3 were found
-  return pick.map((id, i) => ({ id, name: PRODUCT_BY_ID[id].name, reason: reasonFor(PRODUCT_BY_ID[id], sector), highPriority: i < 2 }));
-  // Exact catalogue names; the first two (the best business-type matches) are marked high priority
+  add(typed, 4);
+  add(DEFAULT_SUGGESTIONS, 3);
+  // 3. Keep exactly 3–4 recommendations so they fit comfortably on one single page
+  return pick.slice(0, 4).map((id, i) => ({
+    id,
+    name: PRODUCT_BY_ID[id].name,
+    reason: reasonFor(PRODUCT_BY_ID[id], sector),
+    highPriority: true // High priority recommendations from knowledge base
+  }));
 }
 
 function generateFields({ business, productIds = [], user = {}, refNo, defaults = {} }) {
@@ -547,14 +557,14 @@ const PRIORITY_TAG = '<w:r><w:t xml:space="preserve">  </w:t></w:r><w:r><w:rPr><
 
 function aboutXml(fields, level = 0) {
   const { description, recs } = shortenAbout(fields, level);
-  let xml = linesOf(description).map(t => textPara(run(t), { before: 160, after: 80 })).join('');
+  let xml = linesOf(description).map(t => textPara(run(t), { before: 100, after: 60 })).join('');
   // The description, one paragraph per typed paragraph
   if (recs.length) {
-    xml += textPara(run('How we can help you', { bold: true, color: '0B2A6F' }), { before: 280, after: 40, keepNext: true });
-    recs.forEach((r, i) => {
-      xml += textPara(run(`${i + 1}.  ${PRODUCT_BY_ID[r.id].name}`, { bold: true, color: '0B2A6F' }) + (r.highPriority ? PRIORITY_TAG : ''), { before: i ? 200 : 120, after: 0, keepNext: true });
+    xml += textPara(run('How we can help you', { bold: true, color: '0B2A6F' }), { before: 180, after: 40, keepNext: true });
+    recs.slice(0, 4).forEach((r, i) => {
+      xml += textPara(run(`${i + 1}.  ${PRODUCT_BY_ID[r.id].name}`, { bold: true, color: '0B2A6F' }) + (r.highPriority ? PRIORITY_TAG : ''), { before: i ? 120 : 60, after: 0, keepNext: true });
       // Product name exactly as in the catalogue, plus the HIGH PRIORITY label when ticked
-      if (String(r.reason || '').trim()) xml += textPara(run(String(r.reason).trim()), { before: 40, after: 0 });
+      if (String(r.reason || '').trim()) xml += textPara(run(String(r.reason).trim()), { before: 30, after: 0 });
       // The one-line reason under it
     });
   }
@@ -644,6 +654,25 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
         }
         xml = xml.substring(0, pStart) + xml.substring(pEnd);
       }
+    }
+  }
+
+  // 4. "About you and how we can help you" section: inject {@aboutXml}
+  const aboutHdr = 'ABOUT YOU &amp; HOW WE CAN HELP YOU';
+  const aboutIdx = xml.indexOf(aboutHdr, xml.indexOf(aboutHdr) + 1);
+  const solIdx = xml.indexOf('PROPOSED SOLUTION', aboutIdx !== -1 ? aboutIdx : 0);
+  if (aboutIdx !== -1 && solIdx !== -1) {
+    const trEnd = xml.indexOf('</w:tr>', aboutIdx) + 7;
+    let solTrStart = xml.lastIndexOf('<w:tr ', solIdx);
+    if (solTrStart === -1) solTrStart = xml.lastIndexOf('<w:tr>', solIdx);
+    const aboutContentRow = '<w:tr><w:tc><w:tcPr><w:tcW w:w="9738" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>{@aboutXml}</w:t></w:r></w:p></w:tc></w:tr>';
+    xml = xml.substring(0, trEnd) + aboutContentRow + xml.substring(solTrStart);
+
+    // Ensure PROPOSED SOLUTION heading paragraph has pageBreakBefore so it starts cleanly on page 8
+    const newSolIdx = xml.indexOf('PROPOSED SOLUTION', trEnd);
+    const solPPrStart = xml.lastIndexOf('<w:pPr>', newSolIdx);
+    if (solPPrStart !== -1 && !xml.substring(solPPrStart, newSolIdx).includes('pageBreakBefore')) {
+      xml = xml.substring(0, solPPrStart + 7) + '<w:pageBreakBefore/>' + xml.substring(solPPrStart + 7);
     }
   }
 
