@@ -786,30 +786,6 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     xml = xml.substring(0, trTermsEnd) + termsContentRow + xml.substring(tblEnd);
   }
 
-  // 4. "About you and how we can help you" section: inject {@aboutXml}
-  const aboutHdr = xml.includes('ABOUT YOU &amp; HOW WE CAN HELP YOU')
-    ? 'ABOUT YOU &amp; HOW WE CAN HELP YOU'
-    : 'ABOUT YOU AND HOW WE CAN HELP YOU';
-  const firstAbout = xml.indexOf(aboutHdr);
-  const aboutIdx = firstAbout !== -1 ? xml.indexOf(aboutHdr, firstAbout + 1) : -1;
-  const solIdx = xml.indexOf('PROPOSED SOLUTION', aboutIdx !== -1 ? aboutIdx : 0);
-  if (aboutIdx !== -1 && solIdx !== -1) {
-    const trEnd = xml.indexOf('</w:tr>', aboutIdx) + 7;
-    let solTrStart = xml.lastIndexOf('<w:tr ', solIdx);
-    if (solTrStart === -1) solTrStart = xml.lastIndexOf('<w:tr>', solIdx);
-    if (trEnd !== -1 && solTrStart !== -1 && trEnd < solTrStart) {
-      const aboutContentRow = '<w:tr><w:tc><w:tcPr><w:tcW w:w="9738" w:type="dxa"/></w:tcPr><w:p><w:r><w:t>{@aboutXml}</w:t></w:r></w:p></w:tc></w:tr>';
-      xml = xml.substring(0, trEnd) + aboutContentRow + xml.substring(solTrStart);
-
-      // Ensure PROPOSED SOLUTION heading paragraph has pageBreakBefore so it starts cleanly on page 8
-      const newSolIdx = xml.indexOf('PROPOSED SOLUTION', trEnd);
-      const solPPrStart = xml.lastIndexOf('<w:pPr>', newSolIdx);
-      if (solPPrStart !== -1 && !xml.substring(solPPrStart, newSolIdx).includes('pageBreakBefore')) {
-        xml = xml.substring(0, solPPrStart + 7) + '<w:pageBreakBefore/>' + xml.substring(solPPrStart + 7);
-      }
-    }
-  }
-
   zip.file('word/document.xml', xml);
 
   const reqList = Array.isArray(fields.requirements) ? fields.requirements.filter(r => String(r.title || '').trim()) : [];
