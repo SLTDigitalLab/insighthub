@@ -391,7 +391,7 @@ async function sectionPages(pdf) {
       return t;
     }),
   });
-  const find = (text, from = 1) => {
+  const find = (text, from = 2) => {
     const norm = text.replace(/\s+/g, '').toUpperCase();
     const idx = texts.findIndex((t, k) => k >= from && t.includes(norm));
     return idx !== -1 ? idx + 1 : 0;
