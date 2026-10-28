@@ -662,6 +662,18 @@ function shortenLetter(fields, level) {
   // every product paragraph stays
 }
 
+function findLastTag(text, tagName, beforeIndex) {
+  let p = beforeIndex;
+  while (p > 0) {
+    const cand = text.lastIndexOf('<' + tagName, p);
+    if (cand === -1) return -1;
+    const nextChar = text[cand + tagName.length + 1];
+    if (nextChar === ' ' || nextChar === '>') return cand;
+    p = cand - 1;
+  }
+  return -1;
+}
+
 function renderDocx(fields, tocPages = TOC_TEMPLATE_PAGES) {
   return buildDocx(fields, tocPages, {});
 }
@@ -801,6 +813,7 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     xml = xml.replace(/\{([^{}<>]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?<w:t(?: [^>]*)?>([^{}<>]*?\})/g, '{$1$2}');
     if (xml === prev) break;
   }
+  xml = xml.replace(/\{#<\/w:t><\/w:r>\s*(?:<w:r\b[^>]*>\s*)?(?:<w:rPr>(?:<[^>]+>)*<\/w:rPr>\s*)?<w:t(?: [^>]*)?>investment\}\{/gi, '{#investment}{');
 
   // 5. Normalize tags: trim whitespace
   xml = xml.replace(/\{\s*#\s*components\s*\}/gi, '{#components}');
@@ -848,32 +861,22 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*REF\s+Designation\b[^<]*<\/w:instrText>/g, '');
 
   // 9. Completely remove components table (Service | Station | Access Media | Network Terminating Unit (NTU))
-  const removeRowByText = (text, needle) => {
-    let idx = 0;
-    while (true) {
-      const found = text.indexOf(needle, idx);
-      if (found === -1) break;
-      const start = text.lastIndexOf('<w:tr', found);
-      const end = text.indexOf('</w:tr>', found);
-      if (start !== -1 && end !== -1 && end > start) {
-        text = text.substring(0, start) + text.substring(end + 7);
-        idx = start;
-      } else {
-        break;
-      }
+  const compPos = xml.indexOf('Network Terminating Unit');
+  if (compPos !== -1) {
+    const compTblStart = findLastTag(xml, 'w:tbl', compPos);
+    const compEnd = xml.indexOf('{/components}', compPos);
+    const compTblEnd = xml.indexOf('</w:tbl>', compEnd !== -1 ? compEnd : compPos) + 8;
+    if (compTblStart !== -1 && compTblEnd !== -1 && compTblEnd > compTblStart) {
+      xml = xml.substring(0, compTblStart) + xml.substring(compTblEnd);
     }
-    return text;
-  };
-  xml = removeRowByText(xml, 'Network Terminating Unit');
-  xml = removeRowByText(xml, '{#components}');
-  xml = removeRowByText(xml, '{/components}');
+  }
 
   // 10. Separate PROPOSED SOLUTION into its own table starting on a fresh page
-  const propSolTextIdx = xml.indexOf('PROPOSED SOLUTION</w:t>');
+  const propSolTextIdx = xml.lastIndexOf('PROPOSED SOLUTION</w:t>');
   if (propSolTextIdx !== -1) {
-    const propRowStart = xml.lastIndexOf('<w:tr', propSolTextIdx);
+    const propRowStart = findLastTag(xml, 'w:tr', propSolTextIdx);
     if (propRowStart !== -1) {
-      const tblStart = xml.lastIndexOf('<w:tbl', propRowStart);
+      const tblStart = findLastTag(xml, 'w:tbl', propRowStart);
       if (tblStart !== -1 && xml.substring(tblStart, propRowStart).includes('ABOUT YOU')) {
         const splitXml = '</w:tbl><w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p><w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>';
         xml = xml.substring(0, propRowStart) + splitXml + xml.substring(propRowStart);
@@ -890,32 +893,25 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   // 11. In the template, the investment table was placed before the YOUR INVESTMENT banner.
   // Reorder so YOUR INVESTMENT banner comes first with a page break, followed by the table.
   const investIdx = xml.indexOf('{#investment}');
-  let yourInvIdx = xml.indexOf('_Toc243897325');
-  if (yourInvIdx === -1) yourInvIdx = xml.indexOf('INVESTMENT</w:t>');
+  const yourInvIdx = xml.lastIndexOf('INVESTMENT</w:t>');
   if (investIdx !== -1 && yourInvIdx !== -1 && investIdx < yourInvIdx) {
-    const investTblStart = xml.lastIndexOf('<w:tbl', investIdx);
-    const investTblEnd = xml.indexOf('</w:tbl>', investIdx) + '</w:tbl>'.length;
-    const bannerTblStart = xml.lastIndexOf('<w:tbl', yourInvIdx);
-    const bannerTblEnd = xml.indexOf('</w:tbl>', yourInvIdx) + '</w:tbl>'.length;
+    const tblStart = findLastTag(xml, 'w:tbl', investIdx);
+    const tblEnd = xml.indexOf('</w:tbl>', investIdx) + 8;
+    const bannerTblStart = findLastTag(xml, 'w:tbl', yourInvIdx);
+    const bannerTblEnd = xml.indexOf('</w:tbl>', yourInvIdx) + 8;
 
-    if (investTblStart !== -1 && investTblEnd !== -1 && bannerTblStart !== -1 && bannerTblEnd !== -1 && investTblEnd <= bannerTblStart) {
-      const investTblXml = xml.substring(investTblStart, investTblEnd);
-      let bannerTblXml = xml.substring(bannerTblStart, bannerTblEnd);
-      bannerTblXml = bannerTblXml.replace(/<w:tblpPr\b[^>]*\/>/g, '');
-
-      // Remove banner from after investment table
-      xml = xml.substring(0, bannerTblStart) + xml.substring(bannerTblEnd);
-
-      // Place banner before investment table with a page break
-      const reordered = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerTblXml + '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>' + investTblXml;
-      xml = xml.substring(0, investTblStart) + reordered + xml.substring(investTblStart + investTblXml.length);
+    if (tblStart !== -1 && tblEnd !== -1 && bannerTblStart !== -1 && bannerTblEnd !== -1 && tblEnd <= bannerTblStart) {
+      const investXml = xml.substring(tblStart, tblEnd).replace(/<w:tblpPr\b[^>]*\/>/g, '');
+      const bannerXml = xml.substring(bannerTblStart, bannerTblEnd).replace(/<w:tblpPr\b[^>]*\/>/g, '');
+      const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerXml + '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>' + investXml;
+      xml = xml.substring(0, tblStart) + replacement + xml.substring(bannerTblEnd);
     }
   }
 
-  // Ensure Terms and Conditions starts on a clean page
-  const termsHeadingIdx = xml.indexOf('TERMS AND CONDITIONS</w:t>');
+  // Ensure Terms and Conditions starts on a clean page (LAST occurrence to avoid TOC)
+  const termsHeadingIdx = xml.lastIndexOf('TERMS AND CONDITIONS</w:t>');
   if (termsHeadingIdx !== -1) {
-    const termsTblStart = xml.lastIndexOf('<w:tbl', termsHeadingIdx);
+    const termsTblStart = findLastTag(xml, 'w:tbl', termsHeadingIdx);
     if (termsTblStart !== -1) {
       const beforeTerms = xml.substring(Math.max(0, termsTblStart - 100), termsTblStart);
       if (!beforeTerms.includes('pageBreakBefore')) {
