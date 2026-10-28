@@ -920,6 +920,28 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     }
   }
 
+  // 12. Ensure CONTACT US starts on a clean page (so it does not overlap the Awards graphic) and fits strictly on 1 page
+  const contactHeadingIdx = xml.lastIndexOf('CONTACT US</w:t>');
+  if (contactHeadingIdx !== -1) {
+    const contactTblStart = findLastTag(xml, 'w:tbl', contactHeadingIdx);
+    const contactTblEnd = xml.indexOf('</w:tbl>', contactHeadingIdx) + 8;
+    if (contactTblStart !== -1 && contactTblEnd !== -1 && contactTblEnd > contactTblStart) {
+      let contactXml = xml.substring(contactTblStart, contactTblEnd);
+
+      // Reduce excessive row heights in Contact Us table so it fits comfortably on one page
+      contactXml = contactXml.replace(/<w:trHeight\s+w:val="2787"\/>/g, '<w:trHeight w:val="1400"/>');
+      contactXml = contactXml.replace(/<w:trHeight\s+w:val="660"\/>/g, '<w:trHeight w:val="420"/>');
+      contactXml = contactXml.replace(/<w:trHeight\s+w:val="553"\/>/g, '<w:trHeight w:val="380"/>');
+
+      const beforeContact = xml.substring(Math.max(0, contactTblStart - 100), contactTblStart);
+      if (!beforeContact.includes('pageBreakBefore')) {
+        xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
+      } else {
+        xml = xml.substring(0, contactTblStart) + contactXml + xml.substring(contactTblEnd);
+      }
+    }
+  }
+
   zip.file('word/document.xml', xml);
 
   const reqList = Array.isArray(fields.requirements) ? fields.requirements.filter(r => String(r.title || '').trim()) : [];
