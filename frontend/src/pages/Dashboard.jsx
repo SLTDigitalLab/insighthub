@@ -1710,7 +1710,7 @@ const Dashboard = () => {
                 <UploadCloud size={36} style={{ color: '#0066FF', marginBottom: '0.5rem', opacity: 0.8 }} />
                 <h4 style={{ fontSize: '1rem', fontWeight: '600', color: '#0f172a', marginBottom: '0.25rem' }}>Upload Document to B2B Product List</h4>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '1rem' }}>
-                  Supports PDF, Excel (.xlsx/.xls), CSV, Word (.docx/.doc), and TXT up to 250MB. Uploaded documents are securely saved to the server and indexed for AI agents.
+                  Supports PDF, Excel (.xlsx/.xls), CSV, Word (.docx/.doc), and TXT up to 350MB. Uploaded documents are securely saved to the server and indexed for AI agents.
                 </p>
 
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.75rem' }}>
