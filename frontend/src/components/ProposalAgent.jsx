@@ -1103,6 +1103,25 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
                     </ul>
                   </div>
                 )}
+
+                {/* Solution Architecture Diagram */}
+                <div style={{ marginTop: 12, background: '#ffffff', padding: '12px 14px', borderRadius: 6, border: '1px solid #e2e8f0', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: navy, marginBottom: 8, textAlign: 'left' }}>Solution Architecture Diagram:</div>
+                  <img 
+                    src={`${API}/diagrams/${r.id}.png`}
+                    alt={`${r.title} Solution Diagram`}
+                    style={{ maxWidth: '100%', maxHeight: 240, borderRadius: 4, objectFit: 'contain' }}
+                    onError={(e) => {
+                      const cleanId = String(r.id).toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+                      if (!e.currentTarget.dataset.retried) {
+                        e.currentTarget.dataset.retried = '1';
+                        e.currentTarget.src = `${API}/diagrams/${cleanId}.png`;
+                      } else {
+                        e.currentTarget.parentElement.style.display = 'none';
+                      }
+                    }}
+                  />
+                </div>
               </div>
             );
           })}

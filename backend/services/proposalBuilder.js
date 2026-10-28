@@ -202,9 +202,25 @@ function run(text, { bold = false, color = null } = {}) {
   // One piece of text, optionally bold/coloured
 }
 
+function getDiagramPath(productId) {
+  if (!productId) return null;
+  const candidates = [
+    path.join(DIAGRAM_DIR, `${productId}.png`),
+    PRODUCT_BY_ID[productId] ? path.join(DIAGRAM_DIR, `${PRODUCT_BY_ID[productId].id}.png`) : null,
+    ID_ALIASES[productId] ? path.join(DIAGRAM_DIR, `${ID_ALIASES[productId]}.png`) : null,
+  ].filter(Boolean);
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  const cleanId = String(productId).toLowerCase().replace(/[^a-z0-9]/g, '-').replace(/-+/g, '-');
+  const fallback = path.join(DIAGRAM_DIR, `${cleanId}.png`);
+  if (fs.existsSync(fallback)) return fallback;
+  return null;
+}
+
 function imagePara(rId, docPrId, name, size, isFirstProduct = false) {
-  const maxCx = isFirstProduct ? 4800000 : 5600000;
-  const maxCy = isFirstProduct ? 1850000 : 2900000;
+  const maxCx = 5100000;
+  const maxCy = isFirstProduct ? 2400000 : 2800000;
 
   let cx = maxCx;
   let cy = Math.round(cx * size.h / size.w);
@@ -213,7 +229,7 @@ function imagePara(rId, docPrId, name, size, isFirstProduct = false) {
     cx = Math.round(cy * size.w / size.h);
   }
 
-  return `<w:p><w:pPr><w:keepLines/><w:spacing w:before="40" w:after="${isFirstProduct ? 40 : 80}"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${docPrId}" name="${esc(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="${esc(name)}"/><pic:cNvPicPr><a:picLocks noChangeAspect="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+  return `<w:p><w:pPr><w:keepLines/><w:spacing w:before="60" w:after="${isFirstProduct ? 60 : 80}"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${docPrId}" name="${esc(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="${esc(name)}"/><pic:cNvPicPr><a:picLocks noChangeAspect="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 }
 
 function customerBenefitsXml(product, beforeDiagram) {
@@ -252,40 +268,38 @@ function termsAndConditionsXml(products) {
   return xml || '<w:p/>';
 }
 
-function buildRequirementsXml(zip, requirements, hasDiagramSection = false) {
+function buildRequirementsXml(zip, requirements) {
   if (!requirements || !requirements.length) return '';
   const relsPath = 'word/_rels/document.xml.rels';
   let rels = zip && zip.file(relsPath) ? zip.file(relsPath).asText() : '';
   let xml = '';
   requirements.forEach((r, i) => {
-    // Only break page if network architecture / solution diagrams are supported
-    if (hasDiagramSection && i > 0) {
+    // Each subsequent product starts on its own fresh page
+    if (i > 0) {
       xml += '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
     }
-    xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 80 : 120, keepNext: true });
-    if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 30, after: 30, keepNext: true });
+    xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 60 : 100, keepNext: true });
+    if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 20, after: 30, keepNext: true });
     const product = PRODUCT_BY_ID[r.id];
+    const diagPath = getDiagramPath(r.id || (product && product.id));
+    const hasDiagram = Boolean(diagPath && fs.existsSync(diagPath));
 
-    // Only inject diagrams if the template explicitly has a Network Architecture / Solution Diagram section
-    if (hasDiagramSection && product && zip) {
-      const own = path.join(DIAGRAM_DIR, `${product.id}.png`);
-      const hasDiagram = fs.existsSync(own);
+    if (product) {
       xml += customerBenefitsXml(product, hasDiagram);
-      if (hasDiagram) {
-        const buf = fs.readFileSync(own);
-        const mediaName = `ih_diagram_${i + 1}.png`;
-        zip.file(`word/media/${mediaName}`, buf);
-        const rId = `rIdIH${i + 1}`;
-        if (!rels.includes(`Id="${rId}"`)) {
-          rels = rels.replace('</Relationships>', `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaName}"/></Relationships>`);
-        }
-        xml += imagePara(rId, 9000 + i, `${product.name} diagram`, pngSize(buf), i === 0);
+    }
+
+    if (hasDiagram && zip) {
+      const buf = fs.readFileSync(diagPath);
+      const mediaName = `ih_diagram_${i + 1}.png`;
+      zip.file(`word/media/${mediaName}`, buf);
+      const rId = `rIdIH${i + 1}`;
+      if (!rels.includes(`Id="${rId}"`)) {
+        rels = rels.replace('</Relationships>', `<Relationship Id="${rId}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${mediaName}"/></Relationships>`);
       }
-    } else if (product) {
-      xml += customerBenefitsXml(product, false);
+      xml += imagePara(rId, 9000 + i, `${r.title || (product && product.name)} diagram`, pngSize(buf), i === 0);
     }
   });
-  if (hasDiagramSection && rels && zip) {
+  if (rels && zip) {
     zip.file(relsPath, rels);
   }
   return xml || '';
@@ -414,7 +428,7 @@ function generateFields({ business, productIds = [], user = {}, refNo, defaults 
     recommendations: recommendFor(business, productIds),
     // Page 7 "About you and how we can help you": facts-only description + 3–5 catalogue products (2 high priority)
     solutionSummary: SOLUTION_SUMMARY,
-    components: products.map(p => ({ service: p.name, station, accessMedia: p.accessMedia, ntu: p.ntu })),
+    components: [],
     // Page 8 table: one row per product
     investment: products.map(p => ({ description: p.name, bandwidth: '', qosTemplate: '', oneTimeCharge: '', monthlyRental: '' })),
     // Investment table: the rep types the prices on the edit screen; an empty QoS Template prints "N/A"
@@ -548,14 +562,7 @@ function applyAgentProposal(fields, proposal = {}) {
       return { id: r.id, title: r.title, text: desc, showFeatures: false };
     }),
     // id/title (catalogue name) kept so the per-product network diagram still matches
-    components: fields.components.map((c, i) => (table[i] ? {
-      service: c.service,
-      // Catalogue name, not n8n's wording
-      station: stationCell(blankIfTbc(table[i].station)),
-      // Only the town, never the full address ('' prints "To be confirmed")
-      accessMedia: shortCell(blankIfTbc(table[i].accessMedia), CELL_MAX_CHARS.accessMedia),
-      ntu: shortCell(blankIfTbc(table[i].ntu), CELL_MAX_CHARS.ntu),
-    } : c)),
+    components: [],
     investment: fields.investment.map((row, i) => (invest[i] ? {
       description: row.description,
       // Catalogue name
@@ -788,23 +795,16 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/<w:gramErr\b[^>]*\/>/gis, '');
 
   // 4. Rejoin split tags across runs like {</w:t></w:r><w:r...><w:t>tag</w:t></w:r><w:r...><w:t>}
-  for (let iter = 0; iter < 12; iter++) {
+  for (let iter = 0; iter < 6; iter++) {
     const prev = xml;
-    xml = xml.replace(/\{([^{}]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?<w:rPr>.*?<\/w:rPr><w:t(?: [^>]*)?>([^{}]*?\})/gis, '{$1$2');
-    xml = xml.replace(/\{([^{}]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?<w:t(?: [^>]*)?>([^{}]*?\})/gis, '{$1$2');
-    xml = xml.replace(/\{([^{}]*?)<\/w:t><\/w:r><\/w:p><w:p\b[^>]*><w:r\b[^>]*><w:t(?: [^>]*)?>([^{}]*?\})/gis, '{$1$2');
+    xml = xml.replace(/\{([^{}<>]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?(?:<w:rPr>[^<]*<\/w:rPr>)?<w:t(?: [^>]*)?>([^{}<>]*?\})/g, '{$1$2}');
+    xml = xml.replace(/\{([^{}<>]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?<w:t(?: [^>]*)?>([^{}<>]*?\})/g, '{$1$2}');
     if (xml === prev) break;
   }
 
   // 5. Normalize tags: trim whitespace
   xml = xml.replace(/\{\s*#\s*components\s*\}/gi, '{#components}');
   xml = xml.replace(/\{\s*\/\s*components\s*\}/gi, '{/components}');
-  xml = xml.replace(/\{\s*service\s*\}/gi, '{service}');
-  xml = xml.replace(/\{\s*station\s*\}/gi, '{station}');
-  xml = xml.replace(/\{\s*media\s*\}/gi, '{media}');
-  xml = xml.replace(/\{\s*accessMedia\s*\}/gi, '{accessMedia}');
-  xml = xml.replace(/\{\s*ntu\s*\}/gi, '{ntu}');
-
   xml = xml.replace(/\{\s*#\s*investment\s*\}/gi, '{#investment}');
   xml = xml.replace(/\{\s*\/\s*investment\s*\}/gi, '{/investment}');
   xml = xml.replace(/\{\s*name\s*\}/gi, '{name}');
@@ -847,13 +847,88 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET Designation ""\s*<\/w:instrText>/g, '');
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*REF\s+Designation\b[^<]*<\/w:instrText>/g, '');
 
+  // 9. Completely remove components table (Service | Station | Access Media | Network Terminating Unit (NTU))
+  const removeRowByText = (text, needle) => {
+    let idx = 0;
+    while (true) {
+      const found = text.indexOf(needle, idx);
+      if (found === -1) break;
+      const start = text.lastIndexOf('<w:tr', found);
+      const end = text.indexOf('</w:tr>', found);
+      if (start !== -1 && end !== -1 && end > start) {
+        text = text.substring(0, start) + text.substring(end + 7);
+        idx = start;
+      } else {
+        break;
+      }
+    }
+    return text;
+  };
+  xml = removeRowByText(xml, 'Network Terminating Unit');
+  xml = removeRowByText(xml, '{#components}');
+  xml = removeRowByText(xml, '{/components}');
+
+  // 10. Separate PROPOSED SOLUTION into its own table starting on a fresh page
+  const propSolTextIdx = xml.indexOf('PROPOSED SOLUTION</w:t>');
+  if (propSolTextIdx !== -1) {
+    const propRowStart = xml.lastIndexOf('<w:tr', propSolTextIdx);
+    if (propRowStart !== -1) {
+      const tblStart = xml.lastIndexOf('<w:tbl', propRowStart);
+      if (tblStart !== -1 && xml.substring(tblStart, propRowStart).includes('ABOUT YOU')) {
+        const splitXml = '</w:tbl><w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p><w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>';
+        xml = xml.substring(0, propRowStart) + splitXml + xml.substring(propRowStart);
+      }
+    }
+  }
+
+  // Neutralize excessive empty row heights in body
+  xml = xml.replace(/<w:trHeight\s+w:val="(?:4533|6333)"\/>/gi, '<w:trHeight w:val="414"/>');
+
+  // Remove duplicate empty paragraphs
+  xml = xml.replace(/(?:<w:p\b[^>]*><w:pPr><w:pStyle w:val="Heading2"\/>(?:<w:jc[^>]*\/>)?<\/w:pPr><\/w:p>\s*){2,}/gi, '');
+
+  // 11. In the template, the investment table was placed before the YOUR INVESTMENT banner.
+  // Reorder so YOUR INVESTMENT banner comes first with a page break, followed by the table.
+  const investIdx = xml.indexOf('{#investment}');
+  let yourInvIdx = xml.indexOf('_Toc243897325');
+  if (yourInvIdx === -1) yourInvIdx = xml.indexOf('INVESTMENT</w:t>');
+  if (investIdx !== -1 && yourInvIdx !== -1 && investIdx < yourInvIdx) {
+    const investTblStart = xml.lastIndexOf('<w:tbl', investIdx);
+    const investTblEnd = xml.indexOf('</w:tbl>', investIdx) + '</w:tbl>'.length;
+    const bannerTblStart = xml.lastIndexOf('<w:tbl', yourInvIdx);
+    const bannerTblEnd = xml.indexOf('</w:tbl>', yourInvIdx) + '</w:tbl>'.length;
+
+    if (investTblStart !== -1 && investTblEnd !== -1 && bannerTblStart !== -1 && bannerTblEnd !== -1 && investTblEnd <= bannerTblStart) {
+      const investTblXml = xml.substring(investTblStart, investTblEnd);
+      let bannerTblXml = xml.substring(bannerTblStart, bannerTblEnd);
+      bannerTblXml = bannerTblXml.replace(/<w:tblpPr\b[^>]*\/>/g, '');
+
+      // Remove banner from after investment table
+      xml = xml.substring(0, bannerTblStart) + xml.substring(bannerTblEnd);
+
+      // Place banner before investment table with a page break
+      const reordered = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerTblXml + '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>' + investTblXml;
+      xml = xml.substring(0, investTblStart) + reordered + xml.substring(investTblStart + investTblXml.length);
+    }
+  }
+
+  // Ensure Terms and Conditions starts on a clean page
+  const termsHeadingIdx = xml.indexOf('TERMS AND CONDITIONS</w:t>');
+  if (termsHeadingIdx !== -1) {
+    const termsTblStart = xml.lastIndexOf('<w:tbl', termsHeadingIdx);
+    if (termsTblStart !== -1) {
+      const beforeTerms = xml.substring(Math.max(0, termsTblStart - 100), termsTblStart);
+      if (!beforeTerms.includes('pageBreakBefore')) {
+        xml = xml.substring(0, termsTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(termsTblStart);
+      }
+    }
+  }
+
   zip.file('word/document.xml', xml);
 
-  const hasDiagramSection = /NETWORK\s*ARCHITECTURE|SOLUTION\s*DIAGRAM/i.test(xml);
   const reqList = Array.isArray(fields.requirements) ? fields.requirements.filter(r => String(r.title || '').trim()) : [];
   const selectedProducts = reqList.map(r => PRODUCT_BY_ID[r.id]).filter(Boolean);
-  const requirementsXml = buildRequirementsXml(zip, reqList, hasDiagramSection);
-  const tbc = v => String(v || '').trim() || 'To be confirmed';
+  const requirementsXml = buildRequirementsXml(zip, reqList);
 
   const data = {
     ...fields,
@@ -868,13 +943,6 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     aboutXml: aboutXml(fields, aboutLevel),
     address: addressLine(fields),
     amPhoneClause: String(fields.amPhone || '').trim() ? `on ${String(fields.amPhone).trim()} ` : '',
-    components: (fields.components || []).filter(c => String(c.service || '').trim()).map(c => ({
-      service: c.service,
-      station: tbc(shortCell(stationCell(c.station), CELL_MAX_CHARS.station)),
-      accessMedia: tbc(shortCell(c.accessMedia || c.media, CELL_MAX_CHARS.accessMedia)),
-      media: tbc(shortCell(c.accessMedia || c.media, CELL_MAX_CHARS.accessMedia)),
-      ntu: tbc(shortCell(c.ntu, CELL_MAX_CHARS.ntu)),
-    })),
     investment: (fields.investment || []).filter(r => String(r.description || r.name || '').trim()).map(r => ({
       description: r.description || r.name,
       name: r.description || r.name,
