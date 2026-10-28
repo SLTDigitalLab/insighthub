@@ -980,7 +980,7 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   const contactHeadingIdx = xml.lastIndexOf('CONTACT US</w:t>');
   if (contactHeadingIdx !== -1) {
     const contactTblStart = findLastTag(xml, 'w:tbl', contactHeadingIdx);
-    const contactTblEnd = xml.indexOf('</w:tbl>', contactHeadingIdx) + 8;
+    const contactTblEnd = xml.lastIndexOf('</w:tbl>') + 8;
     if (contactTblStart !== -1 && contactTblEnd !== -1 && contactTblEnd > contactTblStart) {
       let contactXml = xml.substring(contactTblStart, contactTblEnd);
 
@@ -1006,16 +1006,13 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   }
 
   // Remove trailing empty spacer paragraphs after Contact Us table before </w:body>
-  const contactHeadingIdx2 = xml.lastIndexOf('CONTACT US</w:t>');
-  if (contactHeadingIdx2 !== -1) {
-    const cTblEnd = xml.indexOf('</w:tbl>', contactHeadingIdx2) + 8;
-    const bodyEnd = xml.lastIndexOf('</w:body>');
-    if (cTblEnd !== -1 && bodyEnd !== -1 && cTblEnd < bodyEnd) {
-      const afterContact = xml.substring(cTblEnd, bodyEnd);
-      const sectPrMatch = afterContact.match(/<w:sectPr\b.*?<\/w:sectPr>/s);
-      const cleanAfter = sectPrMatch ? sectPrMatch[0] : '';
-      xml = xml.substring(0, cTblEnd) + cleanAfter + xml.substring(bodyEnd);
-    }
+  const lastTblEnd = xml.lastIndexOf('</w:tbl>') + 8;
+  const bodyEnd = xml.lastIndexOf('</w:body>');
+  if (lastTblEnd !== -1 && bodyEnd !== -1 && lastTblEnd < bodyEnd) {
+    const afterContact = xml.substring(lastTblEnd, bodyEnd);
+    const sectPrMatch = afterContact.match(/<w:sectPr\b.*?<\/w:sectPr>/s);
+    const cleanAfter = sectPrMatch ? sectPrMatch[0] : '';
+    xml = xml.substring(0, lastTblEnd) + cleanAfter + xml.substring(bodyEnd);
   }
 
   // Remove empty self-closing spacer paragraphs (which cause unwanted blank pages)
