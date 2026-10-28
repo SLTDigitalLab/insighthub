@@ -232,23 +232,15 @@ function imagePara(rId, docPrId, name, size, isFirstProduct = false) {
   return `<w:p><w:pPr><w:keepLines/><w:spacing w:before="60" w:after="${isFirstProduct ? 60 : 80}"/><w:jc w:val="center"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${docPrId}" name="${esc(name)}"/><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="${esc(name)}"/><pic:cNvPicPr><a:picLocks noChangeAspect="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
 }
 
-function customerBenefitsXml(product, beforeDiagram) {
+function customerBenefitsXml(product) {
   const benefits = product ? (product.customerBenefits || []).map(b => String(b || '').trim()).filter(Boolean) : [];
   if (!benefits.length) return '';
   return textPara(run('Customer Benefits', { bold: true, color: '0B2A6F' }), { before: 80, after: 20, keepNext: true })
-    + benefits.map((b, j) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${j < benefits.length - 1 || beforeDiagram ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="15" w:after="15"/><w:ind w:left="720" w:right="360" w:hanging="300"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
+    + benefits.map((b) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="15" w:after="15"/><w:ind w:left="720" w:right="360" w:hanging="300"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
 }
 
 function termsAndConditionsXml(products) {
   let xml = '';
-  const productsWithTerms = (products || []).filter(p => p && String(p.termsAndConditions || '').trim());
-  if (productsWithTerms.length) {
-    xml += textPara(run('Product-Specific Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 140, after: 60, keepNext: true });
-    productsWithTerms.forEach((p, idx) => {
-      xml += textPara(run(`${idx + 1}.  ${p.name}`, { bold: true, color: '0B2A6F' }), { before: idx === 0 ? 60 : 120, after: 30, keepNext: true });
-      xml += textPara(run(String(p.termsAndConditions).trim()), { before: 20, after: 60 });
-    });
-  }
 
   const GENERAL_TERMS = [
     'All prices are valid for 30 days period from the date of submission of the proposal.',
@@ -260,10 +252,19 @@ function termsAndConditionsXml(products) {
     'Customer shall bear the cost of any transfer or change of the Service at the customer’s request.',
   ];
 
-  xml += textPara(run('General Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 180, after: 60, keepNext: true });
-  GENERAL_TERMS.forEach((term, idx) => {
-    xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="30" w:after="30"/><w:ind w:left="720" w:right="360" w:hanging="360"/></w:pPr><w:r><w:rPr><w:color w:val="231F20"/></w:rPr><w:t>${idx + 1}.</w:t></w:r><w:r><w:tab/></w:r>${run(term)}</w:p>`;
+  xml += textPara(run('General Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 140, after: 60, keepNext: true });
+  GENERAL_TERMS.forEach((term) => {
+    xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="25" w:after="25"/><w:ind w:left="720" w:right="360" w:hanging="360"/></w:pPr><w:r><w:rPr><w:color w:val="231F20"/></w:rPr><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(term)}</w:p>`;
   });
+
+  const productsWithTerms = (products || []).filter(p => p && String(p.termsAndConditions || '').trim());
+  if (productsWithTerms.length) {
+    xml += textPara(run('Product-Specific Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 160, after: 60, keepNext: true });
+    productsWithTerms.forEach((p, idx) => {
+      xml += textPara(run(`${idx + 1}.  ${p.name}`, { bold: true, color: '0B2A6F' }), { before: idx === 0 ? 60 : 100, after: 20, keepNext: true });
+      xml += textPara(run(String(p.termsAndConditions).trim()), { before: 15, after: 50 });
+    });
+  }
 
   return xml || '<w:p/>';
 }
@@ -279,13 +280,13 @@ function buildRequirementsXml(zip, requirements) {
       xml += '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
     }
     xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 60 : 100, keepNext: true });
-    if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 20, after: 30, keepNext: true });
+    if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 20, after: 30 });
     const product = PRODUCT_BY_ID[r.id];
     const diagPath = getDiagramPath(r.id || (product && product.id));
     const hasDiagram = Boolean(diagPath && fs.existsSync(diagPath));
 
     if (product) {
-      xml += customerBenefitsXml(product, hasDiagram);
+      xml += customerBenefitsXml(product);
     }
 
     if (hasDiagram && zip) {
@@ -871,29 +872,39 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     }
   }
 
-  // 10. Separate PROPOSED SOLUTION into its own table starting on a fresh page
+  // 10. Separate PROPOSED SOLUTION into its own banner table followed by flowable body paragraphs,
+  // and drop empty spacer rows (Rows 3, 4, 5) between ABOUT YOU and PROPOSED SOLUTION
   const propSolTextIdx = xml.lastIndexOf('PROPOSED SOLUTION</w:t>');
   if (propSolTextIdx !== -1) {
     const propRowStart = findLastTag(xml, 'w:tr', propSolTextIdx);
-    if (propRowStart !== -1) {
-      const tblStart = findLastTag(xml, 'w:tbl', propRowStart);
-      if (tblStart !== -1 && xml.substring(tblStart, propRowStart).includes('ABOUT YOU')) {
-        const splitXml = '</w:tbl><w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p><w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>';
-        xml = xml.substring(0, propRowStart) + splitXml + xml.substring(propRowStart);
-      }
+    const tblStart = propRowStart !== -1 ? findLastTag(xml, 'w:tbl', propRowStart) : -1;
+    const tblEnd = xml.indexOf('</w:tbl>', propSolTextIdx) + 8;
+    if (tblStart !== -1 && tblEnd !== -1 && xml.substring(tblStart, propRowStart).includes('ABOUT YOU')) {
+      const aboutRow2Idx = xml.indexOf('aboutXml', tblStart);
+      const aboutRow2End = aboutRow2Idx !== -1 ? xml.indexOf('</w:tr>', aboutRow2Idx) + 7 : propRowStart;
+      const propTrEnd = xml.indexOf('</w:tr>', propSolTextIdx) + 7;
+      const bannerTable = '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>' + xml.substring(propRowStart, propTrEnd) + '</w:tbl>';
+      const replacement = '</w:tbl><w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerTable + '<w:p><w:r><w:t>{@requirementsXml}</w:t></w:r></w:p>';
+      xml = xml.substring(0, aboutRow2End) + replacement + xml.substring(tblEnd);
     }
   }
 
-  // Neutralize excessive empty row heights in body
-  xml = xml.replace(/<w:trHeight\s+w:val="(?:4533|6333)"\/>/gi, '<w:trHeight w:val="414"/>');
+  // Neutralize excessive empty row heights in body (>= 4000 dxa forces unwanted page breaks)
+  xml = xml.replace(/<w:trHeight\s+w:val="(?:[4-9]\d{3}|\d{5,})"\/>/gi, '<w:trHeight w:val="414"/>');
 
-  // Remove duplicate empty paragraphs
+  // Remove duplicate empty paragraphs with heading styles
   xml = xml.replace(/(?:<w:p\b[^>]*><w:pPr><w:pStyle w:val="Heading2"\/>(?:<w:jc[^>]*\/>)?<\/w:pPr><\/w:p>\s*){2,}/gi, '');
+
+  // Remove trailing empty spacer paragraphs inside requirements cell
+  xml = xml.replace(/(<w:t>\{@requirementsXml\}<\/w:t><\/w:r><\/w:p>)(?:\s*<w:p\b[^>]*\/>)+/g, '$1');
 
   // 11. In the template, the investment table was placed before the YOUR INVESTMENT banner.
   // Reorder so YOUR INVESTMENT banner comes first with a page break, followed by the table.
   const investIdx = xml.indexOf('{#investment}');
   const yourInvIdx = xml.lastIndexOf('INVESTMENT</w:t>');
+  const termsHeadingIdx = xml.lastIndexOf('TERMS AND CONDITIONS</w:t>');
+  const termsTblStart = termsHeadingIdx !== -1 ? findLastTag(xml, 'w:tbl', termsHeadingIdx) : -1;
+
   if (investIdx !== -1 && yourInvIdx !== -1 && investIdx < yourInvIdx) {
     const tblStart = findLastTag(xml, 'w:tbl', investIdx);
     const tblEnd = xml.indexOf('</w:tbl>', investIdx) + 8;
@@ -904,23 +915,68 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
       const investXml = xml.substring(tblStart, tblEnd).replace(/<w:tblpPr\b[^>]*\/>/g, '');
       const bannerXml = xml.substring(bannerTblStart, bannerTblEnd).replace(/<w:tblpPr\b[^>]*\/>/g, '');
       const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerXml + '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>' + investXml;
-      xml = xml.substring(0, tblStart) + replacement + xml.substring(bannerTblEnd);
+      // If termsTblStart is after bannerTblEnd, replace all the way to termsTblStart to eliminate spacer paragraphs between investment and terms
+      if (termsTblStart !== -1 && termsTblStart > bannerTblEnd) {
+        xml = xml.substring(0, tblStart) + replacement + xml.substring(termsTblStart);
+      } else {
+        xml = xml.substring(0, tblStart) + replacement + xml.substring(bannerTblEnd);
+      }
     }
   }
 
-  // Ensure Terms and Conditions starts on a clean page (LAST occurrence to avoid TOC)
-  const termsHeadingIdx = xml.lastIndexOf('TERMS AND CONDITIONS</w:t>');
-  if (termsHeadingIdx !== -1) {
-    const termsTblStart = findLastTag(xml, 'w:tbl', termsHeadingIdx);
-    if (termsTblStart !== -1) {
-      const beforeTerms = xml.substring(Math.max(0, termsTblStart - 100), termsTblStart);
-      if (!beforeTerms.includes('pageBreakBefore')) {
-        xml = xml.substring(0, termsTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(termsTblStart);
+  // Ensure Terms and Conditions starts on a clean page with header banner and inject {@termsAndConditionsXml}
+  const termsHeadingIdx2 = xml.lastIndexOf('TERMS AND CONDITIONS</w:t>');
+  if (termsHeadingIdx2 !== -1) {
+    const termsTblStart2 = findLastTag(xml, 'w:tbl', termsHeadingIdx2);
+    const termsTblEnd2 = xml.indexOf('</w:tbl>', termsHeadingIdx2) + 8;
+    if (termsTblStart2 !== -1 && termsTblEnd2 !== -1 && termsTblEnd2 > termsTblStart2) {
+      const tr1End = xml.indexOf('</w:tr>', termsHeadingIdx2) + 7;
+      const bannerTable = xml.substring(termsTblStart2, tr1End).replace(/<w:tblpPr\b[^>]*\/>/g, '') + '</w:tbl>';
+      const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>'
+        + bannerTable
+        + '<w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p>';
+      xml = xml.substring(0, termsTblStart2) + replacement + xml.substring(termsTblEnd2);
+    }
+  }
+
+  // Ensure CUSTOMER ACKNOWLEDGEMENTS starts on a clean page
+  const ackHeadingIdx = xml.lastIndexOf('CUSTOMER ACKNOWLEDGEMENTS</w:t>');
+  if (ackHeadingIdx !== -1) {
+    const ackTblStart = findLastTag(xml, 'w:tbl', ackHeadingIdx);
+    if (ackTblStart !== -1) {
+      const beforeAck = xml.substring(Math.max(0, ackTblStart - 100), ackTblStart);
+      if (!beforeAck.includes('pageBreakBefore')) {
+        xml = xml.substring(0, ackTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(ackTblStart);
+      }
+    }
+  }
+
+  // Ensure SME SOLUTIONS starts on a clean page
+  const smeHeadingIdx = xml.lastIndexOf('SME SOLUTIONS</w:t>');
+  if (smeHeadingIdx !== -1) {
+    const smeTblStart = findLastTag(xml, 'w:tbl', smeHeadingIdx);
+    if (smeTblStart !== -1) {
+      const beforeSme = xml.substring(Math.max(0, smeTblStart - 100), smeTblStart);
+      if (!beforeSme.includes('pageBreakBefore')) {
+        xml = xml.substring(0, smeTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(smeTblStart);
+      }
+    }
+  }
+
+  // Ensure AWARDS AND ACCOLADES starts on a clean page
+  const awardsHeadingIdx = xml.lastIndexOf('AWARDS AND ACCOLADES</w:t>');
+  if (awardsHeadingIdx !== -1) {
+    const awardsTblStart = findLastTag(xml, 'w:tbl', awardsHeadingIdx);
+    if (awardsTblStart !== -1) {
+      const beforeAwards = xml.substring(Math.max(0, awardsTblStart - 100), awardsTblStart);
+      if (!beforeAwards.includes('pageBreakBefore')) {
+        xml = xml.substring(0, awardsTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(awardsTblStart);
       }
     }
   }
 
   // 12. Ensure CONTACT US starts on a clean page (so it does not overlap the Awards graphic) and fits strictly on 1 page
+  const awardsIdx = xml.lastIndexOf('AWARDS AND ACCOLADES</w:t>');
   const contactHeadingIdx = xml.lastIndexOf('CONTACT US</w:t>');
   if (contactHeadingIdx !== -1) {
     const contactTblStart = findLastTag(xml, 'w:tbl', contactHeadingIdx);
@@ -933,14 +989,37 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
       contactXml = contactXml.replace(/<w:trHeight\s+w:val="660"\/>/g, '<w:trHeight w:val="420"/>');
       contactXml = contactXml.replace(/<w:trHeight\s+w:val="553"\/>/g, '<w:trHeight w:val="380"/>');
 
-      const beforeContact = xml.substring(Math.max(0, contactTblStart - 100), contactTblStart);
-      if (!beforeContact.includes('pageBreakBefore')) {
-        xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
+      if (awardsIdx !== -1 && awardsIdx < contactHeadingIdx) {
+        const awardsTblEnd = xml.indexOf('</w:tbl>', awardsIdx) + 8;
+        if (awardsTblEnd !== -1 && awardsTblEnd < contactTblStart) {
+          let between = xml.substring(awardsTblEnd, contactTblStart);
+          between = between.replace(/<w:p\b[^>]*><w:pPr>.*?<\/w:pPr><\/w:p>/gs, '');
+          between = between.replace(/<w:p\b[^>]*\/>\s*/g, '');
+          xml = xml.substring(0, awardsTblEnd) + between + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
+        } else {
+          xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
+        }
       } else {
-        xml = xml.substring(0, contactTblStart) + contactXml + xml.substring(contactTblEnd);
+        xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
       }
     }
   }
+
+  // Remove trailing empty spacer paragraphs after Contact Us table before </w:body>
+  const contactHeadingIdx2 = xml.lastIndexOf('CONTACT US</w:t>');
+  if (contactHeadingIdx2 !== -1) {
+    const cTblEnd = xml.indexOf('</w:tbl>', contactHeadingIdx2) + 8;
+    const bodyEnd = xml.lastIndexOf('</w:body>');
+    if (cTblEnd !== -1 && bodyEnd !== -1 && cTblEnd < bodyEnd) {
+      const afterContact = xml.substring(cTblEnd, bodyEnd);
+      const sectPrMatch = afterContact.match(/<w:sectPr\b.*?<\/w:sectPr>/s);
+      const cleanAfter = sectPrMatch ? sectPrMatch[0] : '';
+      xml = xml.substring(0, cTblEnd) + cleanAfter + xml.substring(bodyEnd);
+    }
+  }
+
+  // Remove empty self-closing spacer paragraphs (which cause unwanted blank pages)
+  xml = xml.replace(/<w:p\b[^>]*\/>/g, '');
 
   zip.file('word/document.xml', xml);
 
