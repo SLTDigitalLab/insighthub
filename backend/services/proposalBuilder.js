@@ -1069,15 +1069,18 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
       tbl = tbl.substring(0, tblPrMatch.index) + tblPr + tbl.substring(tblPrMatch.index + tblPrMatch[0].length);
     }
 
+    // Strip any row offsets (gridBefore / wBefore) that displace banners
+    tbl = tbl.replace(/<w:gridBefore\b[^>]*\/>/gis, '').replace(/<w:wBefore\b[^>]*\/>/gis, '');
+
     const gridCols = tbl.match(/<w:gridCol\b[^>]*\/>/gi) || [];
-    if (gridCols.length === 1) {
+    if (gridCols.length === 1 || tbl.includes('AWARDS AND ACCOLADES')) {
       tbl = tbl.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/i, '<w:tblGrid><w:gridCol w:w="10080"/></w:tblGrid>');
     }
 
     // Inside cells with fill="002060", set tcW to 10080 and ensure paragraph has left alignment & left indent 180 dxa
     tbl = tbl.replace(/<w:tc\b[\s\S]*?<\/w:tc>/gi, (cell) => {
       if (!cell.includes('002060')) return cell;
-      if (gridCols.length <= 1) {
+      if (gridCols.length <= 1 || tbl.includes('AWARDS AND ACCOLADES')) {
         cell = cell.replace(/<w:tcW\b[^>]*\/>/gi, '<w:tcW w:w="10080" w:type="dxa"/>');
       }
       cell = cell.replace(/<w:p\b[\s\S]*?<\/w:p>/gi, (p) => {
@@ -1098,13 +1101,14 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   });
 
   // 11. Set body section margins so page content strictly aligns with the 10080 dxa blue box
-  // A4 = 11906 dxa; (11906 - 10080) / 2 = 913 dxa left and right margins
+  // A4 = 11906 dxa; left margin = 913 dxa (45.65 pt) matching blue box left edge
+  // right margin = 960 dxa (48.0 pt) ensuring text wraps comfortably inside the 549.7 pt right edge
   const sectMatches = [...xml.matchAll(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/gi)];
   if (sectMatches.length >= 2) {
     const lastSect = sectMatches[sectMatches.length - 1];
     let s = lastSect[0];
     s = s.replace(/w:left="\d+"/g, 'w:left="913"');
-    s = s.replace(/w:right="\d+"/g, 'w:right="913"');
+    s = s.replace(/w:right="\d+"/g, 'w:right="960"');
     xml = xml.substring(0, lastSect.index) + s + xml.substring(lastSect.index + lastSect[0].length);
   }
 
