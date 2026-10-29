@@ -732,6 +732,21 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     zip.file(f.name, content);
   });
 
+  // Ensure Heading1 in styles.xml has center alignment for section title banners
+  if (zip.file('word/styles.xml')) {
+    let stylesXml = zip.file('word/styles.xml').asText();
+    stylesXml = stylesXml.replace(
+      /(<w:style[^>]*w:styleId="Heading1"[^>]*>.*?<w:pPr>)(.*?)(<\/w:pPr>)/s,
+      (match, pPrOpen, pPrContent, pPrClose) => {
+        if (/<w:jc\b/i.test(pPrContent)) {
+          return `${pPrOpen}${pPrContent.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>')}${pPrClose}`;
+        }
+        return `${pPrOpen}<w:jc w:val="center"/>${pPrContent}${pPrClose}`;
+      }
+    );
+    zip.file('word/styles.xml', stylesXml);
+  }
+
   // 1. Cover page: cleanly replace field codes so {companyName} displays directly
   const pStart = xml.indexOf('SET CustomerName4');
   if (pStart !== -1) {
@@ -1197,6 +1212,72 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
 
   // Remove empty self-closing spacer paragraphs (which cause unwanted blank pages)
   xml = xml.replace(/<w:p\b[^>]*\/>/g, '');
+
+  // 14. Symmetrize page margins in document body (balanced left and right margins)
+  xml = xml.replace(/(<w:pgMar\b[^>]*w:left=")\d+("[^>]*w:right=")\d+(")/gi, '$1360$2360$3');
+
+  // 15. Horizontally center all tables and centralize all page titles / section banner headings in document body
+  const bodyStartIdx = xml.indexOf('<w:sectPr');
+  if (bodyStartIdx !== -1) {
+    const coverPart = xml.substring(0, bodyStartIdx);
+    let bodyPart = xml.substring(bodyStartIdx);
+
+    // Center all table properties (<w:tblPr>) in the body and strip any offset indents (<w:tblInd>)
+    bodyPart = bodyPart.replace(/<w:tblPr\b[^>]*>.*?<\/w:tblPr>/gis, (tblPr) => {
+      let p = tblPr.replace(/<w:tblInd\b[^>]*\/>/gi, '');
+      if (/<w:jc\b/i.test(p)) {
+        p = p.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
+      } else if (/<w:tblW\b/i.test(p)) {
+        p = p.replace(/(<w:tblW\b[^>]*\/>)/gi, '$1<w:jc w:val="center"/>');
+      } else {
+        p = p.replace('<w:tblPr>', '<w:tblPr><w:jc w:val="center"/>');
+      }
+      return p;
+    });
+
+    // Centralize ALL page titles and section banner headings in document body
+    const BANNER_TITLES = [
+      'COMPANY OVERVIEW',
+      'OUR STRENGTHS',
+      'WHY WITH US',
+      'ABOUT YOU &amp; HOW WE CAN HELP YOU',
+      'ABOUT YOU & HOW WE CAN HELP YOU',
+      'ABOUT YOU',
+      'PROPOSED SOLUTION',
+      'YOUR REQUIREMENTS',
+      'NETWORK ARCHITECTURE',
+      'SOLUTION DIAGRAM',
+      'YOUR INVESTMENT',
+      'TERMS AND CONDITIONS',
+      'CUSTOMER ACKNOWLEDGEMENTS',
+      'SME SOLUTIONS',
+      'AWARDS AND ACCOLADES',
+      'CONTACT US'
+    ];
+
+    bodyPart = bodyPart.replace(/<w:p\b[^>]*>.*?<\/w:p>/gis, (pXml) => {
+      // Never alter Table of Contents headings or entries
+      if (pXml.includes('TOC1') || pXml.includes('TOCHeading') || pXml.includes('Hyperlink')) {
+        return pXml;
+      }
+      const isBanner = pXml.includes('w:val="Heading1"') || BANNER_TITLES.some(bt => pXml.includes(bt));
+      if (!isBanner) return pXml;
+
+      if (pXml.includes('<w:pPr>')) {
+        if (/<w:jc\b/i.test(pXml)) {
+          return pXml.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
+        }
+        return pXml.replace('<w:pPr>', '<w:pPr><w:jc w:val="center"/>');
+      } else if (pXml.includes('<w:pPr/>')) {
+        return pXml.replace('<w:pPr/>', '<w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/></w:pPr>');
+      } else {
+        const tagEnd = pXml.indexOf('>');
+        return pXml.substring(0, tagEnd + 1) + '<w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/></w:pPr>' + pXml.substring(tagEnd + 1);
+      }
+    });
+
+    xml = coverPart + bodyPart;
+  }
 
   zip.file('word/document.xml', xml);
 
