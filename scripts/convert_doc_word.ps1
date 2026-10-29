@@ -8,18 +8,28 @@ param([Parameter(Mandatory = $true)][string]$Src, [Parameter(Mandatory = $true)]
 
 $Src = (Resolve-Path $Src).Path
 $Dst = [System.IO.Path]::GetFullPath($Dst)
-$word = New-Object -ComObject Word.Application
-$word.Visible = $false
-$word.DisplayAlerts = 0
+$word = $null
+$doc = $null
 try {
+  $word = New-Object -ComObject Word.Application
+  $word.Visible = $false
+  $word.DisplayAlerts = 0
   $doc = $word.Documents.Open($Src, $false, $true)
   # ConfirmConversions = false, ReadOnly = true: the source .doc is never changed
   $doc.Convert()
   # Leaves compatibility mode (Word 2003 -> current), turning VML pictures into DrawingML
   $doc.SaveAs2($Dst, 16)
   # 16 = wdFormatDocumentDefault (.docx)
-  $doc.Close($false)
+  $doc.Close([ref]$false)
 } finally {
-  $word.Quit()
+  if ($doc -ne $null) {
+    try { [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($doc) | Out-Null } catch {}
+  }
+  if ($word -ne $null) {
+    try { $word.Quit([ref]$false) } catch {}
+    try { [System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($word) | Out-Null } catch {}
+  }
+  [GC]::Collect()
+  [GC]::WaitForPendingFinalizers()
 }
 Write-Output "saved $Dst"

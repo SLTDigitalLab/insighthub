@@ -99,6 +99,57 @@ async function convertDocToDocx(docBuffer) {
   );
 }
 
+function safelyWriteTemplate(filePath, buffer) {
+  // Try direct write first
+  try {
+    fs.writeFileSync(filePath, buffer);
+    return;
+  } catch (err) {
+    if (err.code !== 'EBUSY' && err.code !== 'EPERM') {
+      throw err;
+    }
+  }
+
+  // If locked by Word or another process, write to temp and attempt retry
+  const dir = path.dirname(filePath);
+  const tempPath = path.join(dir, `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}.docx`);
+  fs.writeFileSync(tempPath, buffer);
+
+  let replaced = false;
+  let lastErr = null;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      try {
+        if (fs.existsSync(filePath)) {
+          fs.unlinkSync(filePath);
+        }
+      } catch (unErr) {}
+
+      fs.copyFileSync(tempPath, filePath);
+      replaced = true;
+      break;
+    } catch (err) {
+      lastErr = err;
+      if (err.code === 'EBUSY' || err.code === 'EPERM') {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+      } else {
+        break;
+      }
+    }
+  }
+
+  try {
+    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+  } catch (e) {}
+
+  if (!replaced) {
+    throw new Error(
+      'The proposal template file (proposal_template.docx) is currently open or locked by Microsoft Word on your computer. ' +
+      'Please save and close Microsoft Word, then click "Set as Latest Template" again.'
+    );
+  }
+}
+
 module.exports = {
   saveProposal: ({ refNo, companyName, business = {}, fields = {}, user = {}, products = [] }) => {
     const list = readProposals();
@@ -160,7 +211,7 @@ module.exports = {
     }
 
     // Save the uploaded .docx buffer directly to TEMPLATE_PATH - 100% exact layout preservation!
-    fs.writeFileSync(TEMPLATE_PATH, fileBuffer);
+    safelyWriteTemplate(TEMPLATE_PATH, fileBuffer);
     console.log(`[proposalStorage] Latest template (.docx) saved directly without modification (${fileBuffer.length} bytes, ${tagsCount} tags detected)`);
 
     const meta = {
@@ -186,7 +237,8 @@ module.exports = {
     if (!fs.existsSync(DEFAULT_TEMPLATE)) {
       throw new Error('Default system template backup not found');
     }
-    fs.copyFileSync(DEFAULT_TEMPLATE, TEMPLATE_PATH);
+    const defaultBuffer = fs.readFileSync(DEFAULT_TEMPLATE);
+    safelyWriteTemplate(TEMPLATE_PATH, defaultBuffer);
     const meta = {
       filename: 'default_proposal_template.docx',
       savedFormat: 'docx',
