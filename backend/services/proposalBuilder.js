@@ -275,9 +275,9 @@ function buildRequirementsXml(zip, requirements) {
   let rels = zip && zip.file(relsPath) ? zip.file(relsPath).asText() : '';
   let xml = '';
   requirements.forEach((r, i) => {
-    // Each subsequent product starts on its own fresh page
+    // Flow products naturally with clean spacing (no forced blank page breaks between every product)
     if (i > 0) {
-      xml += '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>';
+      xml += '<w:p><w:pPr><w:spacing w:before="240" w:after="80"/></w:pPr></w:p>';
     }
     xml += textPara(run(`${i + 1}.  ${r.title}`, { bold: true, color: '0B2A6F' }), { before: i === 0 ? 60 : 100, keepNext: true });
     if (String(r.text || '').trim()) xml += textPara(run(r.text), { before: 20, after: 30 });
@@ -687,13 +687,23 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   // Pre-process word/document.xml to clean field codes, Lotus Road address, and Terms & Conditions
   let xml = zip.file('word/document.xml').asText();
 
-  // Ensure no red text remains anywhere in the template or generated XML
+  // Ensure no red text remains anywhere in the template or generated XML, and rejoin split tags in headers/footers
   xml = xml.replace(/<w:color\s+w:val="FF0000"\/>/gi, '<w:color w:val="0B2A6F"/>');
   zip.file(/word\/(header\d+|footer\d+)\.xml/).forEach(f => {
     let content = f.asText();
+    content = content.replace(/<w:proofErr\b[^>]*\/>/gis, '');
+    content = content.replace(/<w:gramErr\b[^>]*\/>/gis, '');
+    content = content.replace(/\{([^{}]*)\}/gs, (match, c) => {
+      if (c.includes('<')) {
+        return `{${c.replace(/<[^>]+>/g, '').trim()}}`;
+      }
+      return match;
+    });
+    content = content.replace(/\{\{([a-zA-Z0-9_#/@]+)\}\}/g, '{$1}');
     if (/FF0000/i.test(content)) {
-      zip.file(f.name, content.replace(/<w:color\s+w:val="FF0000"\/>/gi, '<w:color w:val="002060"/>'));
+      content = content.replace(/<w:color\s+w:val="FF0000"\/>/gi, '<w:color w:val="002060"/>');
     }
+    zip.file(f.name, content);
   });
 
   // 1. Cover page: cleanly replace field codes so {companyName} displays directly
@@ -807,16 +817,28 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/<w:proofErr\b[^>]*\/>/gis, '');
   xml = xml.replace(/<w:gramErr\b[^>]*\/>/gis, '');
 
-  // 4. Rejoin split tags across runs like {</w:t></w:r><w:r...><w:t>tag</w:t></w:r><w:r...><w:t>}
-  for (let iter = 0; iter < 6; iter++) {
-    const prev = xml;
-    xml = xml.replace(/\{([^{}<>]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?(?:<w:rPr>[^<]*<\/w:rPr>)?<w:t(?: [^>]*)?>([^{}<>]*?\})/g, '{$1$2}');
-    xml = xml.replace(/\{([^{}<>]*?)<\/w:t><\/w:r>(?:<w:r\b[^>]*>)?<w:t(?: [^>]*)?>([^{}<>]*?\})/g, '{$1$2}');
-    if (xml === prev) break;
-  }
-  xml = xml.replace(/\{#<\/w:t><\/w:r>\s*(?:<w:r\b[^>]*>\s*)?(?:<w:rPr>(?:<[^>]+>)*<\/w:rPr>\s*)?<w:t(?: [^>]*)?>investment\}\{/gi, '{#investment}{');
+  // 4. Robustly rejoin ANY split tag across runs: { ... }
+  // Strips any internal XML tags inside { ... } so {</w:t></w:r>...<w:t>tagName</w:t>...} becomes {tagName}
+  xml = xml.replace(/\{([^{}]*)\}/gs, (match, content) => {
+    if (content.includes('<')) {
+      const tagText = content.replace(/<[^>]+>/g, '').trim();
+      return `{${tagText}}`;
+    }
+    return match;
+  });
 
-  // 5. Normalize tags: trim whitespace
+  // Normalize double curly braces {{tag}} -> {tag}
+  xml = xml.replace(/\{\{([a-zA-Z0-9_#/@]+)\}\}/g, '{$1}');
+
+  // 5. Clean sample data and field codes from designer template
+  xml = xml.replace(/Enterprise_STest\s*1\s*\{companyName\}/g, '{companyName}');
+  xml = xml.replace(/1-WF8VSRZ\s*\{refNo\}/g, '{refNo}');
+  xml = xml.replace(/(?:23\/09\/2025\s*){1,2}\{proposalDate\}/g, '{proposalDate}');
+  xml = xml.replace(/0701314128\s*\{amPhone\}/g, '{amPhone}');
+  xml = xml.replace(/Hasanthi\s+Lanka\s*\{amName\}/g, '{amName}');
+  xml = xml.replace(/lankahasanthi@gmail\.com\s*\{amEmail\}/g, '{amEmail}');
+
+  // 6. Normalize tags: trim whitespace
   xml = xml.replace(/\{\s*#\s*components\s*\}/gi, '{#components}');
   xml = xml.replace(/\{\s*\/\s*components\s*\}/gi, '{/components}');
   xml = xml.replace(/\{\s*#\s*investment\s*\}/gi, '{#investment}');
@@ -843,11 +865,8 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/\{\s*ackCompanyName\s*\}/gi, '{ackCompanyName}');
   xml = xml.replace(/\{\s*ackAddress\s*\}/gi, '{ackAddress}');
 
-  // 6. Clean sample data from designer template
-  xml = xml.replace(/23\/09\/2025\s*23\/09\/2025/g, '');
-  xml = xml.replace(/0701314128\{amPhone\}/g, '{amPhone}');
-  xml = xml.replace(/Hasanthi Lanka\{amName\}/g, '{amName}');
-  xml = xml.replace(/lankahasanthi@gmail\.com\{amEmail\}/g, '{amEmail}');
+  // Neutralize excessive empty row heights in body (>= 4000 dxa forces unwanted page breaks)
+  xml = xml.replace(/<w:trHeight\s+w:val="(?:[4-9]\d{3}|\d{5,})"\/>/gi, '<w:trHeight w:val="414"/>');
 
   // 7. Inject {@aboutXml} into About You section body if missing
   if (!xml.includes('aboutXml') && xml.includes('26E68EBD')) {
@@ -1125,16 +1144,54 @@ async function tocPagesFromPdf(pdf) {
 }
 
 async function resolveLeadLogo(fields) {
-  if (!fields || !fields.leadLogo || typeof fields.leadLogo !== 'string') return fields;
-  const s = fields.leadLogo.trim();
-  if (s.startsWith('http://') || s.startsWith('https://')) {
-    try {
-      const resp = await axios.get(s, { responseType: 'arraybuffer', timeout: 3500 });
-      const ct = resp.headers['content-type'] || 'image/png';
-      const b64 = Buffer.from(resp.data).toString('base64');
-      return { ...fields, leadLogo: `data:${ct};base64,${b64}` };
-    } catch (err) {
-      console.warn('[proposal] Could not fetch remote client logo:', err.message);
+  if (!fields) return fields;
+  let logoUrl = fields.leadLogo || fields.logo || fields.logoUrl || '';
+  if (typeof logoUrl !== 'string') return fields;
+  logoUrl = logoUrl.trim();
+
+  // If no logoUrl yet but website or domain exists, construct unavatar url
+  if (!logoUrl) {
+    const domain = (fields.website || fields.domain || '')
+      .replace(/https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').trim();
+    if (domain && domain.includes('.')) {
+      logoUrl = `https://unavatar.io/${domain}`;
+    }
+  }
+
+  // Already base64 data URI or raw base64 string
+  if (logoUrl.startsWith('data:image/') || (/^[A-Za-z0-9+/=]+$/.test(logoUrl) && logoUrl.length > 100)) {
+    return { ...fields, leadLogo: logoUrl };
+  }
+
+  if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
+    const candidateUrls = [];
+    if (logoUrl.includes('logo.clearbit.com')) {
+      const domain = logoUrl.split('logo.clearbit.com/')[1].split('/')[0].split('?')[0];
+      candidateUrls.push(`https://unavatar.io/${domain}`);
+      candidateUrls.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
+    } else {
+      candidateUrls.push(logoUrl);
+      try {
+        const u = new URL(logoUrl);
+        const domain = u.hostname.replace(/^www\./i, '');
+        if (domain && domain.includes('.')) {
+          candidateUrls.push(`https://unavatar.io/${domain}`);
+          candidateUrls.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
+        }
+      } catch (e) {}
+    }
+
+    for (const url of candidateUrls) {
+      try {
+        const resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 3500 });
+        if (resp && resp.status === 200 && resp.data && resp.data.length > 50) {
+          const ct = resp.headers['content-type'] || 'image/png';
+          const b64 = Buffer.from(resp.data).toString('base64');
+          return { ...fields, leadLogo: `data:${ct};base64,${b64}` };
+        }
+      } catch (err) {
+        console.warn(`[proposal] Could not fetch remote client logo from ${url}:`, err.message);
+      }
     }
   }
   return fields;

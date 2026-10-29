@@ -148,7 +148,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
       try {
         const domain = b.website.replace(/https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').trim();
         if (domain && domain.includes('.')) {
-          leadLogo = `https://logo.clearbit.com/${domain}`;
+          leadLogo = `https://unavatar.io/${domain}`;
         }
       } catch (e) {}
     }
