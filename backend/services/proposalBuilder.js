@@ -455,7 +455,12 @@ function generateFields({ business, productIds = [], user = {}, refNo, defaults 
     recommendations: recommendFor(business, productIds),
     // Page 7 "About you and how we can help you": facts-only description + 3–5 catalogue products (2 high priority)
     solutionSummary: SOLUTION_SUMMARY,
-    components: [],
+    components: products.map(p => ({
+      service: p.name,
+      station: business.address ? localityOf(business.address) : 'Colombo',
+      media: 'Optical Fibre',
+      ntu: 'Standard NTU',
+    })),
     // Page 8 table: one row per product
     investment: products.map(p => ({ description: p.name, bandwidth: '', qosTemplate: '', oneTimeCharge: '', monthlyRental: '' })),
     // Investment table: the rep types the prices on the edit screen; an empty QoS Template prints "N/A"
@@ -588,8 +593,16 @@ function applyAgentProposal(fields, proposal = {}) {
       const desc = (p && p.proposalDescription) ? p.proposalDescription : r.text;
       return { id: r.id, title: r.title, text: desc, showFeatures: false };
     }),
-    // id/title (catalogue name) kept so the per-product network diagram still matches
-    components: [],
+    components: (proposal.components && proposal.components.length > 0)
+      ? proposal.components
+      : (fields.components && fields.components.length > 0)
+        ? fields.components
+        : products.map(p => ({
+            service: p.name,
+            station: fields.address ? localityOf(fields.address) : 'Colombo',
+            media: 'Optical Fibre',
+            ntu: 'Standard NTU',
+          })),
     investment: fields.investment.map((row, i) => (invest[i] ? {
       description: row.description,
       // Catalogue name
@@ -919,8 +932,6 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/\{\s*ackCompanyName\s*\}/gi, '{ackCompanyName}');
   xml = xml.replace(/\{\s*ackAddress\s*\}/gi, '{ackAddress}');
 
-  // Neutralize excessive empty row heights in body (>= 4000 dxa forces unwanted page breaks)
-  xml = xml.replace(/<w:trHeight\s+w:val="(?:[4-9]\d{3}|\d{5,})"\/>/gi, '<w:trHeight w:val="414"/>');
 
   // 7. Inject {@aboutXml} into About You section body if missing
   if (!xml.includes('aboutXml') && xml.includes('26E68EBD')) {
@@ -952,344 +963,63 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerEmail"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amEmail}$2');
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="InvoiceDate"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{proposalDate}$2');
 
-  // 9. Completely remove components table (Service | Station | Access Media | Network Terminating Unit (NTU))
-  const compPos = xml.indexOf('Network Terminating Unit');
-  if (compPos !== -1) {
-    const compTblStart = findLastTag(xml, 'w:tbl', compPos);
-    const compEnd = xml.indexOf('{/components}', compPos);
-    const compTblEnd = xml.indexOf('</w:tbl>', compEnd !== -1 ? compEnd : compPos) + 8;
-    if (compTblStart !== -1 && compTblEnd !== -1 && compTblEnd > compTblStart) {
-      xml = xml.substring(0, compTblStart) + xml.substring(compTblEnd);
-    }
-  }
-
-  // 10. Separate PROPOSED SOLUTION into its own banner table followed by flowable body paragraphs,
-  // and drop empty spacer rows (Rows 3, 4, 5) between ABOUT YOU and PROPOSED SOLUTION
-  const propSolTextIdx = xml.lastIndexOf('PROPOSED SOLUTION</w:t>');
-  if (propSolTextIdx !== -1) {
-    const propRowStart = findLastTag(xml, 'w:tr', propSolTextIdx);
-    const tblStart = propRowStart !== -1 ? findLastTag(xml, 'w:tbl', propRowStart) : -1;
-    const tblEnd = xml.indexOf('</w:tbl>', propSolTextIdx) + 8;
-    if (tblStart !== -1 && tblEnd !== -1 && xml.substring(tblStart, propRowStart).includes('ABOUT YOU')) {
-      const aboutRow2Idx = xml.indexOf('aboutXml', tblStart);
-      const aboutRow2End = aboutRow2Idx !== -1 ? xml.indexOf('</w:tr>', aboutRow2Idx) + 7 : propRowStart;
-      const propTrEnd = xml.indexOf('</w:tr>', propSolTextIdx) + 7;
-      const bannerTable = '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>' + xml.substring(propRowStart, propTrEnd) + '</w:tbl>';
-      const replacement = '</w:tbl><w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerTable + '<w:p><w:r><w:t>{@requirementsXml}</w:t></w:r></w:p>';
-      xml = xml.substring(0, aboutRow2End) + replacement + xml.substring(tblEnd);
-    }
-  }
-
-  // Neutralize excessive empty row heights in body (>= 4000 dxa forces unwanted page breaks),
-  // but preserve the Awards graphic container row (11862 dxa) so the graphic stays inside its page
-  xml = xml.replace(/<w:trHeight\s+w:val="(?:[4-9]\d{3}|10\d{3}|1[2-9]\d{3}|\d{6,})"\/>/gi, '<w:trHeight w:val="414"/>');
-
-  // Remove duplicate empty paragraphs with heading styles
-  xml = xml.replace(/(?:<w:p\b[^>]*><w:pPr><w:pStyle w:val="Heading2"\/>(?:<w:jc[^>]*\/>)?<\/w:pPr><\/w:p>\s*){2,}/gi, '');
-
-  // Remove trailing empty spacer paragraphs inside requirements cell
-  xml = xml.replace(/(<w:t>\{@requirementsXml\}<\/w:t><\/w:r><\/w:p>)(?:\s*<w:p\b[^>]*\/>)+/g, '$1');
-
-  // 11. In the template, the investment table was placed before the YOUR INVESTMENT banner.
-  // Reorder so YOUR INVESTMENT banner comes first with a page break, followed by the table.
-  const investIdx = xml.indexOf('{#investment}');
-  const yourInvIdx = xml.lastIndexOf('INVESTMENT</w:t>');
-  const termsHeadingIdx = xml.lastIndexOf('TERMS AND CONDITIONS</w:t>');
-  const termsTblStart = termsHeadingIdx !== -1 ? findLastTag(xml, 'w:tbl', termsHeadingIdx) : -1;
-
-  if (investIdx !== -1 && yourInvIdx !== -1 && investIdx < yourInvIdx) {
-    const tblStart = findLastTag(xml, 'w:tbl', investIdx);
-    const tblEnd = xml.indexOf('</w:tbl>', investIdx) + 8;
-    const bannerTblStart = findLastTag(xml, 'w:tbl', yourInvIdx);
-    const bannerTblEnd = xml.indexOf('</w:tbl>', yourInvIdx) + 8;
-
-    if (tblStart !== -1 && tblEnd !== -1 && bannerTblStart !== -1 && bannerTblEnd !== -1 && tblEnd <= bannerTblStart) {
-      const investXml = xml.substring(tblStart, tblEnd).replace(/<w:tblpPr\b[^>]*\/>/g, '');
-      const bannerXml = xml.substring(bannerTblStart, bannerTblEnd).replace(/<w:tblpPr\b[^>]*\/>/g, '');
-      const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerXml + '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>' + investXml;
-      // If termsTblStart is after bannerTblEnd, replace all the way to termsTblStart to eliminate spacer paragraphs between investment and terms
-      if (termsTblStart !== -1 && termsTblStart > bannerTblEnd) {
-        xml = xml.substring(0, tblStart) + replacement + xml.substring(termsTblStart);
-      } else {
-        xml = xml.substring(0, tblStart) + replacement + xml.substring(bannerTblEnd);
-      }
-    }
-  }
-
-  // Ensure Terms and Conditions starts on a clean page with header banner and inject {@termsAndConditionsXml}
-  const termsHeadingIdx2 = xml.lastIndexOf('TERMS AND CONDITIONS</w:t>');
-  if (termsHeadingIdx2 !== -1) {
-    const termsTblStart2 = findLastTag(xml, 'w:tbl', termsHeadingIdx2);
-    const termsTblEnd2 = xml.indexOf('</w:tbl>', termsHeadingIdx2) + 8;
-    if (termsTblStart2 !== -1 && termsTblEnd2 !== -1 && termsTblEnd2 > termsTblStart2) {
-      const tr1End = xml.indexOf('</w:tr>', termsHeadingIdx2) + 7;
-      const bannerTable = xml.substring(termsTblStart2, tr1End).replace(/<w:tblpPr\b[^>]*\/>/g, '') + '</w:tbl>';
-      const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>'
-        + bannerTable
-        + '<w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p>';
-      xml = xml.substring(0, termsTblStart2) + replacement + xml.substring(termsTblEnd2);
-    }
-  }
-
-  // Ensure COMPANY OVERVIEW starts on a clean page (after cover letter)
-  const companyOverviewIdx = xml.lastIndexOf('COMPANY OVERVIEW</w:t>');
-  if (companyOverviewIdx !== -1) {
-    const companyOverviewTblStart = findLastTag(xml, 'w:tbl', companyOverviewIdx);
-    if (companyOverviewTblStart !== -1) {
-      const beforeCO = xml.substring(Math.max(0, companyOverviewTblStart - 200), companyOverviewTblStart);
-      if (!beforeCO.includes('pageBreakBefore')) {
-        xml = xml.substring(0, companyOverviewTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(companyOverviewTblStart);
-      }
-    }
-  }
-
-  // Ensure OUR STRENGTHS starts on a clean page
-  const ourStrengthsIdx = xml.lastIndexOf('OUR STRENGTHS</w:t>');
-  if (ourStrengthsIdx !== -1) {
-    const ourStrengthsTblStart = findLastTag(xml, 'w:tbl', ourStrengthsIdx);
-    if (ourStrengthsTblStart !== -1) {
-      const beforeOS = xml.substring(Math.max(0, ourStrengthsTblStart - 200), ourStrengthsTblStart);
-      if (!beforeOS.includes('pageBreakBefore')) {
-        xml = xml.substring(0, ourStrengthsTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(ourStrengthsTblStart);
-      }
-    }
-  }
-
-  // Ensure WHY WITH US starts on a clean page
-  const whyWithUsIdx = xml.lastIndexOf('WHY WITH US</w:t>');
-  if (whyWithUsIdx !== -1) {
-    const whyWithUsTblStart = findLastTag(xml, 'w:tbl', whyWithUsIdx);
-    if (whyWithUsTblStart !== -1) {
-      const beforeWWU = xml.substring(Math.max(0, whyWithUsTblStart - 200), whyWithUsTblStart);
-      if (!beforeWWU.includes('pageBreakBefore')) {
-        xml = xml.substring(0, whyWithUsTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(whyWithUsTblStart);
-      }
-    }
-  }
-
-  // Ensure ABOUT YOU starts on a clean page (so WHY WITH US diagram has its own full page)
-  const aboutIdx = xml.lastIndexOf('ABOUT YOU');
-  if (aboutIdx !== -1) {
-    const aboutTblStart = findLastTag(xml, 'w:tbl', aboutIdx);
-    if (aboutTblStart !== -1) {
-      const beforeAbout = xml.substring(Math.max(0, aboutTblStart - 200), aboutTblStart);
-      if (!beforeAbout.includes('pageBreakBefore')) {
-        xml = xml.substring(0, aboutTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(aboutTblStart);
-      }
-    }
-  }
-
-  // Ensure YOUR REQUIREMENTS starts on a clean page
-  const yourReqIdx = xml.lastIndexOf('YOUR REQUIREMENTS</w:t>');
-  if (yourReqIdx !== -1) {
-    const yourReqTblStart = findLastTag(xml, 'w:tbl', yourReqIdx);
-    if (yourReqTblStart !== -1) {
-      const beforeYR = xml.substring(Math.max(0, yourReqTblStart - 200), yourReqTblStart);
-      if (!beforeYR.includes('pageBreakBefore')) {
-        xml = xml.substring(0, yourReqTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(yourReqTblStart);
-      }
-    }
-  }
-
-  // Ensure CUSTOMER ACKNOWLEDGEMENTS starts on a clean page
-  const ackHeadingIdx = xml.lastIndexOf('CUSTOMER ACKNOWLEDGEMENTS</w:t>');
-  if (ackHeadingIdx !== -1) {
-    const ackTblStart = findLastTag(xml, 'w:tbl', ackHeadingIdx);
-    if (ackTblStart !== -1) {
-      const beforeAck = xml.substring(Math.max(0, ackTblStart - 100), ackTblStart);
-      if (!beforeAck.includes('pageBreakBefore')) {
-        xml = xml.substring(0, ackTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(ackTblStart);
-      }
-    }
-  }
-
-  // Ensure SME SOLUTIONS starts on a clean page
-  const smeHeadingIdx = xml.lastIndexOf('SME SOLUTIONS</w:t>');
-  if (smeHeadingIdx !== -1) {
-    const smeTblStart = findLastTag(xml, 'w:tbl', smeHeadingIdx);
-    if (smeTblStart !== -1) {
-      const beforeSme = xml.substring(Math.max(0, smeTblStart - 100), smeTblStart);
-      if (!beforeSme.includes('pageBreakBefore')) {
-        xml = xml.substring(0, smeTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(smeTblStart);
-      }
-    }
-  }
-
-  // 11. Ensure AWARDS AND ACCOLADES starts on a clean page
-  const awardsHeadingIdx = xml.lastIndexOf('AWARDS AND ACCOLADES</w:t>');
-  if (awardsHeadingIdx !== -1) {
-    const pStart = findLastTag(xml, 'w:p', awardsHeadingIdx);
-    const pEnd = xml.indexOf('</w:p>', awardsHeadingIdx) + 6;
-    if (pStart !== -1 && pEnd !== -1 && pEnd > pStart) {
-      let origP = xml.substring(pStart, pEnd);
-      if (!origP.includes('pageBreakBefore')) {
-        let newP = origP;
-        if (newP.includes('<w:pPr>')) {
-          newP = newP.replace('<w:pPr>', '<w:pPr><w:pageBreakBefore/>');
-        } else if (newP.includes('<w:pPr/>')) {
-          newP = newP.replace('<w:pPr/>', '<w:pPr><w:pageBreakBefore/></w:pPr>');
-        } else {
-          const pEndTag = newP.indexOf('>');
-          newP = newP.substring(0, pEndTag + 1) + '<w:pPr><w:pageBreakBefore/></w:pPr>' + newP.substring(pEndTag + 1);
-        }
-        xml = xml.substring(0, pStart) + newP + xml.substring(pEnd);
-      }
-    }
-  }
-
-  // Ensure Mobitel awards (rId26) and any additional awards sheets (rId27) start on their own clean pages
-  for (const rid of ['rId26', 'rId27']) {
-    const embedIdx = xml.indexOf(`r:embed="${rid}"`);
-    if (embedIdx !== -1) {
-      const pStart = findLastTag(xml, 'w:p', embedIdx);
-      const pEnd = xml.indexOf('</w:p>', embedIdx) + 6;
-      if (pStart !== -1 && pEnd !== -1 && pEnd > pStart) {
-        let origP = xml.substring(pStart, pEnd);
-        if (!origP.includes('pageBreakBefore')) {
-          let newP = origP;
-          if (newP.includes('<w:pPr>')) {
-            newP = newP.replace('<w:pPr>', '<w:pPr><w:pageBreakBefore/>');
-          } else if (newP.includes('<w:pPr/>')) {
-            newP = newP.replace('<w:pPr/>', '<w:pPr><w:pageBreakBefore/></w:pPr>');
-          } else {
-            const pEndTag = newP.indexOf('>');
-            newP = newP.substring(0, pEndTag + 1) + '<w:pPr><w:pageBreakBefore/></w:pPr>' + newP.substring(pEndTag + 1);
-          }
-          xml = xml.substring(0, pStart) + newP + xml.substring(pEnd);
-        }
-      }
-    }
-  }
-
-  // 12. Ensure CONTACT US starts on a clean page (so it does not overlap the Awards graphic) and fits strictly on 1 page
-  const contactHeadingIdx = xml.lastIndexOf('CONTACT US</w:t>');
-  if (contactHeadingIdx !== -1) {
-    const contactTblStart = findLastTag(xml, 'w:tbl', contactHeadingIdx);
-    const contactTblEnd = xml.lastIndexOf('</w:tbl>') + 8;
-    if (contactTblStart !== -1 && contactTblEnd !== -1 && contactTblEnd > contactTblStart) {
-      let contactXml = xml.substring(contactTblStart, contactTblEnd);
-
-      // Reduce excessive row heights in Contact Us table so it fits comfortably on one page
-      contactXml = contactXml.replace(/<w:trHeight\s+w:val="2787"\/>/g, '<w:trHeight w:val="1400"/>');
-      contactXml = contactXml.replace(/<w:trHeight\s+w:val="660"\/>/g, '<w:trHeight w:val="420"/>');
-      contactXml = contactXml.replace(/<w:trHeight\s+w:val="553"\/>/g, '<w:trHeight w:val="380"/>');
-
-      xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
-    }
-  }
-
-  // 13. Preserve Back Cover page (rId40) after Contact Us table and remove trailing blank spacer paragraphs
-  const lastTblEnd = xml.lastIndexOf('</w:tbl>') + 8;
-  const bodyEnd = xml.lastIndexOf('</w:body>');
-  if (lastTblEnd !== -1 && bodyEnd !== -1 && lastTblEnd < bodyEnd) {
-    const afterContact = xml.substring(lastTblEnd, bodyEnd);
-    const sectPrMatch = afterContact.match(/<w:sectPr\b.*?<\/w:sectPr>/s);
-    const backCoverEmbedIdx = afterContact.indexOf('r:embed="rId40"');
-
-    if (backCoverEmbedIdx !== -1 && sectPrMatch) {
-      const pStart = findLastTag(afterContact, 'w:p', backCoverEmbedIdx);
-      const pEnd = afterContact.indexOf('</w:p>', backCoverEmbedIdx) + 6;
-      if (pStart !== -1 && pEnd !== -1 && pEnd > pStart) {
-        let backCoverP = afterContact.substring(pStart, pEnd);
-        if (!backCoverP.includes('pageBreakBefore')) {
-          if (backCoverP.includes('<w:pPr>')) {
-            backCoverP = backCoverP.replace('<w:pPr>', '<w:pPr><w:pageBreakBefore/>');
-          } else if (backCoverP.includes('<w:pPr/>')) {
-            backCoverP = backCoverP.replace('<w:pPr/>', '<w:pPr><w:pageBreakBefore/></w:pPr>');
-          } else {
-            const pEndTag = backCoverP.indexOf('>');
-            backCoverP = backCoverP.substring(0, pEndTag + 1) + '<w:pPr><w:pageBreakBefore/></w:pPr>' + backCoverP.substring(pEndTag + 1);
-          }
-        }
-        xml = xml.substring(0, lastTblEnd) + backCoverP + sectPrMatch[0] + xml.substring(bodyEnd);
-      } else {
-        xml = xml.substring(0, lastTblEnd) + sectPrMatch[0] + xml.substring(bodyEnd);
-      }
-    } else if (sectPrMatch) {
-      xml = xml.substring(0, lastTblEnd) + sectPrMatch[0] + xml.substring(bodyEnd);
-    }
-  }
-
-  // Remove empty self-closing spacer paragraphs (which cause unwanted blank pages)
-  xml = xml.replace(/<w:p\b[^>]*\/>/g, '');
-
-  // 14. Symmetrize page margins in document body (balanced left and right margins)
-  xml = xml.replace(/(<w:pgMar\b[^>]*w:left=")\d+("[^>]*w:right=")\d+(")/gi, '$1360$2360$3');
-
-  // 15. Horizontally center all tables and centralize all page titles / section banner headings in document body
-  const bodyStartIdx = xml.indexOf('<w:sectPr');
-  if (bodyStartIdx !== -1) {
-    const coverPart = xml.substring(0, bodyStartIdx);
-    let bodyPart = xml.substring(bodyStartIdx);
-
-    // Center all table properties (<w:tblPr>) in the body and strip any offset indents (<w:tblInd>)
-    bodyPart = bodyPart.replace(/<w:tblPr\b[^>]*>.*?<\/w:tblPr>/gis, (tblPr) => {
-      let p = tblPr.replace(/<w:tblInd\b[^>]*\/>/gi, '');
-      if (/<w:jc\b/i.test(p)) {
-        p = p.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
-      } else if (/<w:tblW\b/i.test(p)) {
-        p = p.replace(/(<w:tblW\b[^>]*\/>)/gi, '$1<w:jc w:val="center"/>');
-      } else {
-        p = p.replace('<w:tblPr>', '<w:tblPr><w:jc w:val="center"/>');
-      }
-      return p;
-    });
-
-    // Centralize ALL page titles and section banner headings in document body
-    const BANNER_TITLES = [
-      'COMPANY OVERVIEW',
-      'OUR STRENGTHS',
-      'WHY WITH US',
-      'ABOUT YOU &amp; HOW WE CAN HELP YOU',
-      'ABOUT YOU & HOW WE CAN HELP YOU',
-      'ABOUT YOU',
-      'PROPOSED SOLUTION',
-      'YOUR REQUIREMENTS',
-      'NETWORK ARCHITECTURE',
-      'SOLUTION DIAGRAM',
-      'YOUR INVESTMENT',
-      'TERMS AND CONDITIONS',
-      'CUSTOMER ACKNOWLEDGEMENTS',
-      'SME SOLUTIONS',
-      'AWARDS AND ACCOLADES',
-      'CONTACT US'
-    ];
-
-    bodyPart = bodyPart.replace(/<w:p\b[^>]*>.*?<\/w:p>/gis, (pXml) => {
-      // Never alter Table of Contents headings or entries
-      if (pXml.includes('TOC1') || pXml.includes('TOCHeading') || pXml.includes('Hyperlink')) {
-        return pXml;
-      }
-      const isBanner = pXml.includes('w:val="Heading1"') || BANNER_TITLES.some(bt => pXml.includes(bt));
-      if (!isBanner) return pXml;
-
-      if (pXml.includes('<w:pPr>')) {
-        if (/<w:jc\b/i.test(pXml)) {
-          return pXml.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
-        }
-        return pXml.replace('<w:pPr>', '<w:pPr><w:jc w:val="center"/>');
-      } else if (pXml.includes('<w:pPr/>')) {
-        return pXml.replace('<w:pPr/>', '<w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/></w:pPr>');
-      } else {
-        const tagEnd = pXml.indexOf('>');
-        return pXml.substring(0, tagEnd + 1) + '<w:pPr><w:pStyle w:val="Heading1"/><w:jc w:val="center"/></w:pPr>' + pXml.substring(tagEnd + 1);
-      }
-    });
-
-    xml = coverPart + bodyPart;
-  }
-
   zip.file('word/document.xml', xml);
 
   const reqList = Array.isArray(fields.requirements) ? fields.requirements.filter(r => String(r.title || '').trim()) : [];
   const selectedProducts = reqList.map(r => PRODUCT_BY_ID[r.id]).filter(Boolean);
   const requirementsXml = buildRequirementsXml(zip, reqList);
 
+  // Components dynamic table rows for {#components}...{/components}
+  let componentsData = [];
+  if (Array.isArray(fields.components) && fields.components.length > 0) {
+    componentsData = fields.components.filter(c => c && (c.service || c.name || c.description)).map(c => ({
+      service: c.service || c.name || c.description || '',
+      station: c.station || c.location || (fields.address ? localityOf(fields.address) : '') || 'Head Office',
+      media: c.media || 'Optical Fibre',
+      ntu: c.ntu || 'Managed NTU',
+      name: c.service || c.name || c.description || '',
+      description: c.service || c.name || c.description || '',
+    }));
+  }
+  if (componentsData.length === 0) {
+    if (selectedProducts.length > 0) {
+      componentsData = selectedProducts.map(p => ({
+        service: p.name,
+        station: fields.address ? localityOf(fields.address) : 'Colombo',
+        media: 'Optical Fibre',
+        ntu: 'Standard NTU',
+        name: p.name,
+        description: p.name,
+      }));
+    } else if (reqList.length > 0) {
+      componentsData = reqList.map(r => ({
+        service: r.title,
+        station: fields.address ? localityOf(fields.address) : 'Colombo',
+        media: 'Optical Fibre',
+        ntu: 'Standard NTU',
+        name: r.title,
+        description: r.title,
+      }));
+    } else {
+      componentsData = [{
+        service: 'Enterprise Connectivity',
+        station: fields.address ? localityOf(fields.address) : 'Colombo',
+        media: 'Optical Fibre',
+        ntu: 'Standard NTU',
+        name: 'Enterprise Connectivity',
+        description: 'Enterprise Connectivity',
+      }];
+    }
+  }
+
   const todayFormatted = new Date().toLocaleDateString('en-GB');
   const data = {
     ...fields,
-    proposalDate: fields.proposalDate || todayFormatted,
+    companyName: String(fields.companyName || '').trim(),
     refNo: String(fields.refNo || '').trim(),
+    proposalDate: fields.proposalDate || todayFormatted,
+    recipientDesignation: String(fields.recipientDesignation || fields.designation || 'General Manager').trim(),
+    address: addressLine(fields),
     amName: String(fields.amName || '').trim(),
     amPhone: String(fields.amPhone || '').trim(),
     amEmail: String(fields.amEmail || '').trim(),
@@ -1301,8 +1031,8 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     ackAddress: String(fields.ackAddress || addressLine(fields) || '').trim(),
     letterXml: letterXml(shortenLetter(fields, letterLevel)),
     aboutXml: aboutXml(fields, aboutLevel),
-    address: addressLine(fields),
     amPhoneClause: String(fields.amPhone || '').trim() ? `on ${String(fields.amPhone).trim()} ` : '',
+    components: componentsData,
     investment: (fields.investment || []).filter(r => String(r.description || r.name || '').trim()).map(r => ({
       description: r.description || r.name,
       name: r.description || r.name,

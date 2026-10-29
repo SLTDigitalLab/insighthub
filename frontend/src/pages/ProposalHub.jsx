@@ -536,78 +536,87 @@ export default function ProposalHub() {
 
               {/* Tag Cheatsheet Card */}
               <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', padding: 24, boxShadow: '0 2px 8px rgba(0,0,0,0.03)' }}>
-                <h3 style={{ fontSize: '1.05rem', fontWeight: 700, margin: '0 0 8px', color: '#0B2A6F', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <CheckCircle2 size={18} color="#10b981" /> Template Marking Guidelines
+                <h3 style={{ fontSize: '1.15rem', fontWeight: 800, margin: '0 0 10px', color: '#0B2A6F', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <CheckCircle2 size={20} color="#10b981" /> Best Method to Mark Changing Points in the Template
                 </h3>
-                <p style={{ margin: '0 0 14px', fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
-                  The best standard method to mark variable changing points in Microsoft Word is using docxtemplater tags: <code>{'{tag}'}</code>.
-                  <br />
-                  <span style={{ color: '#0284c7', fontWeight: 600 }}>Tip:</span> You can <strong>highlight</strong> or <strong>color</strong> tags in Word (e.g. yellow highlight) to see them clearly—Word formatting will be applied directly to the substituted content!
+                <p style={{ margin: '0 0 14px', fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>
+                  The standard method for Word templates is <strong>docxtemplater mustache tags: <code>{'{tag}'}</code></strong>.
                 </p>
 
+                {/* 3 Core Principles */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: 10, marginBottom: 16 }}>
+                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                    <strong style={{ color: '#0B2A6F' }}>• How Word Treats Tags:</strong> Tags are standard text in Word (<code>.docx</code>). Microsoft Word preserves all font styling (color, size, bold, italics, font family) applied to the <code>{'{tag}'}</code>.
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                    <strong style={{ color: '#0B2A6F' }}>• Visual Highlighting in Word:</strong> To make changing points easily identifiable when viewing the document in Microsoft Word, you can highlight the tag text using Word's yellow highlighter or give the tag text a specific font color. The replacement engine will insert the actual business values while keeping your formatting.
+                  </div>
+                  <div style={{ background: '#f8fafc', padding: '10px 14px', borderRadius: 8, border: '1px solid #e2e8f0', fontSize: '0.82rem', lineHeight: 1.5 }}>
+                    <strong style={{ color: '#0B2A6F' }}>• Dual Logo Header:</strong> In Word, insert a borderless 1-row, 2-column table at the top of page 1:
+                    <div style={{ marginTop: 4, paddingLeft: 12 }}>
+                      &bull; <strong>Left Column:</strong> Paste the official SLT-Mobitel Enterprise logo.<br />
+                      &bull; <strong>Right Column:</strong> Insert <code>{'{companyName}'}</code> or leave space for the lead's corporate logo.
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ padding: '8px 12px', background: '#eff6ff', borderRadius: 6, border: '1px solid #bfdbfe', color: '#1e40af', fontSize: '0.8rem', marginBottom: 14 }}>
+                  <strong>Strict Non-Destructive Guarantee:</strong> InsightHub only substitutes marked placeholders with live lead & user details. It will not alter widths, points, row heights, margins, formats, or images in your uploaded template.
+                </div>
+
+                <h4 style={{ fontSize: '0.92rem', fontWeight: 700, margin: '0 0 8px', color: '#0B2A6F' }}>Key Placeholder Tags Reference</h4>
                 <div style={{ maxHeight: '420px', overflowY: 'auto', border: '1px solid #e2e8f0', borderRadius: 8 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                     <thead>
                       <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0', textAlign: 'left' }}>
-                        <th style={{ padding: '8px 12px', color: '#475569' }}>Tag in Word</th>
-                        <th style={{ padding: '8px 12px', color: '#475569' }}>Field / Replacement</th>
+                        <th style={{ padding: '8px 12px', color: '#475569', width: '42%' }}>Placeholder in Word</th>
+                        <th style={{ padding: '8px 12px', color: '#475569' }}>Description</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                        <td colSpan={2} style={{ padding: '6px 12px', fontWeight: 700, color: '#0B2A6F', fontSize: '0.78rem' }}>COVER & CLIENT IDENTIFIERS</td>
-                      </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{companyName}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Customer / Lead company name</td>
+                        <td style={{ padding: '8px 12px' }}>Customer / Lead enterprise name</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{refNo}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Unique Reference Number (SLT-xxxxxxxx)</td>
+                        <td style={{ padding: '8px 12px' }}>Unique Proposal Reference Number (<code>SLT-xxxxxxxxx</code>)</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{proposalDate}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Issue date (e.g. 23 OCT 2026)</td>
+                        <td style={{ padding: '8px 12px' }}>Formatted issue date (e.g. <code>23 OCT 2026</code>)</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{recipientDesignation}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Addressee title (e.g. General Manager, IT Director)</td>
+                        <td style={{ padding: '8px 12px' }}>Addressee title (e.g. <code>General Manager</code>, <code>IT Director</code>)</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{address}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Company registered street / city address</td>
-                      </tr>
-
-                      <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                        <td colSpan={2} style={{ padding: '6px 12px', fontWeight: 700, color: '#0B2A6F', fontSize: '0.78rem' }}>AI LETTER & ARCHITECTURE</td>
+                        <td style={{ padding: '8px 12px' }}>Company registered street and city address</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{@letterXml}'}</td>
-                        <td style={{ padding: '8px 12px' }}>AI-written tailored cover letter paragraphs</td>
+                        <td style={{ padding: '8px 12px' }}>Tailored cover letter paragraphs written by n8n AI</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{@requirementsXml}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Product technical diagrams & feature points</td>
+                        <td style={{ padding: '8px 12px' }}>Network diagrams and technical bullet points</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{@aboutXml}'}</td>
-                        <td style={{ padding: '8px 12px' }}>"About You" company overview & recommended products</td>
+                        <td style={{ padding: '8px 12px' }}>Customer company overview and recommended products</td>
                       </tr>
-
-                      <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                        <td colSpan={2} style={{ padding: '6px 12px', fontWeight: 700, color: '#0B2A6F', fontSize: '0.78rem' }}>DYNAMIC TABLES (LOOP ROWS)</td>
+                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{#components} ... {/components}'}</td>
+                        <td style={{ padding: '8px 12px' }}>Dynamic table rows for Proposed Solutions (Service, Station, Media, NTU)</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{#investment} ... {/investment}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Repeated investment pricing table rows</td>
-                      </tr>
-
-                      <tr style={{ borderBottom: '1px solid #f1f5f9', background: '#f8fafc' }}>
-                        <td colSpan={2} style={{ padding: '6px 12px', fontWeight: 700, color: '#0B2A6F', fontSize: '0.78rem' }}>SALES REPRESENTATIVE & SIGN-OFF</td>
+                        <td style={{ padding: '8px 12px' }}>Dynamic table rows for Investment & Pricing</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{amName}'}, {'{amPhone}'}, {'{amEmail}'}</td>
-                        <td style={{ padding: '8px 12px' }}>Account Manager contact details</td>
+                        <td style={{ padding: '8px 12px' }}>Sales Representative / Account Manager contact details</td>
                       </tr>
                       <tr>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{ackCompanyName}'}, {'{ackAddress}'}</td>
