@@ -188,6 +188,24 @@ function getImageDimensions(buf) {
       offset += 2 + len;
     }
   }
+  // GIF (GIF87a or GIF89a)
+  if (buf.length >= 10 && buf.slice(0, 4).toString('ascii') === 'GIF8') {
+    return { w: buf.readUInt16LE(6) || 200, h: buf.readUInt16LE(8) || 80 };
+  }
+  // WebP
+  if (buf.length >= 30 && buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP') {
+    const chunk = buf.slice(12, 16).toString('ascii');
+    if (chunk === 'VP8X' && buf.length >= 30) {
+      const w = 1 + buf.readUIntLE(24, 3);
+      const h = 1 + buf.readUIntLE(27, 3);
+      if (w && h) return { w, h };
+    } else if (chunk === 'VP8L' && buf.length >= 25) {
+      const b0 = buf[21], b1 = buf[22], b2 = buf[23], b3 = buf[24];
+      const w = 1 + (((b1 & 0x3F) << 8) | b0);
+      const h = 1 + (((b3 & 0x0F) << 10) | (b2 << 2) | ((b1 & 0xC0) >> 6));
+      if (w && h) return { w, h };
+    }
+  }
   return { w: 200, h: 80 };
 }
 
@@ -400,9 +418,17 @@ function generateFields({ business, productIds = [], user = {}, refNo, defaults 
   const solutionIntro1 = introParagraphs[0] || '';
   const solutionIntro2 = introParagraphs.slice(1).join('\n\n');
 
+  let leadLogo = business.leadLogo || business.logo || business.logoUrl || '';
+  if (!leadLogo && business.website) {
+    const d = business.website.replace(/https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').trim();
+    if (d && d.includes('.')) {
+      leadLogo = `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${d}&size=128`;
+    }
+  }
+
   return {
     companyName: business.name,
-    leadLogo: business.leadLogo || business.logo || business.logoUrl || '',
+    leadLogo: leadLogo,
     // Business name (cover, letter, T&C)
     refNo: refNo || '',
     // Unique reference issued on the server by /generate (services/refService.js); read-only in the editor
@@ -745,9 +771,22 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
         }
       }
 
+      // Detect format from binary header and embed logo, or fall back to company name text
+      let ext = 'jpg';
+      let logoValid = false;
       if (logoBuf && logoBuf.length > 0) {
-        const isPng = logoBuf[0] === 0x89 && logoBuf[1] === 0x50;
-        const ext = isPng ? 'png' : 'jpg';
+        if (logoBuf[0] === 0x89 && logoBuf[1] === 0x50 && logoBuf[2] === 0x4E && logoBuf[3] === 0x47) {
+          ext = 'png'; logoValid = true; // PNG
+        } else if (logoBuf[0] === 0xFF && logoBuf[1] === 0xD8) {
+          ext = 'jpg'; logoValid = true; // JPEG
+        } else if (logoBuf.length >= 12 && logoBuf.slice(0, 4).toString('ascii') === 'RIFF' && logoBuf.slice(8, 12).toString('ascii') === 'WEBP') {
+          ext = 'webp'; logoValid = true; // WebP
+        } else if (logoBuf.length >= 4 && logoBuf.slice(0, 4).toString('ascii') === 'GIF8') {
+          ext = 'png'; logoValid = true; // GIF (treat as PNG)
+        }
+      }
+
+      if (logoValid && logoBuf) {
         const mediaName = `ih_client_logo.${ext}`;
         zip.file(`word/media/${mediaName}`, logoBuf);
 
@@ -926,8 +965,9 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     }
   }
 
-  // Neutralize excessive empty row heights in body (>= 4000 dxa forces unwanted page breaks)
-  xml = xml.replace(/<w:trHeight\s+w:val="(?:[4-9]\d{3}|\d{5,})"\/>/gi, '<w:trHeight w:val="414"/>');
+  // Neutralize excessive empty row heights in body (>= 4000 dxa forces unwanted page breaks),
+  // but preserve the Awards graphic container row (11862 dxa) so the graphic stays inside its page
+  xml = xml.replace(/<w:trHeight\s+w:val="(?:[4-9]\d{3}|10\d{3}|1[2-9]\d{3}|\d{6,})"\/>/gi, '<w:trHeight w:val="414"/>');
 
   // Remove duplicate empty paragraphs with heading styles
   xml = xml.replace(/(?:<w:p\b[^>]*><w:pPr><w:pStyle w:val="Heading2"\/>(?:<w:jc[^>]*\/>)?<\/w:pPr><\/w:p>\s*){2,}/gi, '');
@@ -973,6 +1013,66 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
         + bannerTable
         + '<w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p>';
       xml = xml.substring(0, termsTblStart2) + replacement + xml.substring(termsTblEnd2);
+    }
+  }
+
+  // Ensure COMPANY OVERVIEW starts on a clean page (after cover letter)
+  const companyOverviewIdx = xml.lastIndexOf('COMPANY OVERVIEW</w:t>');
+  if (companyOverviewIdx !== -1) {
+    const companyOverviewTblStart = findLastTag(xml, 'w:tbl', companyOverviewIdx);
+    if (companyOverviewTblStart !== -1) {
+      const beforeCO = xml.substring(Math.max(0, companyOverviewTblStart - 200), companyOverviewTblStart);
+      if (!beforeCO.includes('pageBreakBefore')) {
+        xml = xml.substring(0, companyOverviewTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(companyOverviewTblStart);
+      }
+    }
+  }
+
+  // Ensure OUR STRENGTHS starts on a clean page
+  const ourStrengthsIdx = xml.lastIndexOf('OUR STRENGTHS</w:t>');
+  if (ourStrengthsIdx !== -1) {
+    const ourStrengthsTblStart = findLastTag(xml, 'w:tbl', ourStrengthsIdx);
+    if (ourStrengthsTblStart !== -1) {
+      const beforeOS = xml.substring(Math.max(0, ourStrengthsTblStart - 200), ourStrengthsTblStart);
+      if (!beforeOS.includes('pageBreakBefore')) {
+        xml = xml.substring(0, ourStrengthsTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(ourStrengthsTblStart);
+      }
+    }
+  }
+
+  // Ensure WHY WITH US starts on a clean page
+  const whyWithUsIdx = xml.lastIndexOf('WHY WITH US</w:t>');
+  if (whyWithUsIdx !== -1) {
+    const whyWithUsTblStart = findLastTag(xml, 'w:tbl', whyWithUsIdx);
+    if (whyWithUsTblStart !== -1) {
+      const beforeWWU = xml.substring(Math.max(0, whyWithUsTblStart - 200), whyWithUsTblStart);
+      if (!beforeWWU.includes('pageBreakBefore')) {
+        xml = xml.substring(0, whyWithUsTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(whyWithUsTblStart);
+      }
+    }
+  }
+
+  // Ensure ABOUT YOU starts on a clean page (so WHY WITH US diagram has its own full page)
+  const aboutIdx = xml.lastIndexOf('ABOUT YOU');
+  if (aboutIdx !== -1) {
+    const aboutTblStart = findLastTag(xml, 'w:tbl', aboutIdx);
+    if (aboutTblStart !== -1) {
+      const beforeAbout = xml.substring(Math.max(0, aboutTblStart - 200), aboutTblStart);
+      if (!beforeAbout.includes('pageBreakBefore')) {
+        xml = xml.substring(0, aboutTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(aboutTblStart);
+      }
+    }
+  }
+
+  // Ensure YOUR REQUIREMENTS starts on a clean page
+  const yourReqIdx = xml.lastIndexOf('YOUR REQUIREMENTS</w:t>');
+  if (yourReqIdx !== -1) {
+    const yourReqTblStart = findLastTag(xml, 'w:tbl', yourReqIdx);
+    if (yourReqTblStart !== -1) {
+      const beforeYR = xml.substring(Math.max(0, yourReqTblStart - 200), yourReqTblStart);
+      if (!beforeYR.includes('pageBreakBefore')) {
+        xml = xml.substring(0, yourReqTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(yourReqTblStart);
+      }
     }
   }
 
@@ -1172,52 +1272,80 @@ async function resolveLeadLogo(fields) {
   if (typeof logoUrl !== 'string') return fields;
   logoUrl = logoUrl.trim();
 
-  // If no logoUrl yet but website or domain exists, construct unavatar url
-  if (!logoUrl) {
-    const domain = (fields.website || fields.domain || '')
-      .replace(/https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').trim();
-    if (domain && domain.includes('.')) {
-      logoUrl = `https://unavatar.io/${domain}`;
-    }
-  }
+  // Extract domain from website or fields if available
+  const rawDomain = (fields.website || fields.domain || '')
+    .replace(/https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').trim();
 
   // Already base64 data URI or raw base64 string
   if (logoUrl.startsWith('data:image/') || (/^[A-Za-z0-9+/=]+$/.test(logoUrl) && logoUrl.length > 100)) {
+    // Skip SVG data URIs — Word cannot display SVG inline images
+    if (logoUrl.includes('data:image/svg')) return { ...fields, leadLogo: '' };
     return { ...fields, leadLogo: logoUrl };
   }
 
+  // Extract domain candidate
+  let logoDomain = rawDomain;
   if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
-    const candidateUrls = [];
-    if (logoUrl.includes('logo.clearbit.com')) {
-      const domain = logoUrl.split('logo.clearbit.com/')[1].split('/')[0].split('?')[0];
-      candidateUrls.push(`https://unavatar.io/${domain}`);
-      candidateUrls.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
+    try {
+      const u = new URL(logoUrl);
+      if (u.hostname.includes('unavatar.io')) {
+        const parts = u.pathname.split('/').filter(Boolean);
+        if (parts[0]) logoDomain = parts[0].replace(/^www\./i, '');
+      } else if (!logoDomain) {
+        logoDomain = u.hostname.replace(/^www\./i, '');
+      }
+    } catch (e) {}
+  }
+
+  // Candidate URLs in priority order:
+  // 1. Google gstatic high-res favicon API (returns crisp 128px PNG for businesses and banks)
+  // 2. Google s2 favicon API
+  // 3. User-provided logoUrl (if not unavatar without fallback=false)
+  // 4. unavatar with fallback=false (so it never returns the unavatar robot smiley SVG placeholder)
+  const candidateUrls = [];
+  if (logoDomain && logoDomain.includes('.')) {
+    candidateUrls.push(`https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${logoDomain}&size=128`);
+    candidateUrls.push(`https://www.google.com/s2/favicons?domain=${logoDomain}&sz=128`);
+  }
+  if (logoUrl.startsWith('http://') || logoUrl.startsWith('https://')) {
+    if (logoUrl.includes('unavatar.io')) {
+      const cleanUnavatar = logoUrl.includes('fallback=false') ? logoUrl : `${logoUrl.split('?')[0]}?fallback=false`;
+      candidateUrls.push(cleanUnavatar);
     } else {
       candidateUrls.push(logoUrl);
-      try {
-        const u = new URL(logoUrl);
-        const domain = u.hostname.replace(/^www\./i, '');
-        if (domain && domain.includes('.')) {
-          candidateUrls.push(`https://unavatar.io/${domain}`);
-          candidateUrls.push(`https://www.google.com/s2/favicons?domain=${domain}&sz=128`);
-        }
-      } catch (e) {}
-    }
-
-    for (const url of candidateUrls) {
-      try {
-        const resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 3500 });
-        if (resp && resp.status === 200 && resp.data && resp.data.length > 50) {
-          const ct = resp.headers['content-type'] || 'image/png';
-          const b64 = Buffer.from(resp.data).toString('base64');
-          return { ...fields, leadLogo: `data:${ct};base64,${b64}` };
-        }
-      } catch (err) {
-        console.warn(`[proposal] Could not fetch remote client logo from ${url}:`, err.message);
-      }
     }
   }
-  return fields;
+
+  for (const url of candidateUrls) {
+    try {
+      const resp = await axios.get(url, { responseType: 'arraybuffer', timeout: 5000 });
+      if (resp && resp.status === 200 && resp.data && resp.data.length > 100) {
+        const ct = (resp.headers['content-type'] || 'image/png').split(';')[0].trim().toLowerCase();
+        // Skip SVG, HTML, XML, text — Word cannot display SVG inline images
+        if (ct.includes('svg') || ct.includes('html') || ct.includes('text') || ct.includes('xml')) {
+          continue;
+        }
+        const buf = resp.data;
+        if (buf.slice(0, 5).toString('ascii').toLowerCase() === '<?xml' || buf.slice(0, 4).toString('ascii').toLowerCase() === '<svg') {
+          continue;
+        }
+        // Verify raster image magic bytes
+        const isPng = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4E && buf[3] === 0x47;
+        const isJpg = buf[0] === 0xFF && buf[1] === 0xD8;
+        const isWebp = buf.length >= 12 && buf.slice(0, 4).toString('ascii') === 'RIFF' && buf.slice(8, 12).toString('ascii') === 'WEBP';
+        const isGif = buf.length >= 4 && buf.slice(0, 4).toString('ascii') === 'GIF8';
+        if (isPng || isJpg || isWebp || isGif) {
+          const b64 = Buffer.from(buf).toString('base64');
+          return { ...fields, leadLogo: `data:${ct};base64,${b64}` };
+        }
+      }
+    } catch (err) {
+      // Continue to next candidate
+    }
+  }
+
+  // No valid raster logo found — clear field so styled company name text fallback is used
+  return { ...fields, leadLogo: '' };
 }
 
 async function renderProposal(rawFields, format = 'docx') {

@@ -144,13 +144,17 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
 
   async function chooseBusiness(b) {
     let leadLogo = b.logo || b.logoUrl || '';
-    if (!leadLogo && b.website) {
-      try {
-        const domain = b.website.replace(/https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').trim();
-        if (domain && domain.includes('.')) {
-          leadLogo = `https://unavatar.io/${domain}`;
-        }
-      } catch (e) {}
+    const websiteDomain = (b.website || '')
+      .replace(/https?:\/\//i, '').split('/')[0].replace(/^www\./i, '').trim();
+
+    if (!leadLogo && websiteDomain && websiteDomain.includes('.')) {
+      leadLogo = `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${websiteDomain}&size=128`;
+    } else if (leadLogo.includes('unavatar.io')) {
+      if (websiteDomain && websiteDomain.includes('.')) {
+        leadLogo = `https://t3.gstatic.com/faviconV2?client=SOCIAL&type=FAVICON&fallback_opts=TYPE,SIZE,URL&url=https://${websiteDomain}&size=128`;
+      } else if (!leadLogo.includes('fallback=false')) {
+        leadLogo = `${leadLogo.split('?')[0]}?fallback=false`;
+      }
     }
     const enriched = { ...b, leadLogo };
     setBusiness(enriched); setSelected([]); setFilter(''); setOpenPillars({}); setError(''); setFields(null);
