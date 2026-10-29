@@ -880,6 +880,19 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET Designation ""\s*<\/w:instrText>/g, '');
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*REF\s+Designation\b[^<]*<\/w:instrText>/g, '');
 
+  // Replace template sample bookmark field values with docxtemplater tags
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET InvoiceDate\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET InvoiceDate "{proposalDate}" </w:instrText>');
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerNumber\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET AccountManagerNumber "{amPhone}" </w:instrText>');
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerNumber1\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET AccountManagerNumber1 "{amPhone}" </w:instrText>');
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerName3\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET AccountManagerName3 "{amName}" </w:instrText>');
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerEmail\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET AccountManagerEmail "{amEmail}" </w:instrText>');
+
+  xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerName3"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amName}$2');
+  xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerNumber"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amPhone}$2');
+  xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerNumber1"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amPhone}$2');
+  xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerEmail"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amEmail}$2');
+  xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="InvoiceDate"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{proposalDate}$2');
+
   // 9. Completely remove components table (Service | Station | Access Media | Network Terminating Unit (NTU))
   const compPos = xml.indexOf('Network Terminating Unit');
   if (compPos !== -1) {
@@ -1043,12 +1056,17 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   const selectedProducts = reqList.map(r => PRODUCT_BY_ID[r.id]).filter(Boolean);
   const requirementsXml = buildRequirementsXml(zip, reqList);
 
+  const todayFormatted = new Date().toLocaleDateString('en-GB');
   const data = {
     ...fields,
+    proposalDate: fields.proposalDate || todayFormatted,
     refNo: String(fields.refNo || '').trim(),
+    amName: String(fields.amName || '').trim(),
+    amPhone: String(fields.amPhone || '').trim(),
+    amEmail: String(fields.amEmail || '').trim(),
     ackAddressee1: fields.ackAddressee1 ?? ACK_DEFAULTS.ackAddressee1,
     ackAddressee2: fields.ackAddressee2 ?? ACK_DEFAULTS.ackAddressee2,
-    ackDate: fields.ackDate ?? fields.proposalDate,
+    ackDate: fields.ackDate ?? (fields.proposalDate || todayFormatted),
     ...Object.fromEntries(ACK_KEYS.map(key => [key, String(fields[key] || '').trim() || ACK_DOTS])),
     ackCompanyName: String(fields.ackCompanyName || fields.companyName || '').trim(),
     ackAddress: String(fields.ackAddress || addressLine(fields) || '').trim(),
