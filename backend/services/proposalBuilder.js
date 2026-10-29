@@ -880,12 +880,17 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET Designation ""\s*<\/w:instrText>/g, '');
   xml = xml.replace(/<w:instrText xml:space="preserve">\s*REF\s+Designation\b[^<]*<\/w:instrText>/g, '');
 
-  // Replace template sample bookmark field values with docxtemplater tags
-  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET InvoiceDate\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET InvoiceDate "{proposalDate}" </w:instrText>');
-  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerNumber\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET AccountManagerNumber "{amPhone}" </w:instrText>');
-  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerNumber1\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET AccountManagerNumber1 "{amPhone}" </w:instrText>');
-  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerName3\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET AccountManagerName3 "{amName}" </w:instrText>');
-  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerEmail\s+"[^"]*"\s*<\/w:instrText>/g, '<w:instrText xml:space="preserve"> SET AccountManagerEmail "{amEmail}" </w:instrText>');
+  const amNameVal = String(fields.amName || '').trim();
+  const amPhoneVal = String(fields.amPhone || '').trim();
+  const amEmailVal = String(fields.amEmail || '').trim();
+  const dateVal = String(fields.proposalDate || new Date().toLocaleDateString('en-GB')).trim();
+
+  // Replace template sample bookmark field values with actual fields
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET InvoiceDate\s+"[^"]*"\s*<\/w:instrText>/g, `<w:instrText xml:space="preserve"> SET InvoiceDate "${dateVal}" </w:instrText>`);
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerNumber\s+"[^"]*"\s*<\/w:instrText>/g, `<w:instrText xml:space="preserve"> SET AccountManagerNumber "${amPhoneVal}" </w:instrText>`);
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerNumber1\s+"[^"]*"\s*<\/w:instrText>/g, `<w:instrText xml:space="preserve"> SET AccountManagerNumber1 "${amPhoneVal}" </w:instrText>`);
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerName3\s+"[^"]*"\s*<\/w:instrText>/g, `<w:instrText xml:space="preserve"> SET AccountManagerName3 "${amNameVal}" </w:instrText>`);
+  xml = xml.replace(/<w:instrText xml:space="preserve">\s*SET AccountManagerEmail\s+"[^"]*"\s*<\/w:instrText>/g, `<w:instrText xml:space="preserve"> SET AccountManagerEmail "${amEmailVal}" </w:instrText>`);
 
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerName3"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amName}$2');
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerNumber"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amPhone}$2');
