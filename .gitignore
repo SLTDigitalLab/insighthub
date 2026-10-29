@@ -13,4 +13,6 @@ backend/data/*.jsonl
 *.bak
 *.doc
 scratch/
+backend/scratch/
+~$*
 test_*.docx

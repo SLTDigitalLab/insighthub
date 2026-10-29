@@ -1,16 +1,15 @@
 @echo off
 echo ========================================================
-echo  InsightHub: Deploying Admin Panel Button to Git
+echo  InsightHub: Deploying Production Updates to Git
 echo ========================================================
 
 echo 1. Staging and committing changes...
 if exist .git\index.lock del /f /q .git\index.lock
 git add -A
-git commit -m "Make Admin Panel button permanently visible and clickable in Dashboard sidebar"
+git commit -m "Fix proposal builder layout, back cover preservation, persistent storage, and error handling"
 
 echo 2. Pushing to GitHub repository...
-git push origin InsightHub-check
-git push origin InsightHub-check:main
+git push origin main
 
 echo ========================================================
 echo  Local Git Push Complete!

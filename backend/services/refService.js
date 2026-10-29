@@ -5,7 +5,8 @@ const path = require('path');
 const crypto = require('crypto');
 // Cryptographically secure random numbers (crypto.randomInt)
 
-const REGISTRY = process.env.PROPOSAL_REFS_FILE || path.join(__dirname, '..', 'data', 'proposal_refs.jsonl');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
+const REGISTRY = process.env.PROPOSAL_REFS_FILE || path.join(DATA_DIR, 'proposal_refs.jsonl');
 // One line per issued reference: {"ref","prefix","issuedAt"} — no names, emails or other personal data (git-ignored runtime data)
 const LOCK = `${REGISTRY}.lock`;
 // Exists only while one process is issuing a reference, so two backends can never issue at the same moment

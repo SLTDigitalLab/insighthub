@@ -2,7 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
+const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const PROPOSALS_FILE = path.join(DATA_DIR, 'saved_proposals.json');
 const TEMPLATE_META_FILE = path.join(DATA_DIR, 'template_meta.json');
 const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'proposal_template.docx');

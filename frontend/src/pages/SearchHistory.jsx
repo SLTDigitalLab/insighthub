@@ -18,11 +18,8 @@ import {
   ChevronDown,
   ChevronUp,
   RefreshCw,
-  Mail,
   AlertCircle,
   Building2,
-  Phone,
-  MapPin,
   CheckCircle
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
@@ -546,6 +543,42 @@ const SearchHistory = () => {
             </select>
           </div>
         </div>
+
+        {/* Error Banner */}
+        {error && (
+          <div style={{
+            background: '#fef2f2',
+            border: '1.5px solid #fecaca',
+            color: '#dc2626',
+            borderRadius: '0.85rem',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.5rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '1rem'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <AlertCircle size={20} style={{ flexShrink: 0 }} />
+              <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{error}</span>
+            </div>
+            <button
+              onClick={loadHistory}
+              style={{
+                background: '#dc2626',
+                color: '#ffffff',
+                border: 'none',
+                padding: '0.45rem 0.9rem',
+                borderRadius: '0.5rem',
+                fontSize: '0.82rem',
+                fontWeight: 700,
+                cursor: 'pointer'
+              }}
+            >
+              Retry
+            </button>
+          </div>
+        )}
 
         {/* History List */}
         {loading ? (

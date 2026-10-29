@@ -1100,20 +1100,53 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     }
   }
 
-  // Ensure AWARDS AND ACCOLADES starts on a clean page
+  // 11. Ensure AWARDS AND ACCOLADES starts on a clean page
   const awardsHeadingIdx = xml.lastIndexOf('AWARDS AND ACCOLADES</w:t>');
   if (awardsHeadingIdx !== -1) {
-    const awardsTblStart = findLastTag(xml, 'w:tbl', awardsHeadingIdx);
-    if (awardsTblStart !== -1) {
-      const beforeAwards = xml.substring(Math.max(0, awardsTblStart - 100), awardsTblStart);
-      if (!beforeAwards.includes('pageBreakBefore')) {
-        xml = xml.substring(0, awardsTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(awardsTblStart);
+    const pStart = findLastTag(xml, 'w:p', awardsHeadingIdx);
+    const pEnd = xml.indexOf('</w:p>', awardsHeadingIdx) + 6;
+    if (pStart !== -1 && pEnd !== -1 && pEnd > pStart) {
+      let origP = xml.substring(pStart, pEnd);
+      if (!origP.includes('pageBreakBefore')) {
+        let newP = origP;
+        if (newP.includes('<w:pPr>')) {
+          newP = newP.replace('<w:pPr>', '<w:pPr><w:pageBreakBefore/>');
+        } else if (newP.includes('<w:pPr/>')) {
+          newP = newP.replace('<w:pPr/>', '<w:pPr><w:pageBreakBefore/></w:pPr>');
+        } else {
+          const pEndTag = newP.indexOf('>');
+          newP = newP.substring(0, pEndTag + 1) + '<w:pPr><w:pageBreakBefore/></w:pPr>' + newP.substring(pEndTag + 1);
+        }
+        xml = xml.substring(0, pStart) + newP + xml.substring(pEnd);
+      }
+    }
+  }
+
+  // Ensure Mobitel awards (rId26) and any additional awards sheets (rId27) start on their own clean pages
+  for (const rid of ['rId26', 'rId27']) {
+    const embedIdx = xml.indexOf(`r:embed="${rid}"`);
+    if (embedIdx !== -1) {
+      const pStart = findLastTag(xml, 'w:p', embedIdx);
+      const pEnd = xml.indexOf('</w:p>', embedIdx) + 6;
+      if (pStart !== -1 && pEnd !== -1 && pEnd > pStart) {
+        let origP = xml.substring(pStart, pEnd);
+        if (!origP.includes('pageBreakBefore')) {
+          let newP = origP;
+          if (newP.includes('<w:pPr>')) {
+            newP = newP.replace('<w:pPr>', '<w:pPr><w:pageBreakBefore/>');
+          } else if (newP.includes('<w:pPr/>')) {
+            newP = newP.replace('<w:pPr/>', '<w:pPr><w:pageBreakBefore/></w:pPr>');
+          } else {
+            const pEndTag = newP.indexOf('>');
+            newP = newP.substring(0, pEndTag + 1) + '<w:pPr><w:pageBreakBefore/></w:pPr>' + newP.substring(pEndTag + 1);
+          }
+          xml = xml.substring(0, pStart) + newP + xml.substring(pEnd);
+        }
       }
     }
   }
 
   // 12. Ensure CONTACT US starts on a clean page (so it does not overlap the Awards graphic) and fits strictly on 1 page
-  const awardsIdx = xml.lastIndexOf('AWARDS AND ACCOLADES</w:t>');
   const contactHeadingIdx = xml.lastIndexOf('CONTACT US</w:t>');
   if (contactHeadingIdx !== -1) {
     const contactTblStart = findLastTag(xml, 'w:tbl', contactHeadingIdx);
@@ -1126,30 +1159,40 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
       contactXml = contactXml.replace(/<w:trHeight\s+w:val="660"\/>/g, '<w:trHeight w:val="420"/>');
       contactXml = contactXml.replace(/<w:trHeight\s+w:val="553"\/>/g, '<w:trHeight w:val="380"/>');
 
-      if (awardsIdx !== -1 && awardsIdx < contactHeadingIdx) {
-        const awardsTblEnd = xml.indexOf('</w:tbl>', awardsIdx) + 8;
-        if (awardsTblEnd !== -1 && awardsTblEnd < contactTblStart) {
-          let between = xml.substring(awardsTblEnd, contactTblStart);
-          between = between.replace(/<w:p\b[^>]*><w:pPr>.*?<\/w:pPr><\/w:p>/gs, '');
-          between = between.replace(/<w:p\b[^>]*\/>\s*/g, '');
-          xml = xml.substring(0, awardsTblEnd) + between + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
-        } else {
-          xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
-        }
-      } else {
-        xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
-      }
+      xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + contactXml + xml.substring(contactTblEnd);
     }
   }
 
-  // Remove trailing empty spacer paragraphs after Contact Us table before </w:body>
+  // 13. Preserve Back Cover page (rId40) after Contact Us table and remove trailing blank spacer paragraphs
   const lastTblEnd = xml.lastIndexOf('</w:tbl>') + 8;
   const bodyEnd = xml.lastIndexOf('</w:body>');
   if (lastTblEnd !== -1 && bodyEnd !== -1 && lastTblEnd < bodyEnd) {
     const afterContact = xml.substring(lastTblEnd, bodyEnd);
     const sectPrMatch = afterContact.match(/<w:sectPr\b.*?<\/w:sectPr>/s);
-    const cleanAfter = sectPrMatch ? sectPrMatch[0] : '';
-    xml = xml.substring(0, lastTblEnd) + cleanAfter + xml.substring(bodyEnd);
+    const backCoverEmbedIdx = afterContact.indexOf('r:embed="rId40"');
+
+    if (backCoverEmbedIdx !== -1 && sectPrMatch) {
+      const pStart = findLastTag(afterContact, 'w:p', backCoverEmbedIdx);
+      const pEnd = afterContact.indexOf('</w:p>', backCoverEmbedIdx) + 6;
+      if (pStart !== -1 && pEnd !== -1 && pEnd > pStart) {
+        let backCoverP = afterContact.substring(pStart, pEnd);
+        if (!backCoverP.includes('pageBreakBefore')) {
+          if (backCoverP.includes('<w:pPr>')) {
+            backCoverP = backCoverP.replace('<w:pPr>', '<w:pPr><w:pageBreakBefore/>');
+          } else if (backCoverP.includes('<w:pPr/>')) {
+            backCoverP = backCoverP.replace('<w:pPr/>', '<w:pPr><w:pageBreakBefore/></w:pPr>');
+          } else {
+            const pEndTag = backCoverP.indexOf('>');
+            backCoverP = backCoverP.substring(0, pEndTag + 1) + '<w:pPr><w:pageBreakBefore/></w:pPr>' + backCoverP.substring(pEndTag + 1);
+          }
+        }
+        xml = xml.substring(0, lastTblEnd) + backCoverP + sectPrMatch[0] + xml.substring(bodyEnd);
+      } else {
+        xml = xml.substring(0, lastTblEnd) + sectPrMatch[0] + xml.substring(bodyEnd);
+      }
+    } else if (sectPrMatch) {
+      xml = xml.substring(0, lastTblEnd) + sectPrMatch[0] + xml.substring(bodyEnd);
+    }
   }
 
   // Remove empty self-closing spacer paragraphs (which cause unwanted blank pages)
