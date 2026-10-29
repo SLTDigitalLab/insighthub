@@ -13,9 +13,20 @@ const { execFile } = require('child_process');
 const pdfParse = require('pdf-parse');
 // Reads the rendered PDF's page text to find which page each Contents heading landed on
 const axios = require('axios');
-
 const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'proposal_template.docx');
-// SLT proposal template (built by scripts/make_template.py + fix_template_layout.py) with every variable part as a {placeholder}
+
+function getActiveTemplatePath() {
+  try {
+    const metaFile = path.join(__dirname, '..', 'data', 'template_meta.json');
+    if (fs.existsSync(metaFile)) {
+      const meta = JSON.parse(fs.readFileSync(metaFile, 'utf8'));
+      if (meta.activePath && fs.existsSync(meta.activePath)) {
+        return meta.activePath;
+      }
+    }
+  } catch (e) {}
+  return TEMPLATE_PATH;
+}
 const DIAGRAM_DIR = path.join(__dirname, '..', 'templates', 'diagrams');
 // Network diagrams: one PNG per product id (e.g. bil.png). A product without one shows its requirement text only.
 const PRODUCTS = require('../data/products.json');
@@ -720,7 +731,8 @@ function renderDocx(fields, tocPages = TOC_TEMPLATE_PAGES) {
 
 function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, aboutLevel = 0, networkBreak = false } = {}) {
   if (!fields || !String(fields.companyName || '').trim()) throw Object.assign(new Error('companyName is required'), { status: 400 });
-  const zip = new PizZip(fs.readFileSync(TEMPLATE_PATH));
+  const activeTpl = getActiveTemplatePath();
+  const zip = new PizZip(fs.readFileSync(activeTpl));
   // Fresh copy of the template for every request
 
   // Pre-process word/document.xml to clean field codes, Lotus Road address, and Terms & Conditions

@@ -99,55 +99,71 @@ async function convertDocToDocx(docBuffer) {
   );
 }
 
+function getActiveTemplatePath() {
+  try {
+    if (fs.existsSync(TEMPLATE_META_FILE)) {
+      const meta = JSON.parse(fs.readFileSync(TEMPLATE_META_FILE, 'utf8'));
+      if (meta.activePath && fs.existsSync(meta.activePath)) {
+        return meta.activePath;
+      }
+    }
+  } catch (e) {}
+  return TEMPLATE_PATH;
+}
+
 function safelyWriteTemplate(filePath, buffer) {
-  // Try direct write first
+  // 1. Try direct write first
   try {
     fs.writeFileSync(filePath, buffer);
-    return;
+    return { targetPath: filePath, fallback: false };
   } catch (err) {
     if (err.code !== 'EBUSY' && err.code !== 'EPERM') {
       throw err;
     }
   }
 
-  // If locked by Word or another process, write to temp and attempt retry
-  const dir = path.dirname(filePath);
-  const tempPath = path.join(dir, `temp_${Date.now()}_${Math.random().toString(36).substr(2, 6)}.docx`);
-  fs.writeFileSync(tempPath, buffer);
+  // 2. On Windows, terminate any headless/background zombie WINWORD processes holding locks
+  if (process.platform === 'win32') {
+    try {
+      const { execSync } = require('child_process');
+      execSync('powershell -NoProfile -Command "Get-Process WINWORD -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -eq 0 | Stop-Process -Force"', { timeout: 4000 });
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
+      fs.writeFileSync(filePath, buffer);
+      return { targetPath: filePath, fallback: false };
+    } catch (kErr) {}
+  }
 
-  let replaced = false;
-  let lastErr = null;
+  // 3. Retry direct write
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      try {
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-        }
-      } catch (unErr) {}
-
-      fs.copyFileSync(tempPath, filePath);
-      replaced = true;
-      break;
+      fs.writeFileSync(filePath, buffer);
+      return { targetPath: filePath, fallback: false };
     } catch (err) {
-      lastErr = err;
       if (err.code === 'EBUSY' || err.code === 'EPERM') {
         Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
       } else {
-        break;
+        throw err;
       }
     }
   }
 
+  // 4. If filePath is still locked by Microsoft Word GUI on user's computer:
+  // Gracefully write to an active fallback template path so the user is NEVER blocked!
+  const dir = path.dirname(filePath);
+  const activeFallbackPath = path.join(dir, `active_template_${Date.now()}.docx`);
+  fs.writeFileSync(activeFallbackPath, buffer);
+
+  // Clean up older active_template_*.docx files (except the newly created one)
   try {
-    if (fs.existsSync(tempPath)) fs.unlinkSync(tempPath);
+    const files = fs.readdirSync(dir);
+    for (const f of files) {
+      if (f.startsWith('active_template_') && f !== path.basename(activeFallbackPath)) {
+        try { fs.unlinkSync(path.join(dir, f)); } catch (e) {}
+      }
+    }
   } catch (e) {}
 
-  if (!replaced) {
-    throw new Error(
-      'The proposal template file (proposal_template.docx) is currently open or locked by Microsoft Word on your computer. ' +
-      'Please save and close Microsoft Word, then click "Set as Latest Template" again.'
-    );
-  }
+  return { targetPath: activeFallbackPath, fallback: true };
 }
 
 module.exports = {
@@ -210,9 +226,9 @@ module.exports = {
       console.warn('[proposalStorage] Could not inspect tags:', e.message);
     }
 
-    // Save the uploaded .docx buffer directly to TEMPLATE_PATH - 100% exact layout preservation!
-    safelyWriteTemplate(TEMPLATE_PATH, fileBuffer);
-    console.log(`[proposalStorage] Latest template (.docx) saved directly without modification (${fileBuffer.length} bytes, ${tagsCount} tags detected)`);
+    // Save the uploaded .docx buffer directly - 100% exact layout preservation!
+    const writeResult = safelyWriteTemplate(TEMPLATE_PATH, fileBuffer);
+    console.log(`[proposalStorage] Latest template (.docx) saved directly (${fileBuffer.length} bytes, ${tagsCount} tags detected, target: ${writeResult.targetPath})`);
 
     const meta = {
       filename: originalName || 'proposal_template.docx',
@@ -225,7 +241,8 @@ module.exports = {
       originalSizeBytes: fileBuffer.length,
       tagsCount,
       warnings,
-      version: `v${Date.now()}`
+      version: `v${Date.now()}`,
+      activePath: writeResult.targetPath
     };
 
     fs.writeFileSync(TEMPLATE_META_FILE, JSON.stringify(meta, null, 2), 'utf8');
@@ -238,7 +255,7 @@ module.exports = {
       throw new Error('Default system template backup not found');
     }
     const defaultBuffer = fs.readFileSync(DEFAULT_TEMPLATE);
-    safelyWriteTemplate(TEMPLATE_PATH, defaultBuffer);
+    const writeResult = safelyWriteTemplate(TEMPLATE_PATH, defaultBuffer);
     const meta = {
       filename: 'default_proposal_template.docx',
       savedFormat: 'docx',
@@ -246,8 +263,9 @@ module.exports = {
       convertedFromDoc: false,
       uploadedBy: 'System (Restored Default)',
       updatedAt: new Date().toISOString(),
-      sizeBytes: fs.statSync(TEMPLATE_PATH).size,
-      version: '1.0'
+      sizeBytes: defaultBuffer.length,
+      version: '1.0',
+      activePath: writeResult.targetPath
     };
     fs.writeFileSync(TEMPLATE_META_FILE, JSON.stringify(meta, null, 2), 'utf8');
     return meta;
@@ -259,13 +277,16 @@ module.exports = {
         return JSON.parse(fs.readFileSync(TEMPLATE_META_FILE, 'utf8'));
       }
     } catch (e) {}
+    const activePath = getActiveTemplatePath();
     return {
       filename: 'proposal_template.docx',
       uploadedBy: 'System',
       updatedAt: new Date().toISOString(),
-      sizeBytes: fs.existsSync(TEMPLATE_PATH) ? fs.statSync(TEMPLATE_PATH).size : 0
+      sizeBytes: fs.existsSync(activePath) ? fs.statSync(activePath).size : 0,
+      activePath
     };
   },
 
+  getActiveTemplatePath,
   TEMPLATE_PATH
 };

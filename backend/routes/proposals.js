@@ -340,7 +340,7 @@ router.get('/template/info', (req, res) => {
 });
 
 router.get('/template/download', (req, res) => {
-  const tplPath = proposalStorage.TEMPLATE_PATH;
+  const tplPath = proposalStorage.getActiveTemplatePath ? proposalStorage.getActiveTemplatePath() : proposalStorage.TEMPLATE_PATH;
   if (!fs.existsSync(tplPath)) {
     return res.status(404).json({ error: 'Proposal template file not found on server' });
   }
