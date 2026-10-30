@@ -221,7 +221,7 @@ function getImageDimensions(buf) {
 }
 
 function textPara(runsXml, { before = 120, after = 60, keepNext = false } = {}) {
-  return `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${keepNext ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="${before}" w:after="${after}"/><w:ind w:left="360" w:right="360"/><w:jc w:val="both"/></w:pPr>${runsXml}</w:p>`;
+  return `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${keepNext ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="${before}" w:after="${after}"/><w:ind w:left="796" w:right="780"/><w:jc w:val="both"/></w:pPr>${runsXml}</w:p>`;
   // widowControl: the template's Body Text style turns it off, and without it Word splits "keep with next" groups across pages
   // One body-text paragraph, lined up with the section heading bar above it
 }
@@ -265,7 +265,7 @@ function customerBenefitsXml(product) {
   const benefits = product ? (product.customerBenefits || []).map(b => String(b || '').trim()).filter(Boolean) : [];
   if (!benefits.length) return '';
   return textPara(run('Customer Benefits', { bold: true, color: '0B2A6F' }), { before: 80, after: 20, keepNext: true })
-    + benefits.map((b) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="15" w:after="15"/><w:ind w:left="720" w:right="360" w:hanging="300"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
+    + benefits.map((b) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="15" w:after="15"/><w:ind w:left="1156" w:right="780" w:hanging="360"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
 }
 
 function termsAndConditionsXml(products) {
@@ -286,13 +286,13 @@ function termsAndConditionsXml(products) {
     xml += textPara(run('Product-Specific Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 140, after: 60, keepNext: true });
     productsWithTerms.forEach((p, idx) => {
       xml += textPara(run(`${idx + 1}.  ${p.name}`, { bold: true, color: '0B2A6F' }), { before: idx === 0 ? 60 : 100, after: 20, keepNext: true });
-      xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="15" w:after="40"/><w:ind w:left="540" w:right="360"/><w:jc w:val="both"/></w:pPr>${run(String(p.termsAndConditions).trim())}</w:p>`;
+      xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="15" w:after="40"/><w:ind w:left="796" w:right="780"/><w:jc w:val="both"/></w:pPr>${run(String(p.termsAndConditions).trim())}</w:p>`;
     });
   }
 
   xml += textPara(run('Common Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: productsWithTerms.length ? 160 : 140, after: 60, keepNext: true });
   COMMON_TERMS.forEach((term) => {
-    xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="25" w:after="25"/><w:ind w:left="720" w:right="360" w:hanging="360"/><w:jc w:val="both"/></w:pPr><w:r><w:rPr><w:color w:val="231F20"/></w:rPr><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(term)}</w:p>`;
+    xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="25" w:after="25"/><w:ind w:left="1156" w:right="780" w:hanging="360"/><w:jc w:val="both"/></w:pPr><w:r><w:rPr><w:color w:val="231F20"/></w:rPr><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(term)}</w:p>`;
   });
 
   return xml || '<w:p/>';
@@ -1142,16 +1142,26 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
       let investXml = xml.substring(tblStart, tblEnd);
       investXml = investXml.replace(/<w:tblInd\b[^>]*\/>/gi, '');
       investXml = investXml.replace(/<w:tblpPr\b[^>]*\/>/gi, '');
-      const prEnd = investXml.indexOf('</w:tblPr>');
-      if (prEnd !== -1) {
-        let tblPr = investXml.substring(0, prEnd);
-        if (/<w:jc\b/i.test(tblPr)) {
-          tblPr = tblPr.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
-        } else {
-          tblPr = tblPr.replace('<w:tblPr>', '<w:tblPr><w:jc w:val="center"/>');
+      if (investXml.includes('<w:tblPr>')) {
+        const prEnd = investXml.indexOf('</w:tblPr>');
+        if (prEnd !== -1) {
+          let pr = investXml.substring(0, prEnd);
+          if (/<w:jc\b/i.test(pr)) {
+            pr = pr.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
+          } else {
+            pr = pr.replace('<w:tblPr>', '<w:tblPr><w:jc w:val="center"/>');
+          }
+          pr = pr.replace(/<w:tblW\b[^>]*\/>/gi, '<w:tblW w:w="9550" w:type="dxa"/>');
+          investXml = pr + investXml.substring(prEnd);
         }
-        investXml = tblPr + investXml.substring(prEnd);
+      } else {
+        investXml = investXml.replace(/<w:tbl\b[^>]*>/, '$&<w:tblPr><w:tblW w:w="9550" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="04A0"/></w:tblPr>');
       }
+      investXml = investXml.replace(/<w:tblGrid><w:gridCol w:w="2211"\/><w:gridCol w:w="1710"\/><w:gridCol w:w="1710"\/><w:gridCol w:w="2487"\/><w:gridCol w:w="2412"\/><\/w:tblGrid>/, '<w:tblGrid><w:gridCol w:w="2005"/><w:gridCol w:w="1550"/><w:gridCol w:w="1550"/><w:gridCol w:w="2255"/><w:gridCol w:w="2190"/></w:tblGrid>');
+      investXml = investXml.replace(/<w:tcW w:w="2211" w:type="dxa"\/>/g, '<w:tcW w:w="2005" w:type="dxa"/>');
+      investXml = investXml.replace(/<w:tcW w:w="1710" w:type="dxa"\/>/g, '<w:tcW w:w="1550" w:type="dxa"/>');
+      investXml = investXml.replace(/<w:tcW w:w="2487" w:type="dxa"\/>/g, '<w:tcW w:w="2255" w:type="dxa"/>');
+      investXml = investXml.replace(/<w:tcW w:w="2412" w:type="dxa"\/>/g, '<w:tcW w:w="2190" w:type="dxa"/>');
 
       let bannerXml = xml.substring(bannerTblStart, bannerTblEnd);
       bannerXml = bannerXml.replace(/<w:tblpPr\b[^>]*\/>/gi, '');
@@ -1279,6 +1289,33 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
         const sectPrMatch = afterBc.match(/<w:sectPr\b.*?<\/w:sectPr>/s);
         const sectPrXml = sectPrMatch ? sectPrMatch[0] : '';
         xml = xml.substring(0, pBcEnd) + sectPrXml + xml.substring(bodyEnd);
+      }
+    }
+  }
+
+  // 13c. Ensure Awards pictures (Picture 9, Picture 11, Picture 12) each render on their own separate page:
+  const p9Idx = xml.lastIndexOf('name="Picture 9"');
+  const p11Idx = xml.lastIndexOf('name="Picture 11"');
+  const p12Idx = xml.lastIndexOf('name="Picture 12"');
+  if (p9Idx !== -1 && p11Idx !== -1 && p12Idx !== -1 && p9Idx < p11Idx && p11Idx < p12Idx) {
+    const tblEnd = xml.indexOf('</w:tbl>', p9Idx);
+    if (tblEnd !== -1) {
+      const p11Start = findLastTag(xml, 'w:p', p11Idx);
+      if (p11Start !== -1 && tblEnd + 8 < p11Start) {
+        xml = xml.substring(0, tblEnd + 8) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(p11Start);
+      }
+    }
+    const newP11Idx = xml.lastIndexOf('name="Picture 11"');
+    const newP12Idx = xml.lastIndexOf('name="Picture 12"');
+    if (newP11Idx !== -1 && newP12Idx !== -1 && newP11Idx < newP12Idx) {
+      const dEnd11 = xml.indexOf('</w:drawing>', newP11Idx);
+      if (dEnd11 !== -1) {
+        const rEnd11 = xml.indexOf('</w:r>', dEnd11);
+        const pEnd11 = xml.indexOf('</w:p>', rEnd11 !== -1 ? rEnd11 : dEnd11);
+        const p12Start = findLastTag(xml, 'w:p', newP12Idx);
+        if (pEnd11 !== -1 && p12Start !== -1 && pEnd11 + 6 < p12Start) {
+          xml = xml.substring(0, pEnd11 + 6) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(p12Start);
+        }
       }
     }
   }
