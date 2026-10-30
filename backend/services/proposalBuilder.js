@@ -725,6 +725,51 @@ function findLastTag(text, tagName, beforeIndex) {
   return -1;
 }
 
+function isEmptyPara(pXml) {
+  if (pXml.includes('<w:drawing') || pXml.includes('<w:fld') || pXml.includes('<w:pageBreakBefore')) {
+    return false;
+  }
+  const texts = [];
+  const textRegex = /<w:t\b[^>]*>([^<]*)<\/w:t>/g;
+  let m;
+  while ((m = textRegex.exec(pXml)) !== null) {
+    texts.push(m[1]);
+  }
+  return texts.join('').trim().length === 0;
+}
+
+function stripEmptyParasBefore(docXml, targetIdx) {
+  let idx = targetIdx;
+  while (true) {
+    const prevChunk = docXml.substring(0, idx).trimEnd();
+    if (prevChunk.endsWith('/>')) {
+      const pStart = findLastTag(prevChunk, 'w:p', prevChunk.length);
+      if (pStart !== -1) {
+        const pXml = prevChunk.substring(pStart);
+        if (pXml.startsWith('<w:p') && pXml.endsWith('/>') && !pXml.includes('</w:p>')) {
+          if (isEmptyPara(pXml)) {
+            docXml = docXml.substring(0, pStart) + docXml.substring(idx);
+            idx = pStart;
+            continue;
+          }
+        }
+      }
+    } else if (prevChunk.endsWith('</w:p>')) {
+      const pStart = findLastTag(prevChunk, 'w:p', prevChunk.length);
+      if (pStart !== -1) {
+        const pXml = prevChunk.substring(pStart);
+        if (isEmptyPara(pXml)) {
+          docXml = docXml.substring(0, pStart) + docXml.substring(idx);
+          idx = pStart;
+          continue;
+        }
+      }
+    }
+    break;
+  }
+  return { xml: docXml, idx };
+}
+
 function renderDocx(fields, tocPages = TOC_TEMPLATE_PAGES) {
   return buildDocx(fields, tocPages, {});
 }
@@ -757,16 +802,16 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     zip.file(f.name, content);
   });
 
-  // Ensure Heading1 in styles.xml has center alignment for section title banners
+  // Ensure Heading1 in styles.xml has left alignment (letters start from left to right)
   if (zip.file('word/styles.xml')) {
     let stylesXml = zip.file('word/styles.xml').asText();
     stylesXml = stylesXml.replace(
       /(<w:style[^>]*w:styleId="Heading1"[^>]*>.*?<w:pPr>)(.*?)(<\/w:pPr>)/s,
       (match, pPrOpen, pPrContent, pPrClose) => {
         if (/<w:jc\b/i.test(pPrContent)) {
-          return `${pPrOpen}${pPrContent.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>')}${pPrClose}`;
+          return `${pPrOpen}${pPrContent.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="left"/>')}${pPrClose}`;
         }
-        return `${pPrOpen}<w:jc w:val="center"/>${pPrContent}${pPrClose}`;
+        return `${pPrOpen}<w:jc w:val="left"/>${pPrContent}${pPrClose}`;
       }
     );
     zip.file('word/styles.xml', stylesXml);
@@ -975,60 +1020,128 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerEmail"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amEmail}$2');
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="InvoiceDate"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{proposalDate}$2');
 
-  // 9. Remove Proposed Solution nested components table completely & clean empty spacer paragraphs
-  const pNtu = xml.indexOf('Network Terminating Unit');
-  if (pNtu !== -1) {
-    const tblStart = findLastTag(xml, 'w:tbl', pNtu);
-    const tblEnd = xml.indexOf('</w:tbl>', pNtu) + 8;
-    if (tblStart !== -1 && tblEnd !== -1 && tblEnd > tblStart) {
-      const pReq = xml.indexOf('requirementsXml', tblEnd);
-      if (pReq !== -1) {
-        const pReqStart = findLastTag(xml, 'w:p', pReq);
-        if (pReqStart !== -1 && pReqStart >= tblEnd) {
-          xml = xml.substring(0, tblStart) + xml.substring(pReqStart);
-        } else {
-          xml = xml.substring(0, tblStart) + xml.substring(tblEnd);
+  // 9 & 10. Split ABOUT YOU and PROPOSED SOLUTION into standalone sections, removing components table & empty rows
+  const pAbout = xml.lastIndexOf('ABOUT YOU');
+  const pProp = xml.lastIndexOf('PROPOSED SOLUTION');
+  if (pAbout !== -1 && pProp !== -1 && pAbout < pProp) {
+    let t5Start = findLastTag(xml, 'w:tbl', pAbout);
+    // Find matching outer </w:tbl> for Table 5
+    let depth = 0;
+    let i = t5Start;
+    let t5OuterEnd = -1;
+    while (i < xml.length) {
+      if (xml.startsWith('<w:tbl', i) && (xml[i + 6] === ' ' || xml[i + 6] === '>')) {
+        depth++;
+        i += 6;
+      } else if (xml.startsWith('</w:tbl>', i)) {
+        depth--;
+        if (depth === 0) {
+          t5OuterEnd = i + 8;
+          break;
         }
+        i += 8;
       } else {
-        xml = xml.substring(0, tblStart) + xml.substring(tblEnd);
+        i++;
       }
     }
-  }
 
-  // Remove fixed row heights in outer table that cause huge white gaps
-  xml = xml.replace(/<w:trHeight\s+w:val="4533"\/>/g, '');
-  xml = xml.replace(/<w:trHeight\s+w:val="6333"\/>/g, '');
+    if (t5Start !== -1 && t5OuterEnd !== -1) {
+      const rAboutStart = findLastTag(xml, 'w:tr', pAbout);
+      const rAboutEnd = xml.indexOf('</w:tr>', pAbout) + 7;
+      const rowAboutXml = xml.substring(rAboutStart, rAboutEnd);
 
-  // 10. Split ABOUT YOU and PROPOSED SOLUTION into separate pages
-  let pProp = xml.lastIndexOf('PROPOSED SOLUTION');
-  if (pProp !== -1) {
-    const tblOuterStart = findLastTag(xml, 'w:tbl', pProp);
-    const tblOuterEnd = xml.indexOf('</w:tbl>', pProp) + 8;
-    const trPropStart = findLastTag(xml, 'w:tr', pProp);
-    if (tblOuterStart !== -1 && tblOuterEnd !== -1 && trPropStart !== -1 && xml.substring(tblOuterStart, trPropStart).includes('ABOUT YOU')) {
-      const pReq = xml.indexOf('requirementsXml', trPropStart);
-      const trReqEnd = pReq !== -1 ? xml.indexOf('</w:tr>', pReq) + 7 : trPropStart;
+      const rPropStart = findLastTag(xml, 'w:tr', pProp);
+      const rPropEnd = xml.indexOf('</w:tr>', pProp) + 7;
+      const rowPropXml = xml.substring(rPropStart, rPropEnd);
 
-      const aboutTableXml = xml.substring(tblOuterStart, trPropStart) + '</w:tbl>';
-      const propRows = xml.substring(trPropStart, trReqEnd);
-      const propTableXml = '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>' + propRows + '</w:tbl>';
+      const aboutTblClean = '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>' + rowAboutXml + '</w:tbl>';
+      const propTblClean = '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>' + rowPropXml + '</w:tbl>';
 
-      const replacement = aboutTableXml + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + propTableXml;
-      xml = xml.substring(0, tblOuterStart) + replacement + xml.substring(tblOuterEnd);
+      const t5Replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' +
+        aboutTblClean +
+        '<w:p><w:pPr><w:pStyle w:val="Heading2"/><w:jc w:val="both"/></w:pPr><w:r><w:t>{@aboutXml}</w:t></w:r></w:p>' +
+        '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' +
+        propTblClean +
+        '<w:p><w:r><w:t>{@requirementsXml}</w:t></w:r></w:p>';
+
+      const stripped = stripEmptyParasBefore(xml, t5Start);
+      xml = stripped.xml;
+      const pAboutNew = xml.lastIndexOf('ABOUT YOU');
+      t5Start = findLastTag(xml, 'w:tbl', pAboutNew);
+      depth = 0;
+      i = t5Start;
+      t5OuterEnd = -1;
+      while (i < xml.length) {
+        if (xml.startsWith('<w:tbl', i) && (xml[i + 6] === ' ' || xml[i + 6] === '>')) {
+          depth++;
+          i += 6;
+        } else if (xml.startsWith('</w:tbl>', i)) {
+          depth--;
+          if (depth === 0) {
+            t5OuterEnd = i + 8;
+            break;
+          }
+          i += 8;
+        } else {
+          i++;
+        }
+      }
+      xml = xml.substring(0, t5Start) + t5Replacement + xml.substring(t5OuterEnd);
     }
   }
+
+  // Remove fixed row heights in outer tables that cause huge white gaps
+  xml = xml.replace(/<w:trHeight\s+w:val="4533"\/>/g, '');
+  xml = xml.replace(/<w:trHeight\s+w:val="6333"\/>/g, '');
 
   // 11. Reorder Investment table (Banner comes BEFORE table)
   const investIdx = xml.indexOf('{#investment}') !== -1 ? xml.indexOf('{#investment}') : xml.indexOf('investment');
   const yourInvIdx = xml.lastIndexOf('INVESTMENT');
   if (investIdx !== -1 && yourInvIdx !== -1 && investIdx < yourInvIdx) {
-    const tblStart = findLastTag(xml, 'w:tbl', investIdx);
-    const tblEnd = xml.indexOf('</w:tbl>', investIdx) + 8;
+    let tblStart = findLastTag(xml, 'w:tbl', investIdx);
+    let depth = 0;
+    let i = tblStart;
+    let tblEnd = -1;
+    while (i < xml.length) {
+      if (xml.startsWith('<w:tbl', i) && (xml[i + 6] === ' ' || xml[i + 6] === '>')) {
+        depth++;
+        i += 6;
+      } else if (xml.startsWith('</w:tbl>', i)) {
+        depth--;
+        if (depth === 0) {
+          tblEnd = i + 8;
+          break;
+        }
+        i += 8;
+      } else {
+        i++;
+      }
+    }
+
     const bannerTblStart = findLastTag(xml, 'w:tbl', yourInvIdx);
-    const bannerTblEnd = xml.indexOf('</w:tbl>', yourInvIdx) + 8;
+    depth = 0;
+    i = bannerTblStart;
+    let bannerTblEnd = -1;
+    while (i < xml.length) {
+      if (xml.startsWith('<w:tbl', i) && (xml[i + 6] === ' ' || xml[i + 6] === '>')) {
+        depth++;
+        i += 6;
+      } else if (xml.startsWith('</w:tbl>', i)) {
+        depth--;
+        if (depth === 0) {
+          bannerTblEnd = i + 8;
+          break;
+        }
+        i += 8;
+      } else {
+        i++;
+      }
+    }
+
     if (tblStart !== -1 && tblEnd !== -1 && bannerTblStart !== -1 && bannerTblEnd !== -1 && tblEnd <= bannerTblStart) {
       let investXml = xml.substring(tblStart, tblEnd);
       investXml = investXml.replace(/<w:tblInd\b[^>]*\/>/gi, '');
+      investXml = investXml.replace(/<w:tblpPr\b[^>]*\/>/gi, '');
       const prEnd = investXml.indexOf('</w:tblPr>');
       if (prEnd !== -1) {
         let tblPr = investXml.substring(0, prEnd);
@@ -1041,55 +1154,166 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
       }
 
       let bannerXml = xml.substring(bannerTblStart, bannerTblEnd);
-      if (!bannerXml.substring(0, bannerXml.indexOf('<w:tr')).includes('<w:tblPr>')) {
-        bannerXml = bannerXml.replace('<w:tbl>', '<w:tbl><w:tblPr><w:tblW w:w="9960" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr>');
+      bannerXml = bannerXml.replace(/<w:tblpPr\b[^>]*\/>/gi, '');
+      bannerXml = bannerXml.replace(/<w:tblInd\b[^>]*\/>/gi, '');
+      if (bannerXml.includes('<w:tblPr>')) {
+        bannerXml = bannerXml.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
+        bannerXml = bannerXml.replace(/<w:tblW\b[^>]*\/>/gi, '<w:tblW w:w="9738" w:type="dxa"/>');
+      } else {
+        bannerXml = bannerXml.replace('<w:tbl>', '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr>');
+      }
+
+      const stripped = stripEmptyParasBefore(xml, tblStart);
+      xml = stripped.xml;
+      const yourInvIdxNew = xml.lastIndexOf('INVESTMENT');
+      const bannerTblStartNew = findLastTag(xml, 'w:tbl', yourInvIdxNew);
+      depth = 0;
+      i = bannerTblStartNew;
+      let bannerTblEndNew = -1;
+      while (i < xml.length) {
+        if (xml.startsWith('<w:tbl', i) && (xml[i + 6] === ' ' || xml[i + 6] === '>')) {
+          depth++;
+          i += 6;
+        } else if (xml.startsWith('</w:tbl>', i)) {
+          depth--;
+          if (depth === 0) {
+            bannerTblEndNew = i + 8;
+            break;
+          }
+          i += 8;
+        } else {
+          i++;
+        }
       }
 
       const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerXml + '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>' + investXml;
-      xml = xml.substring(0, tblStart) + replacement + xml.substring(bannerTblEnd);
+      xml = xml.substring(0, stripped.idx) + replacement + xml.substring(bannerTblEndNew);
     }
   }
+
+  // Collapse runs of 2+ empty spacer paragraphs (eliminates blank pages across template)
+  xml = xml.replace(/(?:<w:p\b[^>]*>(?:<w:pPr>(?:(?!<\/w:pPr>).)*?<\/w:pPr>)?\s*<\/w:p>\s*){2,}/gs, '');
 
   // 12. Terms and Conditions: Isolate banner & inject {@termsAndConditionsXml}
   const termsHeadingIdx = xml.lastIndexOf('TERMS AND CONDITIONS');
   if (termsHeadingIdx !== -1) {
-    const termsTblStart = findLastTag(xml, 'w:tbl', termsHeadingIdx);
-    const termsTblEnd = xml.indexOf('</w:tbl>', termsHeadingIdx) + 8;
-    if (termsTblStart !== -1 && termsTblEnd !== -1 && termsTblEnd > termsTblStart) {
-      const tr1End = xml.indexOf('</w:tr>', termsHeadingIdx) + 7;
-      const bannerTable = xml.substring(termsTblStart, tr1End) + '</w:tbl>';
+    let termsTblStart = findLastTag(xml, 'w:tbl', termsHeadingIdx);
+    const tr1End = xml.indexOf('</w:tr>', termsHeadingIdx) + 7;
+    let bannerTable = xml.substring(termsTblStart, tr1End) + '</w:tbl>';
+    bannerTable = bannerTable.replace(/<w:tblpPr\b[^>]*\/>/gi, '');
+    bannerTable = bannerTable.replace(/<w:tblInd\b[^>]*\/>/gi, '');
+
+    const stripped = stripEmptyParasBefore(xml, termsTblStart);
+    xml = stripped.xml;
+    const termsHeadingIdxNew = xml.lastIndexOf('TERMS AND CONDITIONS');
+    const termsTblStartNew = findLastTag(xml, 'w:tbl', termsHeadingIdxNew);
+    depth = 0;
+    i = termsTblStartNew;
+    let termsTblEndNew = -1;
+    while (i < xml.length) {
+      if (xml.startsWith('<w:tbl', i) && (xml[i + 6] === ' ' || xml[i + 6] === '>')) {
+        depth++;
+        i += 6;
+      } else if (xml.startsWith('</w:tbl>', i)) {
+        depth--;
+        if (depth === 0) {
+          termsTblEndNew = i + 8;
+          break;
+        }
+        i += 8;
+      } else {
+        i++;
+      }
+    }
+
+    if (termsTblStartNew !== -1 && termsTblEndNew !== -1 && termsTblEndNew > termsTblStartNew) {
       const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>'
         + bannerTable
         + '<w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p>';
-      xml = xml.substring(0, termsTblStart) + replacement + xml.substring(termsTblEnd);
+      xml = xml.substring(0, termsTblStartNew) + replacement + xml.substring(termsTblEndNew);
     }
   }
 
-  // 13. Contact Us: Add pageBreakBefore so it never overlaps Awards certificates
-  const contactHeadingIdx = xml.lastIndexOf('CONTACT US');
-  if (contactHeadingIdx !== -1) {
-    const contactTblStart = findLastTag(xml, 'w:tbl', contactHeadingIdx);
-    if (contactTblStart !== -1) {
-      const pPrev = xml.substring(0, contactTblStart).trim();
-      if (!pPrev.endsWith('<w:pageBreakBefore/></w:pPr></w:p>')) {
-        xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(contactTblStart);
+  // 13. Ensure EVERY section banner table starts cleanly on a new page:
+  const sectionHeadings = [
+    'COMPANY OVERVIEW',
+    'OUR STRENGTHS',
+    'WHY WITH US',
+    'CUSTOMER ACKNOWLEDGEMENTS',
+    'SME SOLUTIONS',
+    'AWARDS AND ACCOLADES',
+    'CONTACT US'
+  ];
+  for (const sec of sectionHeadings) {
+    const secIdx = xml.lastIndexOf(sec);
+    if (secIdx !== -1) {
+      let tblStart = findLastTag(xml, 'w:tbl', secIdx);
+      if (tblStart !== -1) {
+        const stripped = stripEmptyParasBefore(xml, tblStart);
+        xml = stripped.xml;
+        tblStart = stripped.idx;
+        const pPrev = xml.substring(0, tblStart).trim();
+        if (!pPrev.endsWith('<w:pageBreakBefore/></w:pPr></w:p>')) {
+          xml = xml.substring(0, tblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(tblStart);
+        }
       }
     }
   }
 
-  // 14. Centralize ALL blue banner tables and their title paragraphs!
+  // 13b. Back cover (Image 263): strip empty paragraphs before and remove trailing empty paragraphs
+  const backCoverIdx = xml.lastIndexOf('Image 263');
+  if (backCoverIdx !== -1) {
+    let pBcStart = findLastTag(xml, 'w:p', backCoverIdx);
+    if (pBcStart !== -1) {
+      const stripped = stripEmptyParasBefore(xml, pBcStart);
+      xml = stripped.xml;
+      pBcStart = stripped.idx;
+      const pPrev = xml.substring(0, pBcStart).trim();
+      if (!pPrev.endsWith('<w:pageBreakBefore/></w:pPr></w:p>')) {
+        xml = xml.substring(0, pBcStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(pBcStart);
+      }
+      const newBcIdx = xml.lastIndexOf('Image 263');
+      const pBcEnd = xml.indexOf('</w:p>', newBcIdx) + 6;
+      const bodyEnd = xml.lastIndexOf('</w:body>');
+      if (pBcEnd !== -1 && bodyEnd !== -1 && pBcEnd < bodyEnd) {
+        const afterBc = xml.substring(pBcEnd, bodyEnd);
+        const sectPrMatch = afterBc.match(/<w:sectPr\b.*?<\/w:sectPr>/s);
+        const sectPrXml = sectPrMatch ? sectPrMatch[0] : '';
+        xml = xml.substring(0, pBcEnd) + sectPrXml + xml.substring(bodyEnd);
+      }
+    }
+  }
+
+  // 14. Format ALL blue banner tables and title paragraphs:
+  // - The text box (table) is centralized horizontally on the page (<w:jc w:val="center"/>).
+  // - The letters of the title are NOT centralized; they start from left to right (<w:jc w:val="left"/> with <w:ind w:left="180" w:right="180"/>).
+  // - Contents do not exceed text box limits: <w:tcMar> padding, <w:vAlign w:val="center"/>, and <w:trHeight w:val="420" w:hRule="atLeast"/>.
   xml = xml.replace(/(<w:tc\b(?:(?!<\/w:tc>).)*?w:fill="002060"(?:(?!<\/w:tc>).)*?Heading1(?:(?!<\/w:tc>).)*?<\/w:tc>)/gs, (match) => {
     let cellXml = match;
+    if (cellXml.includes('<w:tcPr>')) {
+      if (!cellXml.includes('<w:vAlign')) {
+        cellXml = cellXml.replace('<w:tcPr>', '<w:tcPr><w:vAlign w:val="center"/>');
+      }
+      if (!cellXml.includes('<w:tcMar>')) {
+        cellXml = cellXml.replace('<w:tcPr>', '<w:tcPr><w:tcMar><w:top w:w="80" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:left w:w="180" w:type="dxa"/><w:right w:w="180" w:type="dxa"/></w:tcMar>');
+      }
+    }
     cellXml = cellXml.replace(/(<w:p\b(?:(?!<\/w:p>).)*?<w:pStyle\s+w:val="Heading1"\/>(?:(?!<\/w:p>).)*?<\/w:p>)/gs, (pMatch) => {
       let pXml = pMatch;
       if (pXml.includes('<w:pPr>')) {
         if (/<w:jc\b/i.test(pXml)) {
-          pXml = pXml.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
+          pXml = pXml.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="left"/>');
         } else {
-          pXml = pXml.replace('<w:pPr>', '<w:pPr><w:jc w:val="center"/>');
+          pXml = pXml.replace('<w:pPr>', '<w:pPr><w:jc w:val="left"/>');
+        }
+        if (!pXml.includes('<w:ind')) {
+          pXml = pXml.replace('<w:pPr>', '<w:pPr><w:ind w:left="180" w:right="180"/>');
+        }
+        if (!pXml.includes('<w:spacing')) {
+          pXml = pXml.replace('<w:pPr>', '<w:pPr><w:spacing w:before="60" w:after="60"/>');
         }
       } else {
-        pXml = pXml.replace('<w:p', '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>');
+        pXml = pXml.replace('<w:p', '<w:p><w:pPr><w:jc w:val="left"/><w:ind w:left="180" w:right="180"/><w:spacing w:before="60" w:after="60"/><w:pStyle w:val="Heading1"/></w:pPr>');
       }
       return pXml;
     });
@@ -1099,6 +1323,7 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/(<w:tbl\b(?:(?!<\/w:tbl>).)*?w:fill="002060"(?:(?!<\/w:tbl>).)*?Heading1(?:(?!<\/w:tbl>).)*?<\/w:tbl>)/gs, (tblMatch) => {
     let tblXml = tblMatch;
     tblXml = tblXml.replace(/<w:tblInd\b[^>]*\/>/gi, '');
+    tblXml = tblXml.replace(/<w:tblpPr\b[^>]*\/>/gi, '');
     const trIdx = tblXml.indexOf('<w:tr');
     if (trIdx !== -1 && !tblXml.substring(0, trIdx).includes('<w:tblPr>')) {
       tblXml = tblXml.replace('<w:tbl>', '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr>');
@@ -1111,9 +1336,11 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
         } else {
           tblPr = tblPr.replace('<w:tblPr>', '<w:tblPr><w:jc w:val="center"/>');
         }
+        tblPr = tblPr.replace(/<w:tblW\b[^>]*\/>/gi, '<w:tblW w:w="9738" w:type="dxa"/>');
         tblXml = tblPr + tblXml.substring(prEnd);
       }
     }
+    tblXml = tblXml.replace(/<w:trHeight\s+w:val="\d+"(?:\s+w:hRule="[^"]*")?\/>/g, '<w:trHeight w:val="420" w:hRule="atLeast"/>');
     return tblXml;
   });
 
