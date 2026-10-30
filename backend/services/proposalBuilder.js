@@ -1191,8 +1191,7 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     }
   }
 
-  // Collapse runs of 2+ empty spacer paragraphs (eliminates blank pages across template)
-  xml = xml.replace(/(?:<w:p\b[^>]*>(?:<w:pPr>(?:(?!<\/w:pPr>).)*?<\/w:pPr>)?\s*<\/w:p>\s*){2,}/gs, '');
+
 
   // 12. Terms and Conditions: Isolate banner & inject {@termsAndConditionsXml}
   const termsHeadingIdx = xml.lastIndexOf('TERMS AND CONDITIONS');
