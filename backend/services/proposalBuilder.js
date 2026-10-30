@@ -221,7 +221,7 @@ function getImageDimensions(buf) {
 }
 
 function textPara(runsXml, { before = 120, after = 60, keepNext = false } = {}) {
-  return `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${keepNext ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="${before}" w:after="${after}"/><w:ind w:left="0" w:right="0"/><w:jc w:val="both"/></w:pPr>${runsXml}</w:p>`;
+  return `<w:p><w:pPr><w:pStyle w:val="BodyText"/>${keepNext ? '<w:keepNext/>' : ''}<w:widowControl/><w:spacing w:before="${before}" w:after="${after}"/><w:ind w:left="360" w:right="360"/><w:jc w:val="both"/></w:pPr>${runsXml}</w:p>`;
   // widowControl: the template's Body Text style turns it off, and without it Word splits "keep with next" groups across pages
   // One body-text paragraph, lined up with the section heading bar above it
 }
@@ -265,13 +265,13 @@ function customerBenefitsXml(product) {
   const benefits = product ? (product.customerBenefits || []).map(b => String(b || '').trim()).filter(Boolean) : [];
   if (!benefits.length) return '';
   return textPara(run('Customer Benefits', { bold: true, color: '0B2A6F' }), { before: 80, after: 20, keepNext: true })
-    + benefits.map((b) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="15" w:after="15"/><w:ind w:left="360" w:right="0" w:hanging="240"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
+    + benefits.map((b) => `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="15" w:after="15"/><w:ind w:left="720" w:right="360" w:hanging="300"/></w:pPr><w:r><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(b)}</w:p>`).join('');
 }
 
 function termsAndConditionsXml(products) {
   let xml = '';
 
-  const GENERAL_TERMS = [
+  const COMMON_TERMS = [
     'All prices are valid for 30 days period from the date of submission of the proposal.',
     'The quoted prices shall be subjected to prevailing applicable taxes at the time of invoicing.',
     'Since this is a budgetary quotation, do not make any payment against this quotation please.',
@@ -281,19 +281,19 @@ function termsAndConditionsXml(products) {
     'Customer shall bear the cost of any transfer or change of the Service at the customer’s request.',
   ];
 
-  xml += textPara(run('General Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 140, after: 60, keepNext: true });
-  GENERAL_TERMS.forEach((term) => {
-    xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="25" w:after="25"/><w:ind w:left="360" w:right="0" w:hanging="240"/></w:pPr><w:r><w:rPr><w:color w:val="231F20"/></w:rPr><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(term)}</w:p>`;
-  });
-
   const productsWithTerms = (products || []).filter(p => p && String(p.termsAndConditions || '').trim());
   if (productsWithTerms.length) {
-    xml += textPara(run('Product-Specific Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 160, after: 60, keepNext: true });
+    xml += textPara(run('Product-Specific Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: 140, after: 60, keepNext: true });
     productsWithTerms.forEach((p, idx) => {
       xml += textPara(run(`${idx + 1}.  ${p.name}`, { bold: true, color: '0B2A6F' }), { before: idx === 0 ? 60 : 100, after: 20, keepNext: true });
-      xml += textPara(run(String(p.termsAndConditions).trim()), { before: 15, after: 50 });
+      xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="15" w:after="40"/><w:ind w:left="540" w:right="360"/><w:jc w:val="both"/></w:pPr>${run(String(p.termsAndConditions).trim())}</w:p>`;
     });
   }
+
+  xml += textPara(run('Common Terms & Conditions', { bold: true, color: '0B2A6F' }), { before: productsWithTerms.length ? 160 : 140, after: 60, keepNext: true });
+  COMMON_TERMS.forEach((term) => {
+    xml += `<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:widowControl/><w:spacing w:before="25" w:after="25"/><w:ind w:left="720" w:right="360" w:hanging="360"/><w:jc w:val="both"/></w:pPr><w:r><w:rPr><w:color w:val="231F20"/></w:rPr><w:t>•</w:t></w:r><w:r><w:tab/></w:r>${run(term)}</w:p>`;
+  });
 
   return xml || '<w:p/>';
 }
@@ -757,16 +757,16 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
     zip.file(f.name, content);
   });
 
-  // Ensure Heading1 in styles.xml has left alignment for section title banners
+  // Ensure Heading1 in styles.xml has center alignment for section title banners
   if (zip.file('word/styles.xml')) {
     let stylesXml = zip.file('word/styles.xml').asText();
     stylesXml = stylesXml.replace(
       /(<w:style[^>]*w:styleId="Heading1"[^>]*>.*?<w:pPr>)(.*?)(<\/w:pPr>)/s,
       (match, pPrOpen, pPrContent, pPrClose) => {
         if (/<w:jc\b/i.test(pPrContent)) {
-          return `${pPrOpen}${pPrContent.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="left"/>')}${pPrClose}`;
+          return `${pPrOpen}${pPrContent.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>')}${pPrClose}`;
         }
-        return `${pPrOpen}<w:jc w:val="left"/>${pPrContent}${pPrClose}`;
+        return `${pPrOpen}<w:jc w:val="center"/>${pPrContent}${pPrClose}`;
       }
     );
     zip.file('word/styles.xml', stylesXml);
@@ -975,142 +975,147 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerEmail"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amEmail}$2');
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="InvoiceDate"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{proposalDate}$2');
 
-  // 9. Reorder YOUR INVESTMENT banner before table if displaced, scale table to 10080 dxa, and center it
-  const investPos = xml.indexOf('{monthly}');
-  const yourInvPos = xml.lastIndexOf('INVESTMENT</w:t>');
-  const termsPos = xml.lastIndexOf('TERMS AND CONDITIONS</w:t>');
-  const termsTblStart = termsPos !== -1 ? findLastTag(xml, 'w:tbl', termsPos) : -1;
-
-  if (investPos !== -1 && yourInvPos !== -1 && investPos < yourInvPos) {
-    const tblStart = findLastTag(xml, 'w:tbl', investPos);
-    const tblEnd = xml.indexOf('</w:tbl>', investPos) + 8;
-    const bannerTblStart = findLastTag(xml, 'w:tbl', yourInvPos);
-    const bannerTblEnd = xml.indexOf('</w:tbl>', yourInvPos) + 8;
-
-    if (tblStart !== -1 && tblEnd !== -1 && bannerTblStart !== -1 && bannerTblEnd !== -1 && tblEnd <= bannerTblStart) {
-      let investXml = xml.substring(tblStart, tblEnd).replace(/<w:tblpPr\b[^>]*\/>/gis, '');
-      const bannerXml = xml.substring(bannerTblStart, bannerTblEnd).replace(/<w:tblpPr\b[^>]*\/>/gis, '');
-
-      // Scale investXml table properties to centered 10080 dxa
-      const investTblPr = '<w:tblPr><w:jc w:val="center"/><w:tblW w:w="10080" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="04A0"/></w:tblPr>';
-      if (investXml.includes('<w:tblPr>')) {
-        investXml = investXml.replace(/<w:tblPr\b[\s\S]*?<\/w:tblPr>/i, investTblPr);
+  // 9. Remove Proposed Solution nested components table completely & clean empty spacer paragraphs
+  const pNtu = xml.indexOf('Network Terminating Unit');
+  if (pNtu !== -1) {
+    const tblStart = findLastTag(xml, 'w:tbl', pNtu);
+    const tblEnd = xml.indexOf('</w:tbl>', pNtu) + 8;
+    if (tblStart !== -1 && tblEnd !== -1 && tblEnd > tblStart) {
+      const pReq = xml.indexOf('requirementsXml', tblEnd);
+      if (pReq !== -1) {
+        const pReqStart = findLastTag(xml, 'w:p', pReq);
+        if (pReqStart !== -1 && pReqStart >= tblEnd) {
+          xml = xml.substring(0, tblStart) + xml.substring(pReqStart);
+        } else {
+          xml = xml.substring(0, tblStart) + xml.substring(tblEnd);
+        }
       } else {
-        investXml = investXml.replace('<w:tbl>', `<w:tbl>${investTblPr}`);
+        xml = xml.substring(0, tblStart) + xml.substring(tblEnd);
+      }
+    }
+  }
+
+  // Remove fixed row heights in outer table that cause huge white gaps
+  xml = xml.replace(/<w:trHeight\s+w:val="4533"\/>/g, '');
+  xml = xml.replace(/<w:trHeight\s+w:val="6333"\/>/g, '');
+
+  // 10. Split ABOUT YOU and PROPOSED SOLUTION into separate pages
+  let pProp = xml.lastIndexOf('PROPOSED SOLUTION');
+  if (pProp !== -1) {
+    const tblOuterStart = findLastTag(xml, 'w:tbl', pProp);
+    const tblOuterEnd = xml.indexOf('</w:tbl>', pProp) + 8;
+    const trPropStart = findLastTag(xml, 'w:tr', pProp);
+    if (tblOuterStart !== -1 && tblOuterEnd !== -1 && trPropStart !== -1 && xml.substring(tblOuterStart, trPropStart).includes('ABOUT YOU')) {
+      const pReq = xml.indexOf('requirementsXml', trPropStart);
+      const trReqEnd = pReq !== -1 ? xml.indexOf('</w:tr>', pReq) + 7 : trPropStart;
+
+      const aboutTableXml = xml.substring(tblOuterStart, trPropStart) + '</w:tbl>';
+      const propRows = xml.substring(trPropStart, trReqEnd);
+      const propTableXml = '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr><w:tblGrid><w:gridCol w:w="9738"/></w:tblGrid>' + propRows + '</w:tbl>';
+
+      const replacement = aboutTableXml + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + propTableXml;
+      xml = xml.substring(0, tblOuterStart) + replacement + xml.substring(tblOuterEnd);
+    }
+  }
+
+  // 11. Reorder Investment table (Banner comes BEFORE table)
+  const investIdx = xml.indexOf('{#investment}') !== -1 ? xml.indexOf('{#investment}') : xml.indexOf('investment');
+  const yourInvIdx = xml.lastIndexOf('INVESTMENT');
+  if (investIdx !== -1 && yourInvIdx !== -1 && investIdx < yourInvIdx) {
+    const tblStart = findLastTag(xml, 'w:tbl', investIdx);
+    const tblEnd = xml.indexOf('</w:tbl>', investIdx) + 8;
+    const bannerTblStart = findLastTag(xml, 'w:tbl', yourInvIdx);
+    const bannerTblEnd = xml.indexOf('</w:tbl>', yourInvIdx) + 8;
+    if (tblStart !== -1 && tblEnd !== -1 && bannerTblStart !== -1 && bannerTblEnd !== -1 && tblEnd <= bannerTblStart) {
+      let investXml = xml.substring(tblStart, tblEnd);
+      investXml = investXml.replace(/<w:tblInd\b[^>]*\/>/gi, '');
+      const prEnd = investXml.indexOf('</w:tblPr>');
+      if (prEnd !== -1) {
+        let tblPr = investXml.substring(0, prEnd);
+        if (/<w:jc\b/i.test(tblPr)) {
+          tblPr = tblPr.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
+        } else {
+          tblPr = tblPr.replace('<w:tblPr>', '<w:tblPr><w:jc w:val="center"/>');
+        }
+        investXml = tblPr + investXml.substring(prEnd);
       }
 
-      const newGrid = '<w:tblGrid><w:gridCol w:w="2117"/><w:gridCol w:w="1637"/><w:gridCol w:w="1637"/><w:gridCol w:w="2381"/><w:gridCol w:w="2308"/></w:tblGrid>';
-      investXml = investXml.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/i, newGrid);
-
-      const colWidths = ['2117', '1637', '1637', '2381', '2308'];
-      investXml = investXml.replace(/<w:tr\b[\s\S]*?<\/w:tr>/gi, (row) => {
-        let colIdx = 0;
-        return row.replace(/<w:tc\b[\s\S]*?<\/w:tc>/gi, (tc) => {
-          if (colIdx < colWidths.length) {
-            const w = colWidths[colIdx++];
-            tc = tc.replace(/<w:tcW\b[^>]*\/>/gi, `<w:tcW w:w="${w}" w:type="dxa"/>`);
-          }
-          return tc;
-        });
-      });
+      let bannerXml = xml.substring(bannerTblStart, bannerTblEnd);
+      if (!bannerXml.substring(0, bannerXml.indexOf('<w:tr')).includes('<w:tblPr>')) {
+        bannerXml = bannerXml.replace('<w:tbl>', '<w:tbl><w:tblPr><w:tblW w:w="9960" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr>');
+      }
 
       const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + bannerXml + '<w:p><w:pPr><w:spacing w:before="120" w:after="120"/></w:pPr></w:p>' + investXml;
-      if (termsTblStart !== -1 && termsTblStart > bannerTblEnd) {
-        xml = xml.substring(0, tblStart) + replacement + xml.substring(termsTblStart);
-      } else {
-        xml = xml.substring(0, tblStart) + replacement + xml.substring(bannerTblEnd);
-      }
-    }
-  } else if (investPos !== -1) {
-    // If banner already precedes table, ensure investment table is scaled to 10080 dxa and centered
-    const tblStart = findLastTag(xml, 'w:tbl', investPos);
-    const tblEnd = xml.indexOf('</w:tbl>', investPos) + 8;
-    if (tblStart !== -1 && tblEnd > tblStart) {
-      let investXml = xml.substring(tblStart, tblEnd);
-      const investTblPr = '<w:tblPr><w:jc w:val="center"/><w:tblW w:w="10080" w:type="dxa"/><w:tblLayout w:type="fixed"/><w:tblLook w:val="04A0"/></w:tblPr>';
-      if (investXml.includes('<w:tblPr>')) {
-        investXml = investXml.replace(/<w:tblPr\b[\s\S]*?<\/w:tblPr>/i, investTblPr);
-      } else {
-        investXml = investXml.replace('<w:tbl>', `<w:tbl>${investTblPr}`);
-      }
-      const newGrid = '<w:tblGrid><w:gridCol w:w="2117"/><w:gridCol w:w="1637"/><w:gridCol w:w="1637"/><w:gridCol w:w="2381"/><w:gridCol w:w="2308"/></w:tblGrid>';
-      investXml = investXml.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/i, newGrid);
-      const colWidths = ['2117', '1637', '1637', '2381', '2308'];
-      investXml = investXml.replace(/<w:tr\b[\s\S]*?<\/w:tr>/gi, (row) => {
-        let colIdx = 0;
-        return row.replace(/<w:tc\b[\s\S]*?<\/w:tc>/gi, (tc) => {
-          if (colIdx < colWidths.length) {
-            const w = colWidths[colIdx++];
-            tc = tc.replace(/<w:tcW\b[^>]*\/>/gi, `<w:tcW w:w="${w}" w:type="dxa"/>`);
-          }
-          return tc;
-        });
-      });
-      xml = xml.substring(0, tblStart) + investXml + xml.substring(tblEnd);
+      xml = xml.substring(0, tblStart) + replacement + xml.substring(bannerTblEnd);
     }
   }
 
-  // 10. Centralize all blue title banner boxes (002060) and left-align the title letters inside them
-  xml = xml.replace(/<w:tbl\b[\s\S]*?<\/w:tbl>/gi, (tbl) => {
-    if (!tbl.includes('002060')) return tbl;
-
-    // Center table: ensure <w:jc w:val="center"/> in tblPr, set width to 10080, remove tblInd
-    const tblPrMatch = tbl.match(/<w:tblPr\b[\s\S]*?<\/w:tblPr>/i);
-    if (tblPrMatch) {
-      let tblPr = tblPrMatch[0];
-      tblPr = tblPr.replace(/<w:jc\b[^>]*\/>/gi, '');
-      tblPr = tblPr.replace(/<w:tblInd\b[^>]*\/>/gi, '');
-      if (/<w:tblW\b/i.test(tblPr)) {
-        tblPr = tblPr.replace(/<w:tblW\b[^>]*\/>/gi, '<w:tblW w:w="10080" w:type="dxa"/>');
-      } else {
-        tblPr = tblPr.replace('<w:tblPr>', '<w:tblPr><w:tblW w:w="10080" w:type="dxa"/>');
-      }
-      tblPr = tblPr.replace('<w:tblPr>', '<w:tblPr><w:jc w:val="center"/>');
-      tbl = tbl.substring(0, tblPrMatch.index) + tblPr + tbl.substring(tblPrMatch.index + tblPrMatch[0].length);
+  // 12. Terms and Conditions: Isolate banner & inject {@termsAndConditionsXml}
+  const termsHeadingIdx = xml.lastIndexOf('TERMS AND CONDITIONS');
+  if (termsHeadingIdx !== -1) {
+    const termsTblStart = findLastTag(xml, 'w:tbl', termsHeadingIdx);
+    const termsTblEnd = xml.indexOf('</w:tbl>', termsHeadingIdx) + 8;
+    if (termsTblStart !== -1 && termsTblEnd !== -1 && termsTblEnd > termsTblStart) {
+      const tr1End = xml.indexOf('</w:tr>', termsHeadingIdx) + 7;
+      const bannerTable = xml.substring(termsTblStart, tr1End) + '</w:tbl>';
+      const replacement = '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>'
+        + bannerTable
+        + '<w:p><w:r><w:t>{@termsAndConditionsXml}</w:t></w:r></w:p>';
+      xml = xml.substring(0, termsTblStart) + replacement + xml.substring(termsTblEnd);
     }
+  }
 
-    // Strip any row offsets (gridBefore / wBefore) that displace banners
-    tbl = tbl.replace(/<w:gridBefore\b[^>]*\/>/gis, '').replace(/<w:wBefore\b[^>]*\/>/gis, '');
-
-    const gridCols = tbl.match(/<w:gridCol\b[^>]*\/>/gi) || [];
-    if (gridCols.length === 1 || tbl.includes('AWARDS AND ACCOLADES')) {
-      tbl = tbl.replace(/<w:tblGrid>[\s\S]*?<\/w:tblGrid>/i, '<w:tblGrid><w:gridCol w:w="10080"/></w:tblGrid>');
-    }
-
-    // Inside cells with fill="002060", set tcW to 10080 and ensure paragraph has left alignment & left indent 180 dxa
-    tbl = tbl.replace(/<w:tc\b[\s\S]*?<\/w:tc>/gi, (cell) => {
-      if (!cell.includes('002060')) return cell;
-      if (gridCols.length <= 1 || tbl.includes('AWARDS AND ACCOLADES')) {
-        cell = cell.replace(/<w:tcW\b[^>]*\/>/gi, '<w:tcW w:w="10080" w:type="dxa"/>');
+  // 13. Contact Us: Add pageBreakBefore so it never overlaps Awards certificates
+  const contactHeadingIdx = xml.lastIndexOf('CONTACT US');
+  if (contactHeadingIdx !== -1) {
+    const contactTblStart = findLastTag(xml, 'w:tbl', contactHeadingIdx);
+    if (contactTblStart !== -1) {
+      const pPrev = xml.substring(0, contactTblStart).trim();
+      if (!pPrev.endsWith('<w:pageBreakBefore/></w:pPr></w:p>')) {
+        xml = xml.substring(0, contactTblStart) + '<w:p><w:pPr><w:pageBreakBefore/></w:pPr></w:p>' + xml.substring(contactTblStart);
       }
-      cell = cell.replace(/<w:p\b[\s\S]*?<\/w:p>/gi, (p) => {
-        const pPrM = p.match(/<w:pPr\b[\s\S]*?<\/w:pPr>/i);
-        if (pPrM) {
-          let pPr = pPrM[0];
-          pPr = pPr.replace(/<w:jc\b[^>]*\/>/gi, '');
-          pPr = pPr.replace(/<w:ind\b[^>]*\/>/gi, '');
-          pPr = pPr.replace('<w:pPr>', '<w:pPr><w:jc w:val="left"/><w:ind w:left="180"/>');
-          return p.substring(0, pPrM.index) + pPr + p.substring(pPrM.index + pPrM[0].length);
+    }
+  }
+
+  // 14. Centralize ALL blue banner tables and their title paragraphs!
+  xml = xml.replace(/(<w:tc\b(?:(?!<\/w:tc>).)*?w:fill="002060"(?:(?!<\/w:tc>).)*?Heading1(?:(?!<\/w:tc>).)*?<\/w:tc>)/gs, (match) => {
+    let cellXml = match;
+    cellXml = cellXml.replace(/(<w:p\b(?:(?!<\/w:p>).)*?<w:pStyle\s+w:val="Heading1"\/>(?:(?!<\/w:p>).)*?<\/w:p>)/gs, (pMatch) => {
+      let pXml = pMatch;
+      if (pXml.includes('<w:pPr>')) {
+        if (/<w:jc\b/i.test(pXml)) {
+          pXml = pXml.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
+        } else {
+          pXml = pXml.replace('<w:pPr>', '<w:pPr><w:jc w:val="center"/>');
         }
-        return p.replace('<w:p>', '<w:p><w:pPr><w:jc w:val="left"/><w:ind w:left="180"/></w:pPr>');
-      });
-      return cell;
+      } else {
+        pXml = pXml.replace('<w:p', '<w:p><w:pPr><w:jc w:val="center"/></w:pPr>');
+      }
+      return pXml;
     });
-
-    return tbl;
+    return cellXml;
   });
 
-  // 11. Set body section margins so page content strictly aligns with the 10080 dxa blue box
-  // A4 = 11906 dxa; left margin = 913 dxa (45.65 pt) matching blue box left edge
-  // right margin = 960 dxa (48.0 pt) ensuring text wraps comfortably inside the 549.7 pt right edge
-  const sectMatches = [...xml.matchAll(/<w:sectPr\b[\s\S]*?<\/w:sectPr>/gi)];
-  if (sectMatches.length >= 2) {
-    const lastSect = sectMatches[sectMatches.length - 1];
-    let s = lastSect[0];
-    s = s.replace(/w:left="\d+"/g, 'w:left="913"');
-    s = s.replace(/w:right="\d+"/g, 'w:right="960"');
-    xml = xml.substring(0, lastSect.index) + s + xml.substring(lastSect.index + lastSect[0].length);
-  }
+  xml = xml.replace(/(<w:tbl\b(?:(?!<\/w:tbl>).)*?w:fill="002060"(?:(?!<\/w:tbl>).)*?Heading1(?:(?!<\/w:tbl>).)*?<\/w:tbl>)/gs, (tblMatch) => {
+    let tblXml = tblMatch;
+    tblXml = tblXml.replace(/<w:tblInd\b[^>]*\/>/gi, '');
+    const trIdx = tblXml.indexOf('<w:tr');
+    if (trIdx !== -1 && !tblXml.substring(0, trIdx).includes('<w:tblPr>')) {
+      tblXml = tblXml.replace('<w:tbl>', '<w:tbl><w:tblPr><w:tblW w:w="9738" w:type="dxa"/><w:jc w:val="center"/><w:tblLook w:val="0000"/></w:tblPr>');
+    } else {
+      const prEnd = tblXml.indexOf('</w:tblPr>');
+      if (prEnd !== -1) {
+        let tblPr = tblXml.substring(0, prEnd);
+        if (/<w:jc\b/i.test(tblPr)) {
+          tblPr = tblPr.replace(/<w:jc\b[^>]*\/>/gi, '<w:jc w:val="center"/>');
+        } else {
+          tblPr = tblPr.replace('<w:tblPr>', '<w:tblPr><w:jc w:val="center"/>');
+        }
+        tblXml = tblPr + tblXml.substring(prEnd);
+      }
+    }
+    return tblXml;
+  });
 
   zip.file('word/document.xml', xml);
 
