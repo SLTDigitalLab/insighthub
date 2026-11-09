@@ -473,6 +473,28 @@ const Dashboard = () => {
     userEmail === '020601@intranet.slt.com.lk' ||
     userEmail === 'lahirus@slt.com.lk';
 
+  const [adminPendingCount, setAdminPendingCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAdmin || !userEmail) return;
+    const checkPending = async () => {
+      try {
+        const res = await axios.get(`/api/admin/users?requesterEmail=${encodeURIComponent(userEmail)}`, {
+          headers: { 'x-user-email': userEmail }
+        });
+        if (res.data?.success && Array.isArray(res.data?.users)) {
+          const pending = res.data.users.filter(u => u.status === 'pending_approval');
+          setAdminPendingCount(pending.length);
+        }
+      } catch (err) {
+        // Silently catch
+      }
+    };
+    checkPending();
+    const interval = setInterval(checkPending, 20000);
+    return () => clearInterval(interval);
+  }, [isAdmin, userEmail]);
+
   useEffect(() => {
     if (activeAgent.id !== 'proposal' || proposalUser || !userEmail) return;
     axios.post('/api/auth/verify-access', { email: userEmail })
@@ -1019,38 +1041,48 @@ const Dashboard = () => {
 
           {isAdmin && (
             <button
-              onClick={() => navigate('/admin')}
+              onClick={() => navigate(adminPendingCount > 0 ? '/admin?tab=pending' : '/admin')}
               id="btn-admin-panel-sidebar"
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: '0.6rem',
-                color: '#0066FF',
-                background: '#eff6ff',
+                color: adminPendingCount > 0 ? '#b45309' : '#0066FF',
+                background: adminPendingCount > 0 ? '#fffbeb' : '#eff6ff',
                 width: '100%',
                 padding: '0.65rem 0.85rem',
                 fontSize: '0.85rem',
                 fontWeight: 700,
                 borderRadius: '0.65rem',
-                border: '1.5px solid #bfdbfe',
+                border: adminPendingCount > 0 ? '1.5px solid #fcd34d' : '1.5px solid #bfdbfe',
                 cursor: 'pointer',
                 transition: 'all 0.2s ease',
-                boxShadow: '0 2px 8px rgba(0, 102, 255, 0.08)'
+                boxShadow: adminPendingCount > 0 ? '0 2px 8px rgba(245, 158, 11, 0.15)' : '0 2px 8px rgba(0, 102, 255, 0.08)'
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.background = '#dbeafe';
-                e.currentTarget.style.borderColor = '#93c5fd';
+                e.currentTarget.style.background = adminPendingCount > 0 ? '#fef3c7' : '#dbeafe';
+                e.currentTarget.style.borderColor = adminPendingCount > 0 ? '#f59e0b' : '#93c5fd';
                 e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 102, 255, 0.15)';
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.background = '#eff6ff';
-                e.currentTarget.style.borderColor = '#bfdbfe';
-                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 102, 255, 0.08)';
+                e.currentTarget.style.background = adminPendingCount > 0 ? '#fffbeb' : '#eff6ff';
+                e.currentTarget.style.borderColor = adminPendingCount > 0 ? '#fcd34d' : '#bfdbfe';
+                e.currentTarget.style.boxShadow = adminPendingCount > 0 ? '0 2px 8px rgba(245, 158, 11, 0.15)' : '0 2px 8px rgba(0, 102, 255, 0.08)';
               }}
             >
-              <ShieldCheck size={18} color="#0066FF" />
-              <span style={{ flex: 1, textAlign: 'left' }}>Admin Panel</span>
-              <ChevronRight size={15} color="#0066FF" />
+              <ShieldCheck size={18} color={adminPendingCount > 0 ? '#d97706' : '#0066FF'} />
+              <span style={{ flex: 1, textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span>Admin Panel</span>
+                {adminPendingCount > 0 && (
+                  <span style={{
+                    background: '#f59e0b', color: '#ffffff', fontSize: '0.72rem',
+                    padding: '2px 7px', borderRadius: '999px', fontWeight: 800
+                  }}>
+                    {adminPendingCount} pending
+                  </span>
+                )}
+              </span>
+              <ChevronRight size={15} color={adminPendingCount > 0 ? '#d97706' : '#0066FF'} />
             </button>
           )}
 

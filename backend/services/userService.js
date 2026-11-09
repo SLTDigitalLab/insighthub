@@ -123,12 +123,15 @@ class UserService {
   /**
    * Helper to format section, sub-section, and designation
    */
-  formatUserHierarchy({ section, subSection, designation, userType, rebmArea }) {
-    const validSections = ['Enterprise Large', 'Enterprise Medium', 'Government', 'Carrier business', 'REBM'];
-    const resolvedSection = validSections.includes(section) ? section : (section || 'Enterprise Large');
+  formatUserHierarchy({ company, section, subSection, designation, userType, rebmArea }) {
+    const validSections = [...SLT_SECTIONS, ...MOBITEL_SECTIONS];
+    const isMobitel = company === 'Mobitel' || (section && MOBITEL_SECTIONS.includes(section));
+    const resolvedSection = validSections.includes(section)
+      ? section
+      : (isMobitel ? 'Mobitel SME' : 'Enterprise Large');
 
     let resolvedSubSection = '';
-    if (resolvedSection === 'REBM') {
+    if (!isMobitel && resolvedSection === 'REBM') {
       resolvedSubSection = subSection || rebmArea || 'WPC1';
     }
 
@@ -139,7 +142,7 @@ class UserService {
     let compositeUserType = '';
     let department = '';
 
-    if (resolvedSection === 'REBM') {
+    if (!isMobitel && resolvedSection === 'REBM') {
       compositeUserType = `REBM - ${resolvedSubSection} (${resolvedDesignation})`;
       department = `REBM - ${resolvedSubSection}`;
     } else {
@@ -148,6 +151,7 @@ class UserService {
     }
 
     return {
+      company: isMobitel ? 'Mobitel' : 'SLT',
       section: resolvedSection,
       subSection: resolvedSubSection,
       designation: resolvedDesignation,
@@ -162,6 +166,7 @@ class UserService {
   inviteUser({
     email,
     name,
+    company,
     section,
     subSection,
     designation,
@@ -178,8 +183,11 @@ class UserService {
       throw new Error('Please provide a valid email address.');
     }
 
+    const detectedCompany = company || (cleanEmail.includes('@mobitel.lk') ? 'Mobitel' : 'SLT');
+
     const hierarchy = this.formatUserHierarchy({
-      section: section || (userType && userType.includes('REBM') ? 'REBM' : 'Enterprise Large'),
+      company: detectedCompany,
+      section: section || (userType && userType.includes('REBM') ? 'REBM' : (detectedCompany === 'Mobitel' ? 'Mobitel SME' : 'Enterprise Large')),
       subSection: subSection || rebmArea,
       designation: designation || (userType && userType.includes('Section') ? 'Section Manager' : 'Account Manager'),
       userType,
@@ -191,6 +199,7 @@ class UserService {
     if (user) {
       // Re-activate or update existing user
       user.name = name?.trim() || user.name || cleanEmail.split('@')[0];
+      user.company = hierarchy.company;
       user.section = hierarchy.section;
       user.subSection = hierarchy.subSection;
       user.designation = hierarchy.designation;
@@ -213,6 +222,7 @@ class UserService {
       id: 'usr-' + crypto.randomUUID(),
       name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
+      company: hierarchy.company,
       section: hierarchy.section,
       subSection: hierarchy.subSection,
       designation: hierarchy.designation,
@@ -242,6 +252,7 @@ class UserService {
   requestAccess({
     name,
     email,
+    company,
     section,
     subSection,
     designation,
@@ -258,8 +269,11 @@ class UserService {
       return { alreadyApproved: true, user };
     }
 
+    const detectedCompany = company || (cleanEmail.includes('@mobitel.lk') ? 'Mobitel' : 'SLT');
+
     const hierarchy = this.formatUserHierarchy({
-      section: section || (userType && userType.includes('REBM') ? 'REBM' : 'Enterprise Large'),
+      company: detectedCompany,
+      section: section || (userType && userType.includes('REBM') ? 'REBM' : (detectedCompany === 'Mobitel' ? 'Mobitel SME' : 'Enterprise Large')),
       subSection: subSection || rebmArea,
       designation: designation || (userType && userType.includes('Section') ? 'Section Manager' : 'Account Manager'),
       userType,
@@ -272,6 +286,7 @@ class UserService {
     if (user) {
       // Update pending or re-request after decline
       user.name = name?.trim() || user.name || cleanEmail.split('@')[0];
+      user.company = hierarchy.company;
       user.section = hierarchy.section;
       user.subSection = hierarchy.subSection;
       user.designation = hierarchy.designation;
@@ -293,6 +308,7 @@ class UserService {
       id: 'usr-' + crypto.randomUUID(),
       name: name?.trim() || cleanEmail.split('@')[0],
       email: cleanEmail,
+      company: hierarchy.company,
       section: hierarchy.section,
       subSection: hierarchy.subSection,
       designation: hierarchy.designation,
