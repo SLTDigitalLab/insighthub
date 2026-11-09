@@ -963,107 +963,6 @@ app.post('/api/auth/verify-access', (req, res) => {
   }
 });
 
-// 1.1 Send Login OTP to Approved Work Email (Bypasses Azure Admin Consent)
-app.post('/api/auth/send-otp', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) {
-      return res.status(400).json({ success: false, error: 'Work email is required.' });
-    }
-
-    const result = userService.generateLoginOtp(email);
-    if (!result.success) {
-      return res.status(400).json(result);
-    }
-
-    const { user, otp } = result;
-    const clientOrigin = req.headers.origin || APP_BASE_URL;
-    const magicToken = userService.generateLoginToken(email);
-    const magicLink = `${clientOrigin}/login?loginToken=${magicToken}&email=${encodeURIComponent(user.email)}`;
-
-    const otpHtml = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
-        <div style="background: linear-gradient(135deg, #0066FF 0%, #10b981 100%); padding: 24px 32px;">
-          <h1 style="color: white; margin: 0; font-size: 20px;">InsightHub Sign-In Code</h1>
-          <p style="color: rgba(255,255,255,0.9); margin: 4px 0 0; font-size: 13px;">SLT Mobitel Enterprise Platform</p>
-        </div>
-        <div style="padding: 28px 32px;">
-          <h2 style="color: #0f172a; margin: 0 0 8px; font-size: 17px;">Hello ${user.name},</h2>
-          <p style="color: #475569; font-size: 14px; margin-bottom: 20px;">
-            Use the following 6-digit verification code to sign into your approved InsightHub account:
-          </p>
-          <div style="text-align: center; margin: 24px 0;">
-            <div style="display: inline-block; background: #f0f7ff; border: 2px dashed #0066FF; border-radius: 10px; padding: 14px 28px; font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #0066FF;">
-              ${otp}
-            </div>
-            <p style="color: #94a3b8; font-size: 12px; margin-top: 8px;">Valid for 15 minutes</p>
-          </div>
-          <div style="border-top: 1px solid #f1f5f9; padding-top: 20px; text-align: center;">
-            <p style="color: #64748b; font-size: 13px; margin-bottom: 12px;">Or sign in instantly with one click:</p>
-            <a href="${magicLink}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 10px 24px; border-radius: 6px; font-weight: bold; font-size: 13px; display: inline-block;">
-              Instant Sign In to InsightHub →
-            </a>
-          </div>
-        </div>
-      </div>
-    `;
-
-    await sendEmailNotification({
-      toEmail: user.email,
-      subject: `Your InsightHub Login Code: ${otp}`,
-      htmlBody: otpHtml
-    });
-
-    res.json({
-      success: true,
-      message: `A verification code has been dispatched to ${user.email}.`
-    });
-  } catch (err) {
-    console.error('[Send OTP Error]', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 1.2 Verify Login OTP
-app.post('/api/auth/verify-otp', (req, res) => {
-  try {
-    const { email, otp } = req.body;
-    if (!email || !otp) {
-      return res.status(400).json({ success: false, error: 'Email and verification code are required.' });
-    }
-
-    const result = userService.verifyLoginOtp(email, otp);
-    if (!result.success) {
-      return res.status(400).json(result);
-    }
-
-    res.json(result);
-  } catch (err) {
-    console.error('[Verify OTP Error]', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
-// 1.3 Verify Magic Login Link Token
-app.post('/api/auth/verify-magic-token', (req, res) => {
-  try {
-    const { token } = req.body;
-    if (!token) {
-      return res.status(400).json({ success: false, error: 'Login token is required.' });
-    }
-
-    const result = userService.verifyLoginToken(token);
-    if (!result.success) {
-      return res.status(400).json(result);
-    }
-
-    res.json(result);
-  } catch (err) {
-    console.error('[Verify Magic Token Error]', err);
-    res.status(500).json({ success: false, error: err.message });
-  }
-});
-
 // 2. Self-Service Access Request (From Microsoft Authenticated User)
 app.post('/api/auth/request-access', async (req, res) => {
   try {
@@ -1252,8 +1151,6 @@ app.post('/api/admin/invite-user', async (req, res) => {
 
     const clientOrigin = req.headers.origin || APP_BASE_URL;
     const loginUrl = `${clientOrigin}/login`;
-    const magicToken = userService.generateLoginToken(user.email);
-    const directLoginUrl = magicToken ? `${clientOrigin}/login?loginToken=${magicToken}&email=${encodeURIComponent(user.email)}` : loginUrl;
 
     const sectionDisplay = user.section === 'REBM'
       ? `REBM (${user.subSection})`
@@ -1268,16 +1165,16 @@ app.post('/api/admin/invite-user', async (req, res) => {
         <div style="padding: 28px 36px;">
           <h2 style="color: #0f172a; margin: 0 0 12px; font-size: 18px;">Hello ${user.name},</h2>
           <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-            An administrator has granted you access to <strong>InsightHub</strong> as a <strong>${user.designation || 'Account Manager'}</strong> in <strong>${sectionDisplay}</strong>. You can now sign in using your official work account (<code>${user.email}</code>) to access lead discovery and sales intelligence tools.
+            An administrator has granted you access to <strong>InsightHub</strong> as a <strong>${user.designation || 'Account Manager'}</strong> in <strong>${sectionDisplay}</strong>. You can now sign in using your official SLT Microsoft Work Account (<code>${user.email}</code>) to access lead discovery and sales intelligence tools.
           </p>
           <div style="text-align: center; margin: 28px 0;">
-            <a href="${directLoginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
-              Sign In to InsightHub →
+            <a href="${loginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
+              Sign In with Microsoft Work Account →
             </a>
           </div>
           <p style="color: #64748b; font-size: 12px; line-height: 1.5;">
             Or copy and paste this link into your browser:<br/>
-            <a href="${directLoginUrl}" style="color: #0066FF; word-break: break-all;">${directLoginUrl}</a>
+            <a href="${loginUrl}" style="color: #0066FF; word-break: break-all;">${loginUrl}</a>
           </p>
         </div>
         <div style="background: #f8fafc; padding: 16px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
@@ -1543,11 +1440,8 @@ app.post('/api/admin/user-action', async (req, res) => {
     if (action === 'approve') {
       userService.approveUser(user, 'Admin Portal');
 
-      // Dispatch activation email to user with direct login token
+      // Dispatch activation email to user
       const loginUrl = `${clientOrigin}/login`;
-      const magicToken = userService.generateLoginToken(user.email);
-      const directLoginUrl = magicToken ? `${clientOrigin}/login?loginToken=${magicToken}&email=${encodeURIComponent(user.email)}` : loginUrl;
-
       const userApprovedEmailHtml = `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
           <div style="background: linear-gradient(135deg, #0066FF 0%, #10b981 100%); padding: 28px 36px;">
@@ -1557,16 +1451,13 @@ app.post('/api/admin/user-action', async (req, res) => {
           <div style="padding: 28px 36px;">
             <h2 style="color: #0f172a; margin: 0 0 12px; font-size: 18px;">Welcome to InsightHub, ${user.name}</h2>
             <p style="color: #475569; font-size: 14px; line-height: 1.6; margin-bottom: 20px;">
-              Your access request has been approved by the system administrator. You can now access InsightHub directly using the button below or with your work email verification code.
+              Your access request has been approved by the system administrator. You can now sign in using your SLT Microsoft Work Account.
             </p>
             <div style="text-align: center; margin: 28px 0;">
-              <a href="${directLoginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
-                Access InsightHub Now →
+              <a href="${loginUrl}" style="background: #0066FF; color: #ffffff; text-decoration: none; padding: 14px 32px; border-radius: 8px; font-weight: bold; font-size: 15px; display: inline-block; box-shadow: 0 4px 14px rgba(0, 102, 255, 0.35);">
+                Sign In with Microsoft →
               </a>
             </div>
-            <p style="color: #64748b; font-size: 12px; line-height: 1.5; text-align: center;">
-              Or sign in at <a href="${loginUrl}" style="color: #0066FF;">${loginUrl}</a> using your work email (${user.email}).
-            </p>
           </div>
         </div>
       `;

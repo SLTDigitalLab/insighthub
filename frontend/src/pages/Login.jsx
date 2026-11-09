@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, ArrowRight, AlertCircle, Loader2, Lock, Mail, KeyRound, CheckCircle } from 'lucide-react';
+import { ShieldCheck, ArrowRight, AlertCircle, Loader2, Lock } from 'lucide-react';
 import axios from 'axios';
 
 const Login = () => {
@@ -11,14 +11,6 @@ const Login = () => {
   const [error, setError] = useState('');
   const [statusMessage, setStatusMessage] = useState('Checking enterprise session...');
 
-  // Work Email Direct OTP State (Bypasses Azure Admin Consent)
-  const [authMode, setAuthMode] = useState('email'); // 'email' | 'ms'
-  const [emailInput, setEmailInput] = useState('');
-  const [otpInput, setOtpInput] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpLoading, setOtpLoading] = useState(false);
-  const [otpSuccessMessage, setOtpSuccessMessage] = useState('');
-
   useEffect(() => {
     let isMounted = true;
 
@@ -28,37 +20,6 @@ const Login = () => {
         const search = window.location.search || '';
         const rawParams = hash.startsWith('#') ? hash.substring(1) : (search.startsWith('?') ? search.substring(1) : '');
         const urlParams = new URLSearchParams(rawParams);
-
-        // 0. Check for 1-Click Magic Login Token in URL (?loginToken=... or ?token=...)
-        const magicToken = urlParams.get('loginToken') || urlParams.get('token');
-        if (magicToken) {
-          if (isMounted) {
-            setCheckingAuth(true);
-            setStatusMessage('Verifying single-use access link...');
-          }
-          try {
-            const res = await axios.post('/api/auth/verify-magic-token', { token: magicToken });
-            if (!isMounted) return;
-            if (res.data.success && res.data.approved) {
-              if (res.data.role === 'admin') {
-                localStorage.setItem('insightHub_adminAuth', 'true');
-              } else {
-                localStorage.removeItem('insightHub_adminAuth');
-              }
-              localStorage.setItem('userRole', res.data.role || 'user');
-              localStorage.setItem('userEmail', res.data.user.email);
-              localStorage.setItem('userName', res.data.user.name);
-              navigate('/dashboard', { replace: true });
-              return;
-            } else {
-              setError(res.data.error || 'Access link is expired or invalid.');
-              setCheckingAuth(false);
-            }
-          } catch (magicErr) {
-            setError(magicErr.response?.data?.error || 'Access link is expired or invalid.');
-            setCheckingAuth(false);
-          }
-        }
 
         // 1. Check for Direct ID Token in URL (Implicit / Hybrid)
         const idToken = urlParams.get('id_token') || urlParams.get('access_token');
@@ -216,65 +177,6 @@ const Login = () => {
     };
   }, [navigate]);
 
-  const handleSendOtp = async (e) => {
-    e?.preventDefault();
-    setError('');
-    setOtpSuccessMessage('');
-    const cleanEmail = emailInput.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@')) {
-      setError('Please enter a valid SLT or Mobitel work email.');
-      return;
-    }
-    setOtpLoading(true);
-    try {
-      const res = await axios.post('/api/auth/send-otp', { email: cleanEmail });
-      if (res.data.success) {
-        setOtpSent(true);
-        setOtpSuccessMessage(`Verification code sent to ${cleanEmail}! Please check your inbox.`);
-      } else {
-        setError(res.data.error || 'Failed to send login code.');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Failed to send login code. Please ensure your account has been approved by the administrator.');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e?.preventDefault();
-    setError('');
-    const cleanOtp = otpInput.trim();
-    if (!cleanOtp || cleanOtp.length < 6) {
-      setError('Please enter the complete 6-digit verification code.');
-      return;
-    }
-    setOtpLoading(true);
-    try {
-      const res = await axios.post('/api/auth/verify-otp', {
-        email: emailInput.trim().toLowerCase(),
-        otp: cleanOtp
-      });
-      if (res.data.success && res.data.approved) {
-        if (res.data.role === 'admin') {
-          localStorage.setItem('insightHub_adminAuth', 'true');
-        } else {
-          localStorage.removeItem('insightHub_adminAuth');
-        }
-        localStorage.setItem('userRole', res.data.role || 'user');
-        localStorage.setItem('userEmail', res.data.user.email);
-        localStorage.setItem('userName', res.data.user.name);
-        navigate('/dashboard', { replace: true });
-      } else {
-        setError(res.data.error || 'Invalid or expired verification code.');
-      }
-    } catch (err) {
-      setError(err.response?.data?.error || 'Verification failed. Please check the code and try again.');
-    } finally {
-      setOtpLoading(false);
-    }
-  };
-
   const handleMicrosoftLogin = () => {
     setError('');
     setLoading(true);
@@ -424,261 +326,54 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Sign-In Method Selector (Work Email OTP vs Microsoft SSO) */}
-        <div style={{
-          display: 'flex',
-          background: '#f1f5f9',
-          padding: '4px',
-          borderRadius: '0.85rem',
-          marginBottom: '1.5rem',
-          gap: '4px'
-        }}>
-          <button
-            type="button"
-            onClick={() => { setAuthMode('email'); setError(''); }}
-            style={{
-              flex: 1,
-              padding: '0.65rem 0.5rem',
-              borderRadius: '0.65rem',
-              border: 'none',
-              background: authMode === 'email' ? '#ffffff' : 'transparent',
-              color: authMode === 'email' ? '#0066FF' : '#64748b',
-              fontWeight: 700,
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.4rem',
-              boxShadow: authMode === 'email' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Mail size={16} /> Work Email Sign-In
-          </button>
-          <button
-            type="button"
-            onClick={() => { setAuthMode('ms'); setError(''); }}
-            style={{
-              flex: 1,
-              padding: '0.65rem 0.5rem',
-              borderRadius: '0.65rem',
-              border: 'none',
-              background: authMode === 'ms' ? '#ffffff' : 'transparent',
-              color: authMode === 'ms' ? '#0066FF' : '#64748b',
-              fontWeight: 700,
-              fontSize: '0.86rem',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '0.4rem',
-              boxShadow: authMode === 'ms' ? '0 2px 6px rgba(0,0,0,0.06)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Lock size={15} /> Microsoft 365 (SSO)
-          </button>
-        </div>
-
-        {authMode === 'email' ? (
-          <div style={{ marginBottom: '1.5rem' }}>
-            {!otpSent ? (
-              <form onSubmit={handleSendOtp} style={{ textAlign: 'left' }}>
-                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.4rem' }}>
-                  Official Work Email (@slt.com.lk or @mobitel.lk)
-                </label>
-                <div style={{ position: 'relative', marginBottom: '1rem' }}>
-                  <Mail size={18} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                  <input
-                    type="email"
-                    value={emailInput}
-                    onChange={(e) => setEmailInput(e.target.value)}
-                    placeholder="user@slt.com.lk or user@mobitel.lk"
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '0.85rem 1rem 0.85rem 2.5rem',
-                      fontSize: '0.92rem',
-                      border: '1.5px solid #cbd5e1',
-                      borderRadius: '0.75rem',
-                      outline: 'none',
-                      transition: 'border-color 0.2s',
-                      boxSizing: 'border-box'
-                    }}
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={otpLoading}
-                  style={{
-                    width: '100%',
-                    padding: '0.85rem 1.25rem',
-                    fontSize: '0.92rem',
-                    fontWeight: 700,
-                    color: '#ffffff',
-                    background: '#0066FF',
-                    border: 'none',
-                    borderRadius: '0.75rem',
-                    cursor: otpLoading ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    boxShadow: '0 4px 14px rgba(0, 102, 255, 0.25)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {otpLoading ? <Loader2 size={18} className="spin" /> : <><span>Send 6-Digit Login Code</span> <ArrowRight size={16} /></>}
-                </button>
-                <p style={{ fontSize: '0.78rem', color: '#64748b', textAlign: 'center', margin: '0.75rem 0 0 0' }}>
-                  Instant login for approved SLT & Mobitel staff members.
-                </p>
-              </form>
-            ) : (
-              <form onSubmit={handleVerifyOtp} style={{ textAlign: 'left' }}>
-                <div style={{
-                  background: '#f0fdf4',
-                  border: '1px solid #bbf7d0',
-                  color: '#166534',
-                  borderRadius: '0.75rem',
-                  padding: '0.75rem 0.9rem',
-                  fontSize: '0.82rem',
-                  marginBottom: '1.25rem',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem'
-                }}>
-                  <CheckCircle size={16} style={{ flexShrink: 0 }} />
-                  <span>Code sent to <strong>{emailInput}</strong></span>
-                </div>
-
-                <label style={{ display: 'block', fontSize: '0.84rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.4rem' }}>
-                  Enter 6-Digit Code
-                </label>
-                <div style={{ position: 'relative', marginBottom: '1rem' }}>
-                  <KeyRound size={18} style={{ position: 'absolute', left: '0.9rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
-                  <input
-                    type="text"
-                    maxLength={6}
-                    value={otpInput}
-                    onChange={(e) => setOtpInput(e.target.value.replace(/\D/g, ''))}
-                    placeholder="123456"
-                    autoFocus
-                    required
-                    style={{
-                      width: '100%',
-                      padding: '0.85rem 1rem 0.85rem 2.5rem',
-                      fontSize: '1.35rem',
-                      fontWeight: 800,
-                      letterSpacing: '6px',
-                      border: '2px solid #0066FF',
-                      borderRadius: '0.75rem',
-                      outline: 'none',
-                      background: '#f0f7ff',
-                      color: '#0066FF',
-                      boxSizing: 'border-box',
-                      textAlign: 'center'
-                    }}
-                  />
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={otpLoading}
-                  style={{
-                    width: '100%',
-                    padding: '0.85rem 1.25rem',
-                    fontSize: '0.92rem',
-                    fontWeight: 700,
-                    color: '#ffffff',
-                    background: '#10b981',
-                    border: 'none',
-                    borderRadius: '0.75rem',
-                    cursor: otpLoading ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    boxShadow: '0 4px 14px rgba(16, 185, 129, 0.3)',
-                    transition: 'all 0.15s ease'
-                  }}
-                >
-                  {otpLoading ? <Loader2 size={18} className="spin" /> : <><span>Verify Code & Sign In</span> <ArrowRight size={16} /></>}
-                </button>
-
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '1rem', fontSize: '0.8rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => { setOtpSent(false); setOtpInput(''); setError(''); }}
-                    style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', textDecoration: 'underline' }}
-                  >
-                    ← Change Email
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleSendOtp}
-                    disabled={otpLoading}
-                    style={{ background: 'none', border: 'none', color: '#0066FF', fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    Resend Code
-                  </button>
-                </div>
-              </form>
-            )}
-          </div>
-        ) : (
-          <div>
-            {/* Microsoft Sign In Button */}
-            <button
-              type="button"
-              onClick={handleMicrosoftLogin}
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '0.95rem 1.25rem',
-                fontSize: '0.95rem',
-                fontWeight: 700,
-                color: '#0f172a',
-                background: '#ffffff',
-                border: '1.5px solid #cbd5e1',
-                borderRadius: '0.85rem',
-                cursor: loading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '0.85rem',
-                transition: 'all 0.2s ease',
-                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.06)',
-                marginBottom: '1.5rem'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = '#0066FF';
-                e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 102, 255, 0.15)';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = '#cbd5e1';
-                e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.06)';
-              }}
-            >
-              {loading ? (
-                <Loader2 size={20} className="spin" style={{ color: '#0066FF' }} />
-              ) : (
-                <>
-                  {/* Microsoft 4-Color Grid Logo */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', width: '20px', height: '20px', flexShrink: 0 }}>
-                    <div style={{ background: '#f25022', borderRadius: '1px' }}></div>
-                    <div style={{ background: '#7fba00', borderRadius: '1px' }}></div>
-                    <div style={{ background: '#00a4ef', borderRadius: '1px' }}></div>
-                    <div style={{ background: '#ffb900', borderRadius: '1px' }}></div>
-                  </div>
-                  <span>Sign In with Microsoft Work Account</span>
-                  <ArrowRight size={17} style={{ color: '#64748b', marginLeft: 'auto' }} />
-                </>
-              )}
-            </button>
-          </div>
-        )}
+        {/* Microsoft Sign In Button */}
+        <button
+          type="button"
+          onClick={handleMicrosoftLogin}
+          disabled={loading}
+          style={{
+            width: '100%',
+            padding: '0.95rem 1.25rem',
+            fontSize: '0.95rem',
+            fontWeight: 700,
+            color: '#0f172a',
+            background: '#ffffff',
+            border: '1.5px solid #cbd5e1',
+            borderRadius: '0.85rem',
+            cursor: loading ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '0.85rem',
+            transition: 'all 0.2s ease',
+            boxShadow: '0 4px 14px rgba(0, 0, 0, 0.06)',
+            marginBottom: '1.5rem'
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.borderColor = '#0066FF';
+            e.currentTarget.style.boxShadow = '0 6px 20px rgba(0, 102, 255, 0.15)';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.borderColor = '#cbd5e1';
+            e.currentTarget.style.boxShadow = '0 4px 14px rgba(0, 0, 0, 0.06)';
+          }}
+        >
+          {loading ? (
+            <Loader2 size={20} className="spin" style={{ color: '#0066FF' }} />
+          ) : (
+            <>
+              {/* Microsoft 4-Color Grid Logo */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2px', width: '20px', height: '20px', flexShrink: 0 }}>
+                <div style={{ background: '#f25022', borderRadius: '1px' }}></div>
+                <div style={{ background: '#7fba00', borderRadius: '1px' }}></div>
+                <div style={{ background: '#00a4ef', borderRadius: '1px' }}></div>
+                <div style={{ background: '#ffb900', borderRadius: '1px' }}></div>
+              </div>
+              <span>Sign In with Microsoft Work Account</span>
+              <ArrowRight size={17} style={{ color: '#64748b', marginLeft: 'auto' }} />
+            </>
+          )}
+        </button>
 
         {/* Localhost Development Bypass - only visible on local dev */}
         {(window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') && (
