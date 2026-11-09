@@ -715,6 +715,22 @@ const AdminPortal = () => {
                       >
                         <X size={16} /> Decline
                       </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Permanently remove access request for ${u.name || u.email}?`)) {
+                            handleUserAction(u.id, 'delete');
+                          }
+                        }}
+                        disabled={actionLoading}
+                        title="Delete request permanently"
+                        style={{
+                          padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1px solid #e2e8f0',
+                          background: '#ffffff', color: '#64748b', fontWeight: 700, fontSize: '0.84rem',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
                     </div>
                   </div>
                 );
@@ -1265,33 +1281,69 @@ const AdminPortal = () => {
                             >
                               <X size={14} /> Decline
                             </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Permanently remove ${u.name || u.email}?`)) {
+                                  handleUserAction(u.id, 'delete');
+                                }
+                              }}
+                              disabled={actionLoading}
+                              title="Delete permanently"
+                              style={{
+                                padding: '0.45rem 0.65rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1',
+                                background: '#f8fafc', color: '#64748b', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center'
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </div>
                         ) : isApproved && u.role !== 'admin' ? (
-                          <button
-                            onClick={() => handleUserAction(u.id, 'revoke')}
-                            disabled={actionLoading}
-                            title="Revoke access"
-                            style={{
-                              padding: '0.45rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #fecaca',
-                              background: '#fff1f2', color: '#dc2626', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
-                              display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
-                            }}
-                          >
-                            <Trash2 size={13} /> Revoke Access
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                            <button
+                              onClick={() => handleUserAction(u.id, 'revoke')}
+                              disabled={actionLoading}
+                              title="Revoke access"
+                              style={{
+                                padding: '0.45rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #fecaca',
+                                background: '#fff1f2', color: '#dc2626', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
+                              }}
+                            >
+                              <Trash2 size={13} /> Revoke Access
+                            </button>
+                          </div>
                         ) : isDeclined ? (
-                          <button
-                            onClick={() => handleUserAction(u.id, 'approve')}
-                            disabled={actionLoading}
-                            title="Re-authorize user"
-                            style={{
-                              padding: '0.45rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #bfdbfe',
-                              background: '#eff6ff', color: '#0066FF', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
-                              display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
-                            }}
-                          >
-                            <Check size={13} /> Re-Authorize
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                            <button
+                              onClick={() => handleUserAction(u.id, 'approve')}
+                              disabled={actionLoading}
+                              title="Re-authorize user"
+                              style={{
+                                padding: '0.45rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #bfdbfe',
+                                background: '#eff6ff', color: '#0066FF', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
+                              }}
+                            >
+                              <Check size={13} /> Re-Authorize
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Permanently remove record for ${u.name || u.email}?`)) {
+                                  handleUserAction(u.id, 'delete');
+                                }
+                              }}
+                              disabled={actionLoading}
+                              title="Delete permanently"
+                              style={{
+                                padding: '0.45rem 0.65rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1',
+                                background: '#f8fafc', color: '#64748b', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center'
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         ) : (
                           <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Master Admin</span>
                         )}

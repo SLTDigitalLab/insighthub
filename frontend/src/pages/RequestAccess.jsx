@@ -97,7 +97,7 @@ const RequestAccess = () => {
       return;
     }
     if (!serviceNumber.trim()) {
-      setError('Please enter your SLT Service Number.');
+      setError('Please enter your Service / Employee Number.');
       return;
     }
     if (!mobileNumber.trim()) {

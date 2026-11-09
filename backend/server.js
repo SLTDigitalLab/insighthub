@@ -1474,6 +1474,17 @@ app.post('/api/admin/user-action', async (req, res) => {
         user: { id: user.id, name: user.name, email: user.email, status: user.status }
       });
 
+    } else if (action === 'delete') {
+      const deletedEmail = user.email;
+      const deletedName = user.name;
+      userService.deleteUser(user);
+
+      return res.json({
+        success: true,
+        message: `User ${deletedName} (${deletedEmail}) permanently removed from database.`,
+        deletedUserId: userId
+      });
+
     } else if (action === 'decline' || action === 'revoke') {
       if (action === 'revoke') {
         userService.revokeAccess(user, 'Admin Portal');

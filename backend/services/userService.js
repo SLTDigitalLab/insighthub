@@ -466,6 +466,17 @@ class UserService {
     this.saveUsers();
     return user;
   }
+
+  deleteUser(userOrId) {
+    const user = typeof userOrId === 'string'
+      ? (this.getUserById(userOrId) || this.getUserByEmail(userOrId))
+      : userOrId;
+    if (!user) return false;
+
+    this.users = this.users.filter(u => u.id !== user.id && u.email !== user.email);
+    this.saveUsers();
+    return true;
+  }
 }
 
 module.exports = new UserService();
