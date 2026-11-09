@@ -174,6 +174,7 @@ export default function ProposalHub() {
     setSelectedProposal(null);
     try {
       localStorage.removeItem('insightHub_activeProposalSession');
+      sessionStorage.removeItem('insightHub_activeProposalTabSession');
     } catch {}
   };
 
@@ -292,7 +293,10 @@ export default function ProposalHub() {
         <div className="proposal-hub-tabs">
           {isAdmin && (
             <button
-              onClick={() => handleTabChange('generator')}
+              onClick={() => {
+                setSelectedProposal(null);
+                handleTabChange('generator');
+              }}
               style={{
                 display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
                 fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
@@ -308,7 +312,10 @@ export default function ProposalHub() {
           )}
 
           <button
-            onClick={() => handleTabChange('archive')}
+            onClick={() => {
+              fetchSavedProposals();
+              handleTabChange('archive');
+            }}
             style={{
               display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
               fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
@@ -383,6 +390,9 @@ export default function ProposalHub() {
                 user={proposalUser || { name: userName, email: userEmail, designation: '', phone: '', division: '' }}
                 initialProposal={selectedProposal}
                 onClearProposal={handleStartFreshProposal}
+                onProposalGenerated={() => {
+                  fetchSavedProposals();
+                }}
               />
             </div>
           )}
@@ -674,7 +684,10 @@ export default function ProposalHub() {
                   {proposalSearch ? 'No proposals match your search query.' : 'Generated proposals will appear here automatically.'}
                 </p>
                 <button
-                  onClick={() => handleTabChange('generator')}
+              onClick={() => {
+                setSelectedProposal(null);
+                handleTabChange('generator');
+              }}
                   style={{ padding: '8px 18px', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
                 >
                   Generate First Proposal

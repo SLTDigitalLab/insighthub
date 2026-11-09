@@ -16,3 +16,6 @@ scratch/
 backend/scratch/
 ~$*
 test_*.docx
+
+backend/templates/active_template_*.docx
+backend/templates/*backup*.docx

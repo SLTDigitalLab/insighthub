@@ -175,6 +175,71 @@ function esc(s) {
   // Escapes text before putting it into raw Word XML
 }
 
+function splitCompanyName(name) {
+  const str = String(name || '').trim();
+  if (!str) return { mainName: '', subName: '', hasSub: false };
+
+  // 1. Check for explicit separator: ' - ', ' – ', ' — ', ' | ', ' : '
+  // Using \s+[-–—:|]\s+ ensures hyphens inside words like 'SLT-Mobitel' are not split
+  const sepMatch = str.match(/^(.*?)\s+[-–—:|]\s+(.*)$/);
+  if (sepMatch) {
+    const main = sepMatch[1].trim();
+    const sub = sepMatch[2].trim();
+    if (main && sub) {
+      return { mainName: main, subName: sub, hasSub: true };
+    }
+  }
+
+  // 2. Check for comma separator if total length is long (> 24 chars)
+  // e.g. "Nations Trust Bank, Akkaraipattu Branch"
+  if (str.length > 24 && str.includes(',')) {
+    const commaMatch = str.match(/^(.*?)\s*,\s+(.*)$/);
+    if (commaMatch) {
+      const main = commaMatch[1].trim();
+      const sub = commaMatch[2].trim();
+      if (main && sub) {
+        return { mainName: main, subName: sub, hasSub: true };
+      }
+    }
+  }
+
+  // 3. Check for sub-entity keywords if total length > 24 chars:
+  // e.g. "Nations Trust Bank Akkaraipattu Branch" -> "Nations Trust Bank", "Akkaraipattu Branch"
+  if (str.length > 24) {
+    const kwRegex = /^(.*?\b(?:Bank|PLC|Ltd|Limited|Holdings|Solutions|Services|Group|Corporation|Enterprises)(?:\s+(?:PLC|Ltd|Limited))?)\s+([A-Z][a-zA-Z\s]+?\b(?:(?:Super|City|Regional|Head|Corporate)\s+)?(?:Branch|Office|Outlet|Plant|Factory|Division|Unit|Campus|Hospital|Centre|Center)\b)$/i;
+    const kwMatch = str.match(kwRegex);
+    if (kwMatch && kwMatch[1].trim() && kwMatch[2].trim()) {
+      return { mainName: kwMatch[1].trim(), subName: kwMatch[2].trim(), hasSub: true };
+    }
+  }
+
+  // 4. If name is very long (> 28 chars), split at the word boundary closest to midpoint
+  if (str.length > 28) {
+    const words = str.split(/\s+/).filter(Boolean);
+    if (words.length >= 2) {
+      const mid = str.length / 2;
+      let bestIdx = 1;
+      let bestDiff = 9999;
+      let curLen = 0;
+      for (let i = 0; i < words.length - 1; i++) {
+        curLen += words[i].length + (i > 0 ? 1 : 0);
+        const diff = Math.abs(curLen - mid);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          bestIdx = i + 1;
+        }
+      }
+      const main = words.slice(0, bestIdx).join(' ').trim();
+      const sub = words.slice(bestIdx).join(' ').trim();
+      if (main && sub) {
+        return { mainName: main, subName: sub, hasSub: true };
+      }
+    }
+  }
+
+  return { mainName: str, subName: '', hasSub: false };
+}
+
 function pngSize(buf) {
   return { w: buf.readUInt32BE(16), h: buf.readUInt32BE(20) };
   // PNG width/height are stored at bytes 16–23 of the file header
@@ -635,7 +700,7 @@ function linesOf(...texts) {
 
 function letterXml(fields) {
   return linesOf(fields.solutionIntro1, fields.solutionIntro2)
-    .map(t => `<w:p><w:pPr><w:jc w:val="both"/></w:pPr><w:r><w:t xml:space="preserve">${esc(t)}</w:t></w:r></w:p>`)
+    .map(t => `<w:p><w:pPr><w:ind w:left="796" w:right="60"/><w:jc w:val="both"/></w:pPr><w:r><w:t xml:space="preserve">${esc(t)}</w:t></w:r></w:p>`)
     .join('') || '<w:p/>';
   // Letter body paragraphs between "We are pleased to submit…" and "We look forward…", formatted like the template's own letter paragraphs
 }
@@ -822,7 +887,22 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   if (pStart !== -1) {
     const paraStart = xml.lastIndexOf('<w:p ', pStart);
     const paraEnd = xml.indexOf('</w:p>', pStart) + 6;
-    const cleanCoverPara = '<w:p w:rsidR="00F86C5E" w:rsidRPr="0073313B" w:rsidRDefault="00F86C5E" w:rsidP="004C153B"><w:pPr><w:pStyle w:val="Title"/><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/></w:rPr></w:pPr><w:r><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:t>{companyName}</w:t></w:r><w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:br/></w:r><w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:br/><w:t xml:space="preserve">Proposal Ref. No. </w:t></w:r><w:r w:rsidR="008B026C"><w:rPr><w:color w:val="124162"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t>{refNo}</w:t></w:r></w:p>';
+    const split = splitCompanyName(fields.companyName);
+    let coverNameRuns = '';
+    if (split.hasSub) {
+      coverNameRuns = 
+        `<w:r><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:t xml:space="preserve">${esc(split.mainName)}</w:t></w:r>` +
+        `<w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:br/></w:r>` +
+        `<w:r><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:t xml:space="preserve">${esc(split.subName)}</w:t></w:r>`;
+    } else {
+      coverNameRuns = 
+        `<w:r><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:t xml:space="preserve">${esc(split.mainName)}</w:t></w:r>`;
+    }
+    const cleanCoverPara = '<w:p w:rsidR="00F86C5E" w:rsidRPr="0073313B" w:rsidRDefault="00F86C5E" w:rsidP="004C153B"><w:pPr><w:pStyle w:val="Title"/><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/></w:rPr></w:pPr>' +
+      coverNameRuns +
+      '<w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="124162"/><w:w w:val="90"/></w:rPr><w:br/></w:r>' +
+      '<w:r w:rsidRPr="0073313B"><w:rPr><w:color w:val="74B5E3"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:br/><w:t xml:space="preserve">Proposal Ref. No. </w:t></w:r>' +
+      '<w:r w:rsidR="008B026C"><w:rPr><w:color w:val="124162"/><w:spacing w:val="6"/><w:w w:val="75"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr><w:t>{refNo}</w:t></w:r></w:p>';
     xml = xml.substring(0, paraStart) + cleanCoverPara + xml.substring(paraEnd);
   }
 
@@ -914,10 +994,20 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
           `<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="9988" name="Client Logo"/><pic:cNvPicPr><a:picLocks noChangeAspect="1"/></pic:cNvPicPr></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>` +
           `</wp:inline></w:drawing></w:r></w:p></w:tc>`;
       } else {
+        const split = splitCompanyName(fields.companyName);
+        let nameRuns = '';
+        if (split.hasSub) {
+          nameRuns = 
+            `<w:r><w:rPr><w:rFonts w:ascii="Verdana" w:hAnsi="Verdana"/><w:b/><w:sz w:val="26"/><w:szCs w:val="26"/><w:color w:val="0B2A6F"/></w:rPr><w:t xml:space="preserve">${esc(split.mainName)}</w:t></w:r>` +
+            `<w:r><w:rPr><w:rFonts w:ascii="Verdana" w:hAnsi="Verdana"/><w:b/><w:sz w:val="22"/><w:szCs w:val="22"/><w:color w:val="0B2A6F"/></w:rPr><w:br/><w:t xml:space="preserve">${esc(split.subName)}</w:t></w:r>`;
+        } else {
+          nameRuns = 
+            `<w:r><w:rPr><w:rFonts w:ascii="Verdana" w:hAnsi="Verdana"/><w:b/><w:sz w:val="28"/><w:szCs w:val="28"/><w:color w:val="0B2A6F"/></w:rPr><w:t xml:space="preserve">${esc(split.mainName)}</w:t></w:r>`;
+        }
         clientLogoXml = 
           `<w:tc><w:tcPr><w:tcW w:w="5255" w:type="dxa"/><w:vAlign w:val="center"/></w:tcPr>` +
           `<w:p><w:pPr><w:jc w:val="right"/><w:spacing w:before="80" w:after="60"/></w:pPr>` +
-          `<w:r><w:rPr><w:rFonts w:ascii="Verdana" w:hAnsi="Verdana"/><w:b/><w:sz w:val="28"/><w:szCs w:val="28"/><w:color w:val="0B2A6F"/></w:rPr><w:t>{companyName}</w:t></w:r>` +
+          nameRuns +
           `</w:p></w:tc>`;
       }
       xml = xml.substring(0, cell2Start) + clientLogoXml + xml.substring(cell2End);
@@ -1019,6 +1109,32 @@ function buildDocx(fields, tocPages = TOC_TEMPLATE_PAGES, { letterLevel = 0, abo
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerNumber1"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amPhone}$2');
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="AccountManagerEmail"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{amEmail}$2');
   xml = xml.replace(/(<w:bookmarkStart\b[^>]*\bname="InvoiceDate"[^>]*>.*?<w:t>)[^<]*(<\/w:t>.*?<w:bookmarkEnd)/gs, '$1{proposalDate}$2');
+
+  // 8b. Letter page: center the entire letter symmetrically on the page with matching margins
+  const invIdx = xml.indexOf('SET InvoiceDate');
+  const tblIdx = xml.indexOf('002060', invIdx !== -1 ? invIdx : 0);
+  if (invIdx !== -1 && tblIdx !== -1) {
+    const pStart = xml.lastIndexOf('<w:p ', invIdx);
+    if (pStart !== -1) {
+      const letterChunk = xml.substring(pStart, tblIdx);
+      const letterInd = '<w:ind w:left="796" w:right="60"/>';
+      const modifiedChunk = letterChunk.replace(/<w:p\b[^>]*>.*?<\/w:p>/gs, (pXml) => {
+        if (pXml.includes('<w:pPr>')) {
+          if (/<w:ind\b[^>]*\/>/.test(pXml)) {
+            return pXml.replace(/<w:ind\b[^>]*\/>/, letterInd);
+          }
+          return pXml.replace('<w:pPr>', `<w:pPr>${letterInd}`);
+        } else if (pXml.includes('<w:pPr/>')) {
+          return pXml.replace('<w:pPr/>', `<w:pPr>${letterInd}</w:pPr>`);
+        } else if (/<w:pPr\b[^>]*>/.test(pXml)) {
+          return pXml.replace(/(<w:pPr\b[^>]*>)/, `$1${letterInd}`);
+        } else {
+          return pXml.replace(/(<w:p\b[^>]*>)/, `$1<w:pPr>${letterInd}</w:pPr>`);
+        }
+      });
+      xml = xml.substring(0, pStart) + modifiedChunk + xml.substring(tblIdx);
+    }
+  }
 
   // 9 & 10. Split ABOUT YOU and PROPOSED SOLUTION into standalone sections, removing components table & empty rows
   const pAbout = xml.lastIndexOf('ABOUT YOU');
@@ -1733,5 +1849,5 @@ function convertDocxToPdf(docxBuffer) {
   });
 }
 
-module.exports = { PRODUCTS, PRODUCT_BY_ID, suggestFor, recommendFor, generateFields, applyAgentProposal, renderDocx, renderProposal, docxToPdf };
+module.exports = { PRODUCTS, PRODUCT_BY_ID, suggestFor, recommendFor, generateFields, applyAgentProposal, renderDocx, renderProposal, docxToPdf, splitCompanyName };
 // Used by routes/proposals.js

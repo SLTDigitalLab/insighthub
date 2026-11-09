@@ -184,7 +184,7 @@ const Login = () => {
 
     try {
       const clientId = '437e0ec1-9151-438f-9ddb-d86e6e25527d';
-      const tenantId = '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
+      const tenantId = 'organizations';
       const redirectUri = encodeURIComponent(window.location.origin + '/login');
       const nonce = Math.random().toString(36).substring(2) + Date.now().toString(36);
 
@@ -322,7 +322,7 @@ const Login = () => {
             <ShieldCheck size={16} /> Enterprise Single Sign-On (SSO)
           </div>
           <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
-            Access is restricted to authorized Sri Lanka Telecom staff using verified <strong>@slt.com.lk</strong> Microsoft credentials.
+            Access is restricted to authorized SLT-Mobitel staff using verified <strong>@slt.com.lk</strong> or <strong>@mobitel.lk</strong> Microsoft credentials.
           </p>
         </div>
 

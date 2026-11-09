@@ -416,7 +416,7 @@ app.post('/api/lead-discovery', async (req, res) => {
 
     return res.json({
       success: true,
-      agent: "Lead Discovery (Live n8n Cloud)",
+      agent: "Find new businesses (Live n8n Cloud)",
       resultsCount: n8nResults ? n8nResults.length : 0,
       results: n8nResults || []
     });
@@ -892,7 +892,7 @@ app.post('/api/auth/ms-code-exchange', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Authorization code is required.' });
     }
 
-    const tenantId = process.env.AZURE_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
+    const tenantId = process.env.AZURE_TENANT_ID || 'organizations';
     const clientId = process.env.AZURE_CLIENT_ID || '437e0ec1-9151-438f-9ddb-d86e6e25527d';
     const clientOrigin = req.headers.origin || APP_BASE_URL;
     const finalRedirectUri = redirectUri || `${clientOrigin}/login`;
@@ -1012,7 +1012,7 @@ app.post('/api/auth/request-access', async (req, res) => {
         <div style="padding: 28px 36px;">
           <h2 style="color: #0f172a; margin: 0 0 16px; font-size: 18px;">New User Requesting Platform Access</h2>
           <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
-            A user has authenticated via Microsoft Entra ID (@slt.com.lk) and is requesting access to InsightHub:
+            A user has authenticated via Microsoft Entra ID (@slt.com.lk / @mobitel.lk) and is requesting access to InsightHub:
           </p>
 
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">

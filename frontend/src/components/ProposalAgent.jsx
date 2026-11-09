@@ -52,48 +52,107 @@ async function previewPdf(fields) {
   // pages = { cover, letter, requirements, about, solution, investment } -> PDF page numbers, for the quick-jump chips
 }
 
-export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null, onClearProposal = null }) {
-  // Read any saved draft session so tab switching or browser sleep never loses in-progress proposal
-  const savedSession = useMemo(() => {
+// Browser keepalive service: Uses Web Audio oscillator and WakeLock API to ensure that
+// when the user switches to other tabs (e.g. YouTube), Chrome treats this tab as an active media tab
+// and does NOT freeze timers, discard memory, or reload the page during proposal generation.
+class KeepAliveService {
+  constructor() {
+    this.ctx = null;
+    this.osc = null;
+    this.wakeLock = null;
+  }
+  async start() {
     try {
-      const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  }, []);
+      if (!this.ctx) {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (AudioCtx) {
+          this.ctx = new AudioCtx();
+          const osc = this.ctx.createOscillator();
+          const gain = this.ctx.createGain();
+          gain.gain.value = 0.00001; // Inaudible
+          osc.connect(gain);
+          gain.connect(this.ctx.destination);
+          osc.start();
+          this.osc = osc;
+        }
+      }
+      if (this.ctx && this.ctx.state === 'suspended') {
+        await this.ctx.resume();
+      }
+    } catch (e) {}
 
-  // user = logged-in rep's account details { name, email, designation, phone, division } (any missing one is ''); accent = this agent's sidebar colour
+    try {
+      if ('wakeLock' in navigator && !this.wakeLock) {
+        this.wakeLock = await navigator.wakeLock.request('screen');
+      }
+    } catch (e) {}
+  }
+  stop() {
+    try {
+      if (this.osc) {
+        this.osc.stop();
+        this.osc.disconnect();
+        this.osc = null;
+      }
+      if (this.ctx) {
+        this.ctx.close();
+        this.ctx = null;
+      }
+    } catch (e) {}
+
+    try {
+      if (this.wakeLock) {
+        this.wakeLock.release();
+        this.wakeLock = null;
+      }
+    } catch (e) {}
+  }
+}
+
+const keepAlive = new KeepAliveService();
+
+export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null, onClearProposal = null, onProposalGenerated = null }) {
+  // On direct visit, always open a fresh proposal generation page (Step 1: Search a business).
+  // Only open an existing proposal when initialProposal is explicitly passed (e.g. rep clicked "Edit" in Generated Proposals archive).
   const [step, setStep] = useState(() => {
     if (initialProposal?.fields) return 'edit';
-    if (savedSession?.step === 'edit' && savedSession?.fields) return 'edit';
-    if (savedSession?.step === 'products' && savedSession?.business) return 'products';
     return 'search';
   });
-  // 'search' -> 'products' -> 'edit'
 
   const [business, setBusiness] = useState(() => {
-    if (initialProposal) return initialProposal.business || { name: initialProposal.companyName, category: initialProposal.category, address: initialProposal.address };
-    if (savedSession?.business) return savedSession.business;
+    if (initialProposal) {
+      return initialProposal.business || {
+        name: initialProposal.companyName,
+        category: initialProposal.category,
+        address: initialProposal.address
+      };
+    }
     return null;
   });
 
   const [selected, setSelected] = useState(() => {
-    if (initialProposal) return Array.isArray(initialProposal.products) ? initialProposal.products.map(p => typeof p === 'object' ? p.id : p).filter(Boolean) : [];
-    if (Array.isArray(savedSession?.selected)) return savedSession.selected;
+    if (initialProposal) {
+      return Array.isArray(initialProposal.products)
+        ? initialProposal.products.map(p => typeof p === 'object' ? p.id : p).filter(Boolean)
+        : [];
+    }
     return [];
   });
 
   const [fields, setFields] = useState(() => {
     if (initialProposal?.fields) return initialProposal.fields;
-    if (savedSession?.fields) return savedSession.fields;
     return null;
   });
 
-  const [refFromSection, setRefFromSection] = useState(() => {
-    if (savedSession?.refFromSection !== undefined) return savedSession.refFromSection;
-    return true;
-  });
+  const [refFromSection, setRefFromSection] = useState(true);
+
+  // Clean up any legacy persistent storage so fresh proposals always start clean
+  useEffect(() => {
+    try {
+      localStorage.removeItem(ACTIVE_SESSION_KEY);
+      sessionStorage.removeItem('insightHub_activeProposalTabSession');
+    } catch {}
+  }, []);
 
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState('');
@@ -115,7 +174,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   const [preview, setPreview] = useState({ url: '', pages: {}, fields: null });
   // Last good preview: blob URL of the PDF, section pages, and the fields it was made from
   const [previewError, setPreviewError] = useState('');
-  const [viewMode, setViewMode] = useState(() => savedSession?.viewMode || 'doc');
+  const [viewMode, setViewMode] = useState('doc');
   // 'doc' (interactive live document sheet) | 'pdf' (LibreOffice PDF iframe)
   const [jump, setJump] = useState({ page: 1, n: 0 });
   // Page the preview is showing; n changes on every chip click so the viewer reloads at that page
@@ -123,7 +182,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   // 'editor' | 'preview' on screens <= 960px
   const urlRef = useRef('');
   const seq = useRef(0);
-  const contactEdits = useRef(savedSession?.contactEdits || {});
+  const contactEdits = useRef({});
   // Contact Us values the rep has typed (key -> value), kept across Generate for this session
   // urlRef = current blob URL (freed when replaced / on leaving); seq drops out-of-date preview responses
 
@@ -288,38 +347,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
     }
   }, [business?.category, catalogue.length]);
 
-  // Auto-persist active proposal session to localStorage (prevents loss on tab switch, sleep, or reload)
-  useEffect(() => {
-    if (step === 'edit' && fields && business) {
-      try {
-        const payload = {
-          step: 'edit',
-          business,
-          selected,
-          fields,
-          refFromSection,
-          contactEdits: contactEdits.current,
-          viewMode,
-          updatedAt: Date.now()
-        };
-        localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(payload));
-      } catch (err) {
-        console.warn('[proposalAgent/saveSession]', err);
-      }
-    } else if (step === 'products' && business) {
-      try {
-        const payload = {
-          step: 'products',
-          business,
-          selected,
-          updatedAt: Date.now()
-        };
-        localStorage.setItem(ACTIVE_SESSION_KEY, JSON.stringify(payload));
-      } catch {}
-    }
-  }, [step, fields, business, selected, refFromSection, viewMode]);
-
-  useEffect(() => {
+    useEffect(() => {
     if (initialProposal && initialProposal.fields) {
       setFields(initialProposal.fields);
       const b = initialProposal.business || { name: initialProposal.companyName, category: initialProposal.category, address: initialProposal.address };
@@ -330,19 +358,6 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
       refreshPreview(initialProposal.fields);
     }
   }, [initialProposal]);
-
-  // Reconnection and tab visibility recovery (e.g. returning from YouTube or other tabs)
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        if (step === 'edit' && fields && viewMode === 'pdf' && !preview.url && !previewing) {
-          refreshPreview(fields);
-        }
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [step, fields, viewMode, preview.url, previewing]);
 
   const [confirmFreshOpen, setConfirmFreshOpen] = useState(false);
 

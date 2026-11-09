@@ -28,24 +28,16 @@ import ConfirmModal from '../components/ConfirmModal';
 
 const agents = [
   {
-    id: 'allResults',
-    name: 'All Search Results (All Scores)',
-    icon: Compass,
-    desc: 'Unfiltered lead search showing ALL discovered businesses, hotels, and companies across Sri Lanka (High, Medium, and Low scores included).',
-    placeholder: 'e.g. "hotels in kandy", "travel agencies in galle", "software companies in colombo"',
-    color: '#6366f1'
-  },
-  {
     id: 'lead',
-    name: 'Lead Discovery & Prospecting',
+    name: 'Find new businesses',
     icon: Users,
-    desc: 'Find newly registered businesses and discover companies by industry, location, and size.',
-    placeholder: 'e.g. "Find tech startups in Colombo" or "Banking companies in Sri Lanka"',
+    desc: 'Find newly registered businesses and discover companies across Sri Lanka by industry, location, and size.',
+    placeholder: 'e.g. "hotels in kandy", "travel agencies in galle", "Find tech startups in Colombo"',
     color: '#0066FF'
   },
   {
     id: 'newBusinesses',
-    name: 'Find New Businesses',
+    name: 'Sunday Observer Registry',
     icon: Sparkles,
     desc: 'Discover newly registered companies from Sunday Observer monthly lists and match with SLT-Mobitel B2B solutions.',
     placeholder: 'e.g. "Find newly registered logistics companies in Colombo" or "List new businesses registered this month"',
@@ -518,6 +510,18 @@ const Dashboard = () => {
     setTimeout(() => setToast(null), 4000);
   };
 
+  const handleLogoClick = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    setActiveAgent(agents[0]);
+    setResults(null);
+    setError(null);
+    setPrompt('');
+    setTableSearch('');
+    setScoreFilter('all');
+    setMobileMenuOpen(false);
+    navigate('/');
+  };
+
   const handleLogout = () => {
     localStorage.removeItem('userEmail');
     localStorage.removeItem('userName');
@@ -542,9 +546,7 @@ const Dashboard = () => {
 
       let responseData = null;
 
-      if (activeAgent.id === 'allResults') {
-        responseData = await fetchAllSearchResults(prompt);
-      } else if (activeAgent.id === 'lead') {
+      if (activeAgent.id === 'lead') {
         responseData = await fetchLeadDiscovery(prompt);
       } else if (activeAgent.id === 'newBusinesses') {
         responseData = await fetchFindNewBusinesses(prompt);
@@ -587,7 +589,7 @@ const Dashboard = () => {
 
   const handleLoadMore = async () => {
     if (!prompt || loadingMore || !results) return;
-    if (activeAgent.id !== 'lead' && activeAgent.id !== 'allResults') return;
+    if (activeAgent.id !== 'lead') return;
     setLoadingMore(true);
 
     try {
@@ -605,9 +607,7 @@ const Dashboard = () => {
       console.log(`[InsightHub Gateway] Loading more results for "${activeAgent.name}" with prompt: "${morePrompt}"`);
 
       let responseData = null;
-      if (activeAgent.id === 'allResults') {
-        responseData = await fetchAllSearchResults(morePrompt);
-      } else if (activeAgent.id === 'lead') {
+      if (activeAgent.id === 'lead') {
         responseData = await fetchLeadDiscovery(morePrompt);
       }
 
@@ -774,11 +774,18 @@ const Dashboard = () => {
           >
             {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
           </button>
-          <img
-            src="/insighthub-logo.png"
-            alt="InsightHub Logo"
-            style={{ height: '32px', width: 'auto', objectFit: 'contain' }}
-          />
+          <a
+            href="/"
+            onClick={handleLogoClick}
+            title="Go to InsightHub Dashboard"
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', textDecoration: 'none' }}
+          >
+            <img
+              src="/insighthub-logo.png"
+              alt="InsightHub Logo"
+              style={{ height: '42px', width: 'auto', objectFit: 'contain' }}
+            />
+          </a>
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -816,16 +823,22 @@ const Dashboard = () => {
         className={`dashboard-sidebar ${mobileMenuOpen ? 'sidebar-open' : ''}`}
         style={{
           width: '300px',
+          height: '100vh',
+          maxHeight: '100vh',
           background: '#ffffff',
           borderRight: '1px solid #e2e8f0',
           display: 'flex',
           flexDirection: 'column',
           flexShrink: 0,
           boxShadow: '4px 0 20px rgba(0, 0, 0, 0.04)',
+          position: 'sticky',
+          top: 0,
+          left: 0,
+          overflow: 'hidden',
           zIndex: 10
         }}
       >
-        <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: '#ffffff', position: 'relative' }}>
+        <div style={{ padding: '1.25rem 1.25rem 1rem', borderBottom: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', background: '#ffffff', position: 'relative', flexShrink: 0 }}>
           {/* Close button inside sidebar on mobile */}
           <button
             type="button"
@@ -845,26 +858,56 @@ const Dashboard = () => {
           >
             <X size={18} />
           </button>
-          <div style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '0.25rem 0'
-          }}>
+          <a
+            href="/"
+            onClick={handleLogoClick}
+            title="Go to InsightHub Dashboard"
+            style={{
+              width: '100%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '0.35rem 0',
+              textDecoration: 'none',
+              cursor: 'pointer',
+              transition: 'transform 0.2s ease, opacity 0.2s ease'
+            }}
+            onMouseOver={(e) => { e.currentTarget.style.transform = 'scale(1.02)'; }}
+            onMouseOut={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+          >
             <img 
               src="/insighthub-logo.png" 
               alt="InsightHub Logo" 
-              style={{ maxHeight: '90px', maxWidth: '230px', width: '100%', height: 'auto', objectFit: 'contain' }} 
+              style={{
+                maxHeight: '135px',
+                maxWidth: '255px',
+                width: '100%',
+                height: 'auto',
+                objectFit: 'contain',
+                filter: 'drop-shadow(0 2px 8px rgba(0, 102, 255, 0.08))'
+              }} 
             />
-          </div>
-          <p style={{ color: '#64748b', fontSize: '0.75rem', fontWeight: 600, letterSpacing: '0.04em', marginTop: '0.25rem' }}>
-            SLT Mobitel
-          </p>
+            <p style={{ color: '#64748b', fontSize: '0.78rem', fontWeight: 600, letterSpacing: '0.04em', marginTop: '0.35rem' }}>
+              SLT Mobitel
+            </p>
+          </a>
         </div>
 
-        <div style={{ padding: '1rem 0.75rem', flex: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-          <p style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0.25rem 0.75rem 0.5rem' }}>AI Agents</p>
+        <div
+          className="sidebar-agents-scroll"
+          style={{
+            padding: '0.85rem 0.75rem',
+            flex: 1,
+            minHeight: 0,
+            overflowY: 'auto',
+            overflowX: 'hidden',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.4rem'
+          }}
+        >
+          <p style={{ color: '#94a3b8', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', padding: '0.25rem 0.75rem 0.5rem', flexShrink: 0 }}>AI Agents</p>
           {agents.map(agent => {
             const Icon = agent.icon;
             const isActive = activeAgent.id === agent.id;
@@ -875,7 +918,7 @@ const Dashboard = () => {
                 onClick={() => {
                   setMobileMenuOpen(false);
                   if (isProposalAgent && isAdmin) {
-                    window.open('/proposals', '_blank');
+                    window.open('/proposals', 'InsightHub_ProposalHub');
                     return;
                   }
                   setActiveAgent(agent);
@@ -921,7 +964,17 @@ const Dashboard = () => {
         </div>
 
 
-        <div style={{ padding: '1rem', borderTop: '1px solid #e2e8f0', display: 'flex', flexDirection: 'column', gap: '0.6rem', background: '#fafafa' }}>
+        <div style={{
+          padding: '0.85rem 1rem 1rem',
+          borderTop: '1px solid #e2e8f0',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '0.55rem',
+          background: '#ffffff',
+          flexShrink: 0,
+          marginTop: 'auto',
+          boxShadow: '0 -2px 10px rgba(0, 0, 0, 0.03)'
+        }}>
           {userEmail && (
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.8rem', color: '#64748b', padding: '0.25rem 0' }}>
               <Mail size={14} color="#64748b" />
@@ -1017,7 +1070,20 @@ const Dashboard = () => {
         </div>
       </div>
 
-      <div className="dashboard-main" style={{ flex: 1, padding: '2rem', display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
+      <div
+        className="dashboard-main"
+        style={{
+          flex: 1,
+          height: '100vh',
+          maxHeight: '100vh',
+          padding: '2rem',
+          display: 'flex',
+          flexDirection: 'column',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          boxSizing: 'border-box'
+        }}
+      >
         <div className="animate-fade-in" key={activeAgent.id} style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem', flexWrap: 'wrap' }}>
@@ -1035,83 +1101,6 @@ const Dashboard = () => {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-            <button
-              onClick={() => window.open('/search-history', '_blank')}
-              id="btn-search-history-header"
-              style={{
-                display: 'flex', alignItems: 'center', gap: '0.5rem',
-                background: '#ffffff', color: '#0f172a',
-                border: '1.5px solid #e2e8f0',
-                padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
-                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-                cursor: 'pointer', transition: 'all 0.2s'
-              }}
-              onMouseOver={(e) => {
-                e.currentTarget.style.borderColor = '#0066FF';
-                e.currentTarget.style.color = '#0066FF';
-                e.currentTarget.style.background = '#eff6ff';
-              }}
-              onMouseOut={(e) => {
-                e.currentTarget.style.borderColor = '#e2e8f0';
-                e.currentTarget.style.color = '#0f172a';
-                e.currentTarget.style.background = '#ffffff';
-              }}
-            >
-              <History size={17} color="#0066FF" /> Search History
-            </button>
-
-            {isAdmin && (
-              <button
-                onClick={() => window.open('/proposals', '_blank')}
-                id="btn-proposal-hub-header"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.5rem',
-                  background: '#ffffff', color: '#0284c7',
-                  border: '1.5px solid #0284c7',
-                  padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
-                  boxShadow: '0 2px 10px rgba(2, 132, 199, 0.08)',
-                  cursor: 'pointer', transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#f0f9ff';
-                  e.currentTarget.style.borderColor = '#0369a1';
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(2, 132, 199, 0.2)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = '#ffffff';
-                  e.currentTarget.style.borderColor = '#0284c7';
-                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(2, 132, 199, 0.08)';
-                }}
-              >
-                <ClipboardList size={17} color="#0284c7" /> Proposal Hub
-              </button>
-            )}
-
-            {isAdmin && (
-              <button
-                onClick={() => navigate('/admin')}
-                id="btn-admin-panel-header"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: '0.5rem',
-                  background: '#ffffff', color: '#0066FF',
-                  border: '1.5px solid #0066FF',
-                  padding: '0.75rem 1.25rem', borderRadius: '0.75rem', fontSize: '0.85rem', fontWeight: 700,
-                  boxShadow: '0 2px 10px rgba(0, 102, 255, 0.1)',
-                  cursor: 'pointer', transition: 'all 0.2s'
-                }}
-                onMouseOver={(e) => {
-                  e.currentTarget.style.background = '#eff6ff';
-                  e.currentTarget.style.boxShadow = '0 4px 15px rgba(0, 102, 255, 0.2)';
-                }}
-                onMouseOut={(e) => {
-                  e.currentTarget.style.background = '#ffffff';
-                  e.currentTarget.style.boxShadow = '0 2px 10px rgba(0, 102, 255, 0.1)';
-                }}
-              >
-                <ShieldCheck size={17} color="#0066FF" /> Admin Panel
-              </button>
-            )}
-
             {isAdmin && (
               <button
                 onClick={() => setShowKBModal(true)}
@@ -1377,7 +1366,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            {/* Score Filter Pills & Quick Table Search (for Lead Discovery & All Results) */}
+            {/* Score Filter Pills & Quick Table Search (for Find new businesses) */}
             {isLeadResults && (
               <div style={{
                 display: 'flex',
@@ -1592,8 +1581,8 @@ const Dashboard = () => {
               </table>
             </div>
 
-            {/* Load More Button - Strictly for Lead Discovery and Prospecting, and All Search Results */}
-            {(activeAgent.id === 'lead' || activeAgent.id === 'allResults') && results && results.length > 0 && (
+            {/* Load More Button - Strictly for Find new businesses */}
+            {activeAgent.id === 'lead' && results && results.length > 0 && (
               <div style={{
                 display: 'flex',
                 flexDirection: 'column',

@@ -5,6 +5,9 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   server: {
+    hmr: {
+      timeout: 120000
+    },
     proxy: {
       '/api/n8n': {
         target: 'https://sltrnddigitallab.app.n8n.cloud',

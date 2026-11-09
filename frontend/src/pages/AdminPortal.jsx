@@ -415,7 +415,14 @@ const AdminPortal = () => {
         position: 'sticky', top: 0, zIndex: 100
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-          <img src="/insighthub-logo.png" alt="InsightHub" style={{ height: '36px', width: 'auto' }} />
+          <a
+            href="/"
+            onClick={(e) => { e.preventDefault(); navigate('/'); }}
+            title="Go to InsightHub Dashboard"
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', textDecoration: 'none' }}
+          >
+            <img src="/insighthub-logo.png" alt="InsightHub" style={{ height: '46px', width: 'auto', objectFit: 'contain' }} />
+          </a>
           <div style={{ height: '24px', width: '1px', background: '#cbd5e1' }}></div>
           <div>
             <h1 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
@@ -756,13 +763,13 @@ const AdminPortal = () => {
               {/* 7. Email */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
-                  Email (@slt.com.lk) *
+                  Work Email (@slt.com.lk / @mobitel.lk) *
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                   <input
                     type="email"
-                    placeholder="user@slt.com.lk"
+                    placeholder="user@slt.com.lk or user@mobitel.lk"
                     value={inviteEmail}
                     onChange={(e) => setInviteEmail(e.target.value)}
                     required
