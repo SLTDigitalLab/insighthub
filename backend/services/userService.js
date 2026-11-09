@@ -477,6 +477,124 @@ class UserService {
     this.saveUsers();
     return true;
   }
+
+  generateLoginOtp(email) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const user = this.getUserByEmail(cleanEmail);
+    if (!user) {
+      return { success: false, error: 'No account found with this work email. Please request access first.' };
+    }
+    if (user.status !== 'approved' && user.role !== 'admin') {
+      return {
+        success: false,
+        status: user.status,
+        error: user.status === 'pending_approval'
+          ? 'Your access request is currently pending administrator verification.'
+          : 'Your access has been declined. Please contact your department administrator.'
+      };
+    }
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = Date.now() + 15 * 60 * 1000; // 15 mins
+    user.loginOtp = { code: otp, expiresAt };
+    this.saveUsers();
+
+    return { success: true, user, otp };
+  }
+
+  verifyLoginOtp(email, otp) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const cleanOtp = (otp || '').trim();
+    const user = this.getUserByEmail(cleanEmail);
+
+    if (!user) {
+      return { success: false, error: 'User not found.' };
+    }
+    if (user.status !== 'approved' && user.role !== 'admin') {
+      return { success: false, error: 'User account is not approved.' };
+    }
+    if (!user.loginOtp || !user.loginOtp.code) {
+      return { success: false, error: 'No active verification code found. Please request a new code.' };
+    }
+    if (Date.now() > user.loginOtp.expiresAt) {
+      user.loginOtp = null;
+      this.saveUsers();
+      return { success: false, error: 'Verification code has expired. Please request a new one.' };
+    }
+    if (user.loginOtp.code !== cleanOtp) {
+      return { success: false, error: 'Incorrect verification code. Please check your email and try again.' };
+    }
+
+    user.loginOtp = null;
+    user.lastLoginAt = new Date().toISOString();
+    this.saveUsers();
+
+    return {
+      success: true,
+      approved: true,
+      role: user.role || 'user',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        company: user.company || (user.email.endsWith('@mobitel.lk') ? 'Mobitel' : 'SLT'),
+        section: user.section || user.department,
+        designation: user.designation,
+        serviceNumber: user.serviceNumber,
+        mobileNumber: user.mobileNumber
+      }
+    };
+  }
+
+  generateLoginToken(email) {
+    const cleanEmail = (email || '').trim().toLowerCase();
+    const user = this.getUserByEmail(cleanEmail);
+    if (!user) return null;
+
+    const token = crypto.randomBytes(24).toString('hex');
+    user.magicLoginToken = {
+      token,
+      expiresAt: Date.now() + 48 * 60 * 60 * 1000 // 48 hours
+    };
+    this.saveUsers();
+    return token;
+  }
+
+  verifyLoginToken(token) {
+    if (!token) return { success: false, error: 'Missing token.' };
+    const cleanToken = token.trim();
+    const user = this.users.find(u => u.magicLoginToken?.token === cleanToken);
+
+    if (!user) {
+      return { success: false, error: 'Invalid or expired login link.' };
+    }
+    if (Date.now() > (user.magicLoginToken?.expiresAt || 0)) {
+      user.magicLoginToken = null;
+      this.saveUsers();
+      return { success: false, error: 'Login link has expired. Please request a new verification code.' };
+    }
+
+    user.lastLoginAt = new Date().toISOString();
+    this.saveUsers();
+
+    return {
+      success: true,
+      approved: true,
+      role: user.role || 'user',
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        company: user.company || (user.email.endsWith('@mobitel.lk') ? 'Mobitel' : 'SLT'),
+        section: user.section || user.department,
+        designation: user.designation,
+        serviceNumber: user.serviceNumber,
+        mobileNumber: user.mobileNumber
+      }
+    };
+  }
 }
 
 module.exports = new UserService();
