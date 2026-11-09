@@ -2,6 +2,20 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 
+const SLT_SECTIONS = [
+  'Enterprise Large',
+  'Enterprise Medium',
+  'Government',
+  'Carrier business',
+  'REBM'
+];
+
+const MOBITEL_SECTIONS = [
+  'Mobitel SME',
+  'Mobitel LB',
+  'Mobitel MB'
+];
+
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const USERS_FILE = path.join(DATA_DIR, 'users.json');
 

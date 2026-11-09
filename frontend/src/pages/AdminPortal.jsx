@@ -7,12 +7,23 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-export const ENTERPRISE_SECTIONS = [
+export const SLT_SECTIONS = [
   'Enterprise Large',
   'Enterprise Medium',
   'Government',
   'Carrier business',
   'REBM'
+];
+
+export const MOBITEL_SECTIONS = [
+  'Mobitel SME',
+  'Mobitel LB',
+  'Mobitel MB'
+];
+
+export const ENTERPRISE_SECTIONS = [
+  ...SLT_SECTIONS,
+  ...MOBITEL_SECTIONS
 ];
 
 export const REBM_SUB_SECTIONS = [
@@ -44,7 +55,8 @@ const AdminPortal = () => {
   const [subSectionFilter, setSubSectionFilter] = useState('all');
   const [designationFilter, setDesignationFilter] = useState('all');
 
-  // Structured Invite User Form State (5 Enterprise Sections & 19 REBM Sub-Sections)
+  // Structured Invite User Form State (SLT vs Mobitel Organizations & Sections)
+  const [inviteCompany, setInviteCompany] = useState('SLT'); // 'SLT' | 'Mobitel'
   const [inviteSection, setInviteSection] = useState('Enterprise Large');
   const [inviteSubSection, setInviteSubSection] = useState('WPC1');
   const [inviteDesignation, setInviteDesignation] = useState('Account Manager');
@@ -192,13 +204,14 @@ const AdminPortal = () => {
         {
           email: inviteEmail.trim(),
           name: inviteFullName.trim(),
+          company: inviteCompany,
           section: inviteSection,
-          subSection: inviteSection === 'REBM' ? inviteSubSection : '',
+          subSection: inviteCompany === 'SLT' && inviteSection === 'REBM' ? inviteSubSection : '',
           designation: inviteDesignation,
-          userType: inviteSection === 'REBM'
+          userType: inviteCompany === 'SLT' && inviteSection === 'REBM'
             ? `REBM - ${inviteSubSection} (${inviteDesignation})`
             : `${inviteSection} (${inviteDesignation})`,
-          rebmArea: inviteSection === 'REBM' ? inviteSubSection : '',
+          rebmArea: inviteCompany === 'SLT' && inviteSection === 'REBM' ? inviteSubSection : '',
           serviceNumber: inviteServiceNumber.trim(),
           mobileNumber: inviteMobileNumber.trim(),
           role: inviteRole,
@@ -566,9 +579,16 @@ const AdminPortal = () => {
               }}
             >
               <option value="all">All Sections</option>
-              {ENTERPRISE_SECTIONS.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              <optgroup label="SLT Sections">
+                {SLT_SECTIONS.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Mobitel Sections">
+                {MOBITEL_SECTIONS.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </optgroup>
             </select>
 
             {/* REBM Sub-Section Filter */}
@@ -642,15 +662,56 @@ const AdminPortal = () => {
                 Pre-Authorize & Add User
               </h3>
               <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                Select the user's <strong>Enterprise Section</strong>, <strong>REBM Sub-Section</strong> (if applicable), <strong>Status / Designation</strong> (Section Manager or Account Manager), and employee credentials.
+                Select whether the user is <strong>SLT (Telecom)</strong> or <strong>Mobitel</strong>, choose their section, status / designation, and employee credentials.
               </p>
             </div>
 
             <form onSubmit={handleInviteUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', alignItems: 'flex-end' }}>
-              {/* 1. Section Dropdown */}
+              {/* 1. Organization: SLT vs Mobitel */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
-                  Section *
+                  Organization *
+                </label>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInviteCompany('SLT');
+                      setInviteSection('Enterprise Large');
+                    }}
+                    style={{
+                      flex: 1, padding: '0.65rem 0.4rem', fontSize: '0.85rem', fontWeight: 700,
+                      borderRadius: '0.65rem', cursor: 'pointer', transition: 'all 0.15s ease',
+                      border: inviteCompany === 'SLT' ? '2px solid #0066FF' : '1px solid #cbd5e1',
+                      background: inviteCompany === 'SLT' ? '#eff6ff' : '#ffffff',
+                      color: inviteCompany === 'SLT' ? '#0066FF' : '#475569'
+                    }}
+                  >
+                    SLT (Telecom)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInviteCompany('Mobitel');
+                      setInviteSection('Mobitel SME');
+                    }}
+                    style={{
+                      flex: 1, padding: '0.65rem 0.4rem', fontSize: '0.85rem', fontWeight: 700,
+                      borderRadius: '0.65rem', cursor: 'pointer', transition: 'all 0.15s ease',
+                      border: inviteCompany === 'Mobitel' ? '2px solid #10b981' : '1px solid #cbd5e1',
+                      background: inviteCompany === 'Mobitel' ? '#ecfdf5' : '#ffffff',
+                      color: inviteCompany === 'Mobitel' ? '#059669' : '#475569'
+                    }}
+                  >
+                    Mobitel
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Section Dropdown (Dynamic based on SLT or Mobitel) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  {inviteCompany === 'Mobitel' ? 'Mobitel Section *' : 'SLT Section *'}
                 </label>
                 <select
                   value={inviteSection}
@@ -660,14 +721,14 @@ const AdminPortal = () => {
                     border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
                   }}
                 >
-                  {ENTERPRISE_SECTIONS.map(sec => (
+                  {(inviteCompany === 'Mobitel' ? MOBITEL_SECTIONS : SLT_SECTIONS).map(sec => (
                     <option key={sec} value={sec}>{sec}</option>
                   ))}
                 </select>
               </div>
 
-              {/* 2. REBM Sub-Section Dropdown (Only shown if Section is REBM) */}
-              {inviteSection === 'REBM' && (
+              {/* 3. REBM Sub-Section Dropdown (Only shown if SLT and Section is REBM) */}
+              {inviteCompany === 'SLT' && inviteSection === 'REBM' && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
                     REBM Sub-Section (19 Areas) *
@@ -771,7 +832,17 @@ const AdminPortal = () => {
                     type="email"
                     placeholder="user@slt.com.lk or user@mobitel.lk"
                     value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setInviteEmail(val);
+                      if (val.toLowerCase().includes('@mobitel.lk') && inviteCompany !== 'Mobitel') {
+                        setInviteCompany('Mobitel');
+                        setInviteSection('Mobitel SME');
+                      } else if (val.toLowerCase().includes('@slt.com.lk') && inviteCompany !== 'SLT') {
+                        setInviteCompany('SLT');
+                        setInviteSection('Enterprise Large');
+                      }
+                    }}
                     required
                     style={{
                       width: '100%', padding: '0.7rem 0.85rem 0.7rem 2.3rem', fontSize: '0.88rem',
@@ -850,10 +921,11 @@ const AdminPortal = () => {
                   const isSectionMgr = (u.designation && u.designation.toLowerCase().includes('section')) ||
                                        (u.userType && u.userType.toLowerCase().includes('section'));
                   const displayDesignation = isSectionMgr ? 'Section Manager' : 'Account Manager';
+                  const isMobitel = u.company === 'Mobitel' || MOBITEL_SECTIONS.includes(u.section);
                   const isRebm = u.section === 'REBM' || (u.userType && u.userType.includes('REBM')) || !!u.rebmArea;
                   const displaySection = isRebm
                     ? `REBM - ${u.subSection || u.rebmArea || ''}`
-                    : (u.section || u.department || 'Enterprise Large');
+                    : (u.section || u.department || (isMobitel ? 'Mobitel SME' : 'Enterprise Large'));
 
                   return (
                     <tr key={u.id || u.email} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
@@ -891,9 +963,9 @@ const AdminPortal = () => {
                           display: 'inline-flex', alignItems: 'center',
                           fontSize: '0.75rem', fontWeight: 700,
                           padding: '0.25rem 0.65rem', borderRadius: '0.4rem',
-                          background: isRebm ? '#f0fdf4' : '#f8fafc',
-                          color: isRebm ? '#166534' : '#0f172a',
-                          border: `1px solid ${isRebm ? '#bbf7d0' : '#cbd5e1'}`
+                          background: isMobitel ? '#ecfdf5' : (isRebm ? '#f0fdf4' : '#eff6ff'),
+                          color: isMobitel ? '#059669' : (isRebm ? '#166534' : '#0066FF'),
+                          border: `1px solid ${isMobitel ? '#a7f3d0' : (isRebm ? '#bbf7d0' : '#bfdbfe')}`
                         }}>
                           {displaySection}
                         </span>

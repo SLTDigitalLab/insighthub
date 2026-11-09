@@ -15,7 +15,7 @@ const LOCK_STALE_MS = 10000;
 const LOCK_WAIT_MS = 15000;
 // How long a request waits for the lock before giving up
 
-const PREFIXES = { 'Enterprise Large': 'EL', 'Enterprise Medium': 'EM', Government: 'G', 'Carrier business': 'CB', REBM: 'REBM' };
+const PREFIXES = { 'Enterprise Large': 'EL', 'Enterprise Medium': 'EM', Government: 'G', 'Carrier business': 'CB', REBM: 'REBM', 'Mobitel SME': 'MSME', 'Mobitel LB': 'MLB', 'Mobitel MB': 'MMB' };
 // The 5 Section values of the Request Access / Pre-Authorize forms -> reference prefix
 const NEUTRAL_PREFIX = 'SLT';
 // Used when the account has no Section and no usable department (never a made-up section)

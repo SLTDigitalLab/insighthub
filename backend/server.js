@@ -966,7 +966,7 @@ app.post('/api/auth/verify-access', (req, res) => {
 // 2. Self-Service Access Request (From Microsoft Authenticated User)
 app.post('/api/auth/request-access', async (req, res) => {
   try {
-    const { name, email, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, note } = req.body;
+    const { name, email, company, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, note } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -978,7 +978,8 @@ app.post('/api/auth/request-access', async (req, res) => {
     const result = userService.requestAccess({
       name: name || email.split('@')[0],
       email: email,
-      section: section || 'Enterprise Large',
+      company: company || (email.toLowerCase().includes('@mobitel.lk') ? 'Mobitel' : 'SLT'),
+      section: section || (email.toLowerCase().includes('@mobitel.lk') ? 'Mobitel SME' : 'Enterprise Large'),
       subSection: subSection || rebmArea || '',
       designation: designation || 'Account Manager',
       userType,
@@ -1127,7 +1128,7 @@ app.post('/api/admin/invite-user', async (req, res) => {
     if (!verifyAdminRequest(req)) {
       return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
     }
-    const { email, name, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, role, invitedBy } = req.body;
+    const { email, name, company, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, role, invitedBy } = req.body;
 
     if (!email) {
       return res.status(400).json({ success: false, error: 'Email address is required.' });
@@ -1136,7 +1137,8 @@ app.post('/api/admin/invite-user', async (req, res) => {
     const { user, isNew } = userService.inviteUser({
       email,
       name,
-      section: section || 'Enterprise Large',
+      company: company || (email.toLowerCase().includes('@mobitel.lk') ? 'Mobitel' : 'SLT'),
+      section: section || (email.toLowerCase().includes('@mobitel.lk') ? 'Mobitel SME' : 'Enterprise Large'),
       subSection: subSection || rebmArea || '',
       designation: designation || 'Account Manager',
       userType,

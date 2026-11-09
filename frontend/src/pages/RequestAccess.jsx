@@ -3,12 +3,23 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, Mail, User, Building, Briefcase, FileText, ArrowRight, CheckCircle, Clock, AlertCircle, Loader2, LogOut } from 'lucide-react';
 import axios from 'axios';
 
-export const ENTERPRISE_SECTIONS = [
+export const SLT_SECTIONS = [
   'Enterprise Large',
   'Enterprise Medium',
   'Government',
   'Carrier business',
   'REBM'
+];
+
+export const MOBITEL_SECTIONS = [
+  'Mobitel SME',
+  'Mobitel LB',
+  'Mobitel MB'
+];
+
+export const ENTERPRISE_SECTIONS = [
+  ...SLT_SECTIONS,
+  ...MOBITEL_SECTIONS
 ];
 
 export const REBM_SUB_SECTIONS = [
@@ -28,6 +39,7 @@ const RequestAccess = () => {
 
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
+  const [company, setCompany] = useState('SLT');
   const [section, setSection] = useState('Enterprise Large');
   const [subSection, setSubSection] = useState('WPC1');
   const [designation, setDesignation] = useState('Account Manager');
@@ -50,6 +62,14 @@ const RequestAccess = () => {
 
     setEmail(storedEmail);
     setName(storedName || storedEmail.split('@')[0]);
+
+    if (storedEmail.toLowerCase().includes('@mobitel.lk')) {
+      setCompany('Mobitel');
+      setSection('Mobitel SME');
+    } else {
+      setCompany('SLT');
+      setSection('Enterprise Large');
+    }
 
     // Check if already approved or pending
     checkCurrentStatus(storedEmail);
@@ -90,13 +110,14 @@ const RequestAccess = () => {
       const res = await axios.post('/api/auth/request-access', {
         name: name.trim(),
         email: email.trim(),
+        company,
         section,
-        subSection: section === 'REBM' ? subSection : '',
+        subSection: company === 'SLT' && section === 'REBM' ? subSection : '',
         designation,
-        userType: section === 'REBM'
+        userType: company === 'SLT' && section === 'REBM'
           ? `REBM - ${subSection} (${designation})`
           : `${section} (${designation})`,
-        rebmArea: section === 'REBM' ? subSection : '',
+        rebmArea: company === 'SLT' && section === 'REBM' ? subSection : '',
         serviceNumber: serviceNumber.trim(),
         mobileNumber: mobileNumber.trim(),
         note: note.trim()
@@ -260,7 +281,47 @@ const RequestAccess = () => {
 
             <div>
               <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
-                Enterprise Section *
+                Organization *
+              </label>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompany('SLT');
+                    setSection('Enterprise Large');
+                  }}
+                  style={{
+                    flex: 1, padding: '0.7rem 0.5rem', fontSize: '0.86rem', fontWeight: 700,
+                    borderRadius: '0.75rem', cursor: 'pointer', transition: 'all 0.15s ease',
+                    border: company === 'SLT' ? '2px solid #0066FF' : '1px solid #cbd5e1',
+                    background: company === 'SLT' ? '#eff6ff' : '#ffffff',
+                    color: company === 'SLT' ? '#0066FF' : '#475569'
+                  }}
+                >
+                  SLT (Telecom)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCompany('Mobitel');
+                    setSection('Mobitel SME');
+                  }}
+                  style={{
+                    flex: 1, padding: '0.7rem 0.5rem', fontSize: '0.86rem', fontWeight: 700,
+                    borderRadius: '0.75rem', cursor: 'pointer', transition: 'all 0.15s ease',
+                    border: company === 'Mobitel' ? '2px solid #10b981' : '1px solid #cbd5e1',
+                    background: company === 'Mobitel' ? '#ecfdf5' : '#ffffff',
+                    color: company === 'Mobitel' ? '#059669' : '#475569'
+                  }}
+                >
+                  Mobitel
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
+                {company === 'Mobitel' ? 'Mobitel Section *' : 'SLT Section *'}
               </label>
               <div style={{ position: 'relative' }}>
                 <Briefcase size={16} style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
@@ -272,14 +333,14 @@ const RequestAccess = () => {
                     border: '1px solid #cbd5e1', borderRadius: '0.75rem', outline: 'none', background: '#ffffff', color: '#0f172a'
                   }}
                 >
-                  {ENTERPRISE_SECTIONS.map(s => (
+                  {(company === 'Mobitel' ? MOBITEL_SECTIONS : SLT_SECTIONS).map(s => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
               </div>
             </div>
 
-            {section === 'REBM' && (
+            {company === 'SLT' && section === 'REBM' && (
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#334155', marginBottom: '0.35rem' }}>
                   REBM Sub-Section (19 Areas) *
