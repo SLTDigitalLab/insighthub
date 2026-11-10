@@ -4,7 +4,7 @@
  * Directory (Tenant) ID: 534253fc-dfb6-462f-b5ca-cbe81939f5ee
  */
 const clientId = import.meta.env.VITE_MSAL_CLIENT_ID || "437e0ec1-9151-438f-9ddb-d86e6e25527d";
-const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || "organizations";
+const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || "534253fc-dfb6-462f-b5ca-cbe81939f5ee";
 
 export const msalConfig = {
     auth: {

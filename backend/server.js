@@ -884,6 +884,28 @@ const sendEmailNotification = async ({ toEmail, subject, htmlBody }) => {
 // MICROSOFT SSO & ACCESS CONTROL ROUTES
 // ==========================================
 
+// Extract corporate work email from Entra ID token claims, normalizing B2B guest #EXT# UPNs if needed
+const extractEmailFromClaims = (payload = {}) => {
+  const candidates = [payload.email, payload.preferred_username, payload.upn, payload.unique_name];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const val = String(raw).toLowerCase().trim();
+    if (!val.includes('#ext#')) return val;
+  }
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const val = String(raw).toLowerCase().trim();
+    if (val.includes('#ext#')) {
+      const prefix = val.split('#ext#')[0];
+      const splitIdx = prefix.lastIndexOf('_');
+      if (splitIdx > 0) {
+        return `${prefix.slice(0, splitIdx)}@${prefix.slice(splitIdx + 1)}`;
+      }
+    }
+  }
+  return '';
+};
+
 // 0. Microsoft OAuth Code Exchange Fallback Endpoint
 app.post('/api/auth/ms-code-exchange', async (req, res) => {
   try {
@@ -892,7 +914,7 @@ app.post('/api/auth/ms-code-exchange', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Authorization code is required.' });
     }
 
-    const tenantId = process.env.AZURE_TENANT_ID || 'organizations';
+    const tenantId = process.env.AZURE_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
     const clientId = process.env.AZURE_CLIENT_ID || '437e0ec1-9151-438f-9ddb-d86e6e25527d';
     const clientOrigin = req.headers.origin || APP_BASE_URL;
     const finalRedirectUri = redirectUri || `${clientOrigin}/login`;
@@ -917,8 +939,8 @@ app.post('/api/auth/ms-code-exchange', async (req, res) => {
     if (tokenData.id_token) {
       const parts = tokenData.id_token.split('.');
       if (parts.length >= 2) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        email = (payload.email || payload.preferred_username || payload.upn || payload.unique_name || '').toLowerCase().trim();
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        email = extractEmailFromClaims(payload);
         name = payload.name || payload.given_name || (email ? email.split('@')[0] : '');
       }
     }
