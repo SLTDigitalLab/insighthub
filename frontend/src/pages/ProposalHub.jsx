@@ -4,12 +4,20 @@ import {
   FileText, Upload, Download, Trash2, Building2, Sparkles, Clock,
   ShieldCheck, CheckCircle2, AlertCircle, ArrowLeft, RefreshCw, FileUp,
   Layers, ExternalLink, Calendar, User, Search, Eye, FileSpreadsheet,
-  HelpCircle, ChevronRight, Check, Info, FileCode, RotateCcw
+  HelpCircle, ChevronRight, ChevronDown, Check, Info, FileCode, RotateCcw
 } from 'lucide-react';
 import axios from 'axios';
+import { downloadProposalStepFile } from '../api';
+import { currentStepOf, stepName, allRefsOf, currentStatusOf, rowActionOf } from '../utils/proposalSteps';
 import ProposalAgent from '../components/ProposalAgent';
+import ProposalStatusPanel, { STATUS_OPTIONS } from '../components/ProposalStatusPanel';
 import ProposalMaintenance from '../components/ProposalMaintenance';
 import ConfirmModal from '../components/ConfirmModal';
+import SolutionTemplatePanel from '../components/SolutionTemplatePanel';
+import ProductSolutionTemplatePanel from '../components/ProductSolutionTemplatePanel';
+import ProposalHubHeader from '../components/ProposalHubHeader';
+
+const statusOf = p => currentStatusOf(p); // one shared helper decides the current status of a row
 
 export default function ProposalHub() {
   const navigate = useNavigate();
@@ -18,6 +26,7 @@ export default function ProposalHub() {
   const [activeTab, setActiveTab] = useState(activeTabParam);
 
   const [isAdmin, setIsAdmin] = useState(false);
+  const [canDelete, setCanDelete] = useState(false); // admin or Section Manager
   const [userEmail, setUserEmail] = useState('');
   const [userName, setUserName] = useState('');
   const [proposalUser, setProposalUser] = useState(null);
@@ -35,9 +44,12 @@ export default function ProposalHub() {
 
   // Template management state
   const [templateMeta, setTemplateMeta] = useState(null);
+  const [templateVersions, setTemplateVersions] = useState([]); // every stored template version, newest first
   const [templateLoading, setTemplateLoading] = useState(false);
   const [uploadingTemplate, setUploadingTemplate] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
+  const [templateType, setTemplateType] = useState(() => (['solution', 'productSolution'].includes(searchParams.get('type')) ? searchParams.get('type') : 'product')); // which template the 'Upload Latest Template' tab manages: 'product' | 'solution' | 'productSolution' (?type= opens one directly)
+  const [uploadResult, setUploadResult] = useState(null);
 
   // Saved proposals state
   const [savedProposals, setSavedProposals] = useState([]);
@@ -45,6 +57,8 @@ export default function ProposalHub() {
   const [proposalSearch, setProposalSearch] = useState('');
   const [selectedProposal, setSelectedProposal] = useState(null);
   const [exportingId, setExportingId] = useState(null);
+  const [viewOnly, setViewOnly] = useState(false); // a Confirmed / Completed product proposal opened with View
+  const [expandedRef, setExpandedRef] = useState(searchParams.get('expand') || null); // refNo of the archive row whose version/status panel is open (one at a time)
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
@@ -60,6 +74,8 @@ export default function ProposalHub() {
     const adminEmails = ['dineshpi@slt.com.lk', '020601@intranet.slt.com.lk', 'lahirus@slt.com.lk'];
     const adminRole = localStorage.getItem('userRole') === 'admin' || adminEmails.includes(email);
     setIsAdmin(adminRole);
+    // Delete is for admins and Section Managers only (Account Managers do not see it)
+    setCanDelete(adminRole || /section\s*manager/i.test(localStorage.getItem('userDesignation') || ''));
 
     fetchTemplateInfo();
     fetchSavedProposals();
@@ -93,6 +109,12 @@ export default function ProposalHub() {
     try {
       const { data } = await axios.get('/api/proposals/template/info');
       if (data.template) setTemplateMeta(data.template);
+      try {
+        const { data: all } = await axios.get('/api/proposals/templates');
+        if (Array.isArray(all.templates)) setTemplateVersions(all.templates);
+      } catch (err) {
+        console.warn('[ProposalHub] Template versions fetch error:', err.message);
+      }
     } catch (err) {
       console.warn('[ProposalHub] Template info fetch error:', err.message);
     } finally {
@@ -116,6 +138,7 @@ export default function ProposalHub() {
 
   const handleTemplateUpload = async (e) => {
     e.preventDefault();
+    if (uploadingTemplate) return; // one upload at a time
     if (!selectedFile) {
       showToast('Please select a Microsoft Word (.docx) file first.', 'error');
       return;
@@ -126,20 +149,26 @@ export default function ProposalHub() {
     }
 
     setUploadingTemplate(true);
-    showToast('Uploading .docx template directly...', 'info');
+    setUploadResult(null);
+    showToast('Analysing the template...', 'info');
     const formData = new FormData();
     formData.append('template', selectedFile);
     formData.append('adminEmail', userEmail || 'admin');
 
     try {
-      const { data } = await axios.post('/api/proposals/template/upload', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      // One step: the server analyses the file, writes the fill-in tags into a copy, cleans it and makes it the active template
+      const { data } = await axios.post('/api/proposals/templates/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 300000
       });
-      showToast(data.message || 'Latest proposal template updated successfully!');
+      showToast(`Template version ${data.version} is now the active template.`);
+      setUploadResult(data);
       setSelectedFile(null);
       fetchTemplateInfo();
+      window.dispatchEvent(new Event('proposal-template-changed')); // the editor's logo card re-reads the template info
     } catch (err) {
-      showToast(err.response?.data?.error || 'Failed to upload proposal template.', 'error');
+      const problems = err.response?.data?.problems;
+      showToast([err.response?.data?.error || 'Failed to upload proposal template.', ...(problems || [])].join(' '), 'error');
     } finally {
       setUploadingTemplate(false);
     }
@@ -161,6 +190,7 @@ export default function ProposalHub() {
           const { data } = await axios.post('/api/proposals/template/reset');
           showToast(data.message || 'Template restored to official system default!');
           fetchTemplateInfo();
+          window.dispatchEvent(new Event('proposal-template-changed')); // the editor's logo card re-reads the template info
         } catch (err) {
           showToast(err.response?.data?.error || 'Failed to restore default template.', 'error');
         } finally {
@@ -170,8 +200,35 @@ export default function ProposalHub() {
     });
   };
 
+  const handleRestoreVersion = (v) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `Restore Version ${v.version}?`,
+      message: `Make version ${v.version} (${v.filename}, uploaded ${v.uploadedAt ? new Date(v.uploadedAt).toLocaleString() : 'earlier'}) the active template again? New proposals will be generated from it.`,
+      confirmText: 'Yes, Restore This Version',
+      cancelText: 'Keep Current Template',
+      variant: 'warning',
+      icon: <RotateCcw size={24} color="#d97706" />,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          setUploadingTemplate(true);
+          await axios.post(`/api/proposals/templates/${v.id}/activate`);
+          showToast(`Template version ${v.version} is now the active template.`);
+          fetchTemplateInfo();
+          window.dispatchEvent(new Event('proposal-template-changed')); // the editor's logo card re-reads the template info
+        } catch (err) {
+          showToast(err.response?.data?.error || 'Failed to restore this template version.', 'error');
+        } finally {
+          setUploadingTemplate(false);
+        }
+      }
+    });
+  };
+
   const handleStartFreshProposal = () => {
     setSelectedProposal(null);
+    setViewOnly(false);
     try {
       localStorage.removeItem('insightHub_activeProposalSession');
       sessionStorage.removeItem('insightHub_activeProposalTabSession');
@@ -190,7 +247,7 @@ export default function ProposalHub() {
       onConfirm: async () => {
         setConfirmModal(prev => ({ ...prev, isOpen: false }));
         try {
-          await axios.delete(`/api/proposals/saved/${id}`);
+          await axios.delete(`/api/proposals/saved/${id}`, { headers: { 'x-user-email': userEmail } }); // the backend checks who is deleting
           showToast('Proposal removed from system.');
           setSavedProposals(prev => prev.filter(p => p.id !== id && p.refNo !== id));
           if (selectedProposal && (selectedProposal.id === id || selectedProposal.refNo === id)) {
@@ -208,19 +265,12 @@ export default function ProposalHub() {
     setExportingId(propKey);
     try {
       showToast(`Generating ${format.toUpperCase()} export...`, 'info');
-      const res = await axios.post('/api/proposals/export', {
-        fields: proposal.fields,
-        format
-      }, {
-        responseType: 'blob'
-      });
-      const blob = new Blob([res.data], {
-        type: format === 'pdf' ? 'application/pdf' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      });
+      // The Word / PDF of the CURRENT step (built from its content snapshot the first time if it is not stored yet)
+      const { blob, fileName } = await downloadProposalStepFile(proposal.id, format, undefined, userEmail);
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.setAttribute('download', `${proposal.refNo || 'Proposal'}_${(proposal.companyName || 'Enterprise').replace(/[^a-z0-9]/gi, '_')}.${format}`);
+      link.setAttribute('download', fileName);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -228,18 +278,64 @@ export default function ProposalHub() {
       showToast(`${format.toUpperCase()} downloaded successfully!`);
     } catch (err) {
       console.error('Export error:', err);
-      showToast(`Failed to export ${format.toUpperCase()}.`, 'error');
+      let reason = '';
+      try { const body = err.response && err.response.data; reason = (body instanceof Blob ? JSON.parse(await body.text()) : body || {}).error || ''; } catch { /* no reason available */ }
+      showToast(reason || `Failed to export ${format.toUpperCase()}.`, 'error');
     } finally {
       setExportingId(null);
     }
+  };
+
+  // Opens a saved proposal in the editor (solution proposals have their own page)
+  const handleEditProposal = item => {
+    setViewOnly(false);
+    if (item.proposalType === 'solution') {
+      navigate(`/proposals/solution?ref=${encodeURIComponent(item.id)}`);
+      return;
+    }
+    if (item.proposalType === 'productSolution') {
+      navigate(`/proposals/product-solution?ref=${encodeURIComponent(item.id)}`);
+      return;
+    }
+    setSelectedProposal(item);
+    handleTabChange('generator');
+  };
+
+  // View (Confirmed / Completed): the same screens as Edit, read-only (solution proposals have their own pages and read their status themselves)
+  const handleViewProposal = item => {
+    if (item.proposalType === 'solution' || item.proposalType === 'productSolution') return handleEditProposal(item);
+    setSelectedProposal(item);
+    setViewOnly(true);
+    handleTabChange('generator');
+  };
+
+  // Back from a read-only view: the archive, with the same row still expanded
+  const handleViewBack = () => {
+    setSelectedProposal(null);
+    setViewOnly(false);
+    handleTabChange('archive');
+  };
+
+  // The editor saved an edit (a content change = a new version): refresh that row. selectedProposal is left alone so the editor is not reset.
+  const handleProposalSaved = saved => {
+    setSavedProposals(prev => prev.map(p => (p.id === saved.id ? { ...p, ...saved } : p)));
+  };
+
+  // Keep the row in sync after the expanded panel saved a status / uploaded a document
+  const handleStatusChanged = (refNo, status, statusHistory) => {
+    setSavedProposals(prev => prev.map(p => (p.id === refNo ? { ...p, status, statusHistory } : p)) /* refNo here is the proposal id */);
   };
 
   const filteredProposals = savedProposals.filter(p => {
     const q = proposalSearch.toLowerCase().trim();
     if (!q) return true;
     return (
+      statusOf(p).toLowerCase().includes(q) ||
+      (p.proposalType === 'solution' ? 'solution' : (p.proposalType === 'productSolution' ? 'product + solution' : 'product')).includes(q) ||
       (p.companyName && p.companyName.toLowerCase().includes(q)) ||
       (p.refNo && p.refNo.toLowerCase().includes(q)) ||
+      allRefsOf(p).some(r => r.toLowerCase().includes(q)) || // the base reference and every <base>-Vn
+      ((p.fields && p.fields.refNo) && String(p.fields.refNo).toLowerCase().includes(q)) ||
       (p.category && p.category.toLowerCase().includes(q)) ||
       (p.generatedBy && p.generatedBy.toLowerCase().includes(q))
     );
@@ -261,92 +357,8 @@ export default function ProposalHub() {
         </div>
       )}
 
-      {/* Top Header */}
-      <header className="proposal-hub-header" style={{
-        background: '#ffffff', borderBottom: '1px solid #e2e8f0',
-        padding: '14px 28px', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        flexWrap: 'wrap', gap: 12,
-        position: 'sticky', top: 0, zIndex: 100, boxShadow: '0 1px 3px rgba(0,0,0,0.02)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-          <button
-            onClick={() => navigate('/dashboard')}
-            style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#f1f5f9', border: '1px solid #cbd5e1', borderRadius: 6, padding: '6px 12px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', color: '#475569' }}
-          >
-            <ArrowLeft size={16} /> Back to Dashboard
-          </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg, #0284c7 0%, #0369a1 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 2px 8px rgba(2, 132, 199, 0.25)', flexShrink: 0 }}>
-              <FileText size={20} />
-            </div>
-            <div>
-              <div style={{ fontWeight: 800, fontSize: '1.15rem', color: '#0B2A6F', letterSpacing: '-0.02em', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                SLT-MOBITEL Proposal Hub
-                <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 12, fontWeight: 700 }}>Enterprise</span>
-              </div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Dynamic corporate proposals, single active template system & historical proposal records</div>
-            </div>
-          </div>
-        </div>
-
-        {/* Tab Switcher Buttons */}
-        <div className="proposal-hub-tabs">
-          {isAdmin && (
-            <button
-              onClick={() => {
-                setSelectedProposal(null);
-                handleTabChange('generator');
-              }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
-                fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                background: activeTab === 'generator' ? '#ffffff' : 'transparent',
-                color: activeTab === 'generator' ? '#0B2A6F' : '#64748b',
-                boxShadow: activeTab === 'generator' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-              }}
-            >
-              <Sparkles size={16} color={activeTab === 'generator' ? '#0284c7' : '#64748b'} />
-              Generate Proposal
-            </button>
-          )}
-
-          <button
-            onClick={() => {
-              fetchSavedProposals();
-              handleTabChange('archive');
-            }}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
-              fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              background: activeTab === 'archive' ? '#ffffff' : 'transparent',
-              color: activeTab === 'archive' ? '#0B2A6F' : '#64748b',
-              boxShadow: activeTab === 'archive' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-            }}
-          >
-            <Layers size={16} color={activeTab === 'archive' ? '#0284c7' : '#64748b'} />
-            Generated Proposals ({savedProposals.length})
-          </button>
-
-          {isAdmin && (
-            <button
-              onClick={() => handleTabChange('template')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 7, padding: '8px 16px',
-                fontSize: '0.85rem', fontWeight: 700, borderRadius: 6, border: 'none', cursor: 'pointer',
-                whiteSpace: 'nowrap',
-                background: activeTab === 'template' ? '#ffffff' : 'transparent',
-                color: activeTab === 'template' ? '#0B2A6F' : '#64748b',
-                boxShadow: activeTab === 'template' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-              }}
-            >
-              <Upload size={16} color={activeTab === 'template' ? '#0284c7' : '#64748b'} />
-              Upload Latest Template
-            </button>
-          )}
-        </div>
-      </header>
+      {/* Top Header (shared with the Solution and Product + Solution pages) */}
+      <ProposalHubHeader activeTab={activeTab} onTab={tab => { if (tab === 'generator') setSelectedProposal(null); if (tab === 'archive') fetchSavedProposals(); handleTabChange(tab); }} count={savedProposals.length} showGenerate={isAdmin} showTemplate={isAdmin} />
 
       {/* Main Content Area */}
       <main className="proposal-hub-main" style={{ flex: 1, padding: activeTab === 'generator' ? '20px 24px' : '32px 36px', maxWidth: activeTab === 'generator' ? '100%' : '1350px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -357,7 +369,7 @@ export default function ProposalHub() {
             <ProposalMaintenance onBack={() => navigate('/dashboard')} />
           ) : (
             <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', padding: '20px 16px' }}>
-              {selectedProposal && (
+              {selectedProposal && !viewOnly && (
                 <div style={{
                   marginBottom: 20, padding: '12px 18px', background: '#eff6ff',
                   borderRadius: 8, border: '1px solid #bfdbfe',
@@ -390,6 +402,9 @@ export default function ProposalHub() {
                 user={proposalUser || { name: userName, email: userEmail, designation: '', phone: '', division: '' }}
                 initialProposal={selectedProposal}
                 onClearProposal={handleStartFreshProposal}
+                onSaved={handleProposalSaved}
+                viewOnly={viewOnly}
+                onViewBack={handleViewBack}
                 onProposalGenerated={() => {
                   fetchSavedProposals();
                 }}
@@ -400,11 +415,36 @@ export default function ProposalHub() {
 
         {/* TAB 2: Upload Latest Template (Admin Only) */}
         {activeTab === 'template' && (
+          <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+            {[['product', 'Product template'], ['solution', 'Solution template'], ['productSolution', 'Product + Solution template']].map(([t, text]) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTemplateType(t)}
+                style={{
+                  padding: '8px 18px', borderRadius: 8, fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer',
+                  border: templateType === t ? '1.5px solid #0284c7' : '1px solid #cbd5e1',
+                  background: templateType === t ? '#e0f2fe' : '#ffffff',
+                  color: templateType === t ? '#0369a1' : '#64748b'
+                }}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
+        {activeTab === 'template' && templateType === 'solution' && (
+          <SolutionTemplatePanel userEmail={userEmail} showToast={showToast} />
+        )}
+        {activeTab === 'template' && templateType === 'productSolution' && (
+          <ProductSolutionTemplatePanel userEmail={userEmail} showToast={showToast} />
+        )}
+        {activeTab === 'template' && templateType === 'product' && (
           <div>
             <div style={{ marginBottom: 24 }}>
               <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0B2A6F', margin: '0 0 6px' }}>Upload Latest Proposal Template</h2>
               <p style={{ margin: 0, color: '#64748b', fontSize: '0.9rem' }}>
-                All future proposals generated by InsightHub will strictly use this latest template. There is no template switching—uploading a new template immediately replaces and cleans up older templates from the system.
+                All future proposals generated by InsightHub will use the latest template you upload here. InsightHub finds where each proposal field belongs, writes the fill-in tags into a copy, cleans it and makes it the active template in one step. Your uploaded file is kept unchanged, and older versions can be restored.
               </p>
             </div>
 
@@ -422,10 +462,10 @@ export default function ProposalHub() {
                 }}>
                   <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
                     <CheckCircle2 size={16} color="#16a34a" />
-                    Direct .docx Storage — 100% Format Preservation
+                    Your Upload Is Kept Exactly As It Is
                   </div>
                   <div>
-                    Uploaded <strong>.docx</strong> templates are stored <strong>directly without any server-side alterations</strong>.
+                    The <strong>.docx</strong> you upload is stored <strong>exactly as uploaded</strong>. A separate copy with the fill-in tags is made from it, keeping your formatting.
                     To avoid format errors, only <strong>.docx</strong> files are accepted. If you have a <code>.doc</code> file, open it in Word and click <strong>File &rarr; Save As &rarr; Word Document (.docx)</strong> first.
                   </div>
                 </div>
@@ -450,7 +490,7 @@ export default function ProposalHub() {
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4 }}>
                         {selectedFile ? (
-                          `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready for upload (Direct .docx — 100% Exact Preservation)`
+                          `${(selectedFile.size / (1024 * 1024)).toFixed(2)} MB ready to analyse`
                         ) : (
                           'Strictly .docx format — Zero conversion, 100% pixel-perfect layout preservation'
                         )}
@@ -485,15 +525,33 @@ export default function ProposalHub() {
                   >
                     {uploadingTemplate ? (
                       <>
-                        <RefreshCw size={18} className="spin" /> Updating Template on Server...
+                        <RefreshCw size={18} className="spin" /> Analysing Template...
                       </>
                     ) : (
                       <>
-                        <Upload size={18} /> Set as Latest Template (.docx)
+                        <Upload size={18} /> Analyse Template (.docx)
                       </>
                     )}
                   </button>
                 </form>
+
+                {/* Result of the last upload: the version; a warning only when something needs attention */}
+                {uploadResult && (
+                  <div style={{ marginTop: 16 }}>
+                    <div style={{ padding: '12px 14px', background: '#f0fdf4', borderRadius: 8, border: '1px solid #bbf7d0', fontSize: '0.84rem', color: '#166534', lineHeight: 1.5 }}>
+                      <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <CheckCircle2 size={16} color="#16a34a" /> Template version {uploadResult.version} is now the active template
+                      </div>
+                    </div>
+                    {(uploadResult.unconnectedRed > 0 || uploadResult.aiError) && (
+                      <div style={{ marginTop: 8, padding: '12px 14px', background: '#fffbeb', borderRadius: 8, border: '1px solid #fde68a', fontSize: '0.83rem', color: '#92400e', lineHeight: 1.5 }}>
+                        <div style={{ fontWeight: 700 }}>Please check the first proposal you generate:</div>
+                        {uploadResult.aiError && <div>The AI field matching did not run ({uploadResult.aiError}); only tags already in the file were used.</div>}
+                        {uploadResult.unconnectedRed > 0 && <div>{uploadResult.unconnectedRed} piece(s) of red sample text were not connected to any field and will print as they are.</div>}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Current Active Template Information */}
                 <div style={{ marginTop: 24, padding: '14px 16px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
@@ -536,6 +594,32 @@ export default function ProposalHub() {
                       </button>
                     </div>
                   </div>
+
+                  {/* Previous versions: restoring one makes it the active template again */}
+                  {templateVersions.some(v => !v.isActive) && (
+                    <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>Previous versions</div>
+                      <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                        {templateVersions.filter(v => !v.isActive).map(v => (
+                          <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
+                            <div style={{ minWidth: 0 }}>
+                              <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0B2A6F' }}>Version {v.version} &nbsp;•&nbsp; {v.filename}</div>
+                              <div style={{ fontSize: '0.76rem', color: '#64748b' }}>{v.uploadedAt ? new Date(v.uploadedAt).toLocaleString() : ''}</div>
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => handleRestoreVersion(v)}
+                              disabled={uploadingTemplate}
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#f8fafc', color: '#475569', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '0.8rem', fontWeight: 600, cursor: uploadingTemplate ? 'not-allowed' : 'pointer' }}
+                              title={`Make version ${v.version} the active template again`}
+                            >
+                              <RotateCcw size={13} /> Restore
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Architecture Note */}
@@ -605,6 +689,10 @@ export default function ProposalHub() {
                         <td style={{ padding: '8px 12px' }}>Company registered street and city address</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{%client_logo}'}</td>
+                        <td style={{ padding: '8px 12px' }}>Client company logo (centre the line to centre the logo)</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{@letterXml}'}</td>
                         <td style={{ padding: '8px 12px' }}>Tailored cover letter paragraphs written by n8n AI</td>
                       </tr>
@@ -615,6 +703,10 @@ export default function ProposalHub() {
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{@aboutXml}'}</td>
                         <td style={{ padding: '8px 12px' }}>Customer company overview and recommended products</td>
+                      </tr>
+                      <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
+                        <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{#productTerms} {number}. {name} / {terms} {/productTerms}'}</td>
+                        <td style={{ padding: '8px 12px' }}>Optional. One numbered title and the terms paragraph for each selected product that has terms, in the template's own styles. Each loop tag alone in its own paragraph. Not added automatically. (Older: <code>{'{@productTermsXml}'}</code>, all product terms as one bullet list.)</td>
                       </tr>
                       <tr style={{ borderBottom: '1px solid #f1f5f9' }}>
                         <td style={{ padding: '8px 12px', fontFamily: 'monospace', fontWeight: 700, color: '#0284c7' }}>{'{#components} ... {/components}'}</td>
@@ -695,7 +787,7 @@ export default function ProposalHub() {
               </div>
             ) : (
               <div className="table-responsive" style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', overflowX: 'auto', WebkitOverflowScrolling: 'touch', boxShadow: '0 2px 8px rgba(0,0,0,0.02)' }}>
-                <table style={{ width: '100%', minWidth: '760px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
+                <table style={{ width: '100%', minWidth: '920px', borderCollapse: 'collapse', textAlign: 'left', fontSize: '0.88rem' }}>
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                       <th style={{ padding: '12px 18px', color: '#475569', fontWeight: 700 }}>Ref Number</th>
@@ -709,9 +801,18 @@ export default function ProposalHub() {
                   </thead>
                   <tbody>
                     {filteredProposals.map((item, idx) => (
-                      <tr key={item.id || idx} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = '#ffffff'}>
-                        <td style={{ padding: '14px 18px', fontFamily: 'monospace', fontWeight: 700, color: '#0369a1' }}>
-                          {item.refNo}
+                      <React.Fragment key={item.id || idx}>
+                      <tr style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s ease' }} onMouseOver={e => e.currentTarget.style.background = '#f8fafc'} onMouseOut={e => e.currentTarget.style.background = '#ffffff'}>
+                        <td style={{ padding: '14px 18px', fontFamily: 'monospace', fontWeight: 700, color: '#0369a1', minWidth: 170, maxWidth: 260, wordBreak: 'break-all' }}>
+                          {item.proposalType === 'solution' || item.proposalType === 'productSolution' ? item.refNo : ((item.fields && item.fields.refNo) || item.refNo)}
+                          <span style={{ display: 'table', marginTop: 4, fontFamily: 'Inter, sans-serif', fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: item.proposalType === 'solution' ? '#ede9fe' : (item.proposalType === 'productSolution' ? '#dcfce7' : '#e0f2fe'), color: item.proposalType === 'solution' ? '#6d28d9' : (item.proposalType === 'productSolution' ? '#166534' : '#0369a1') }}>
+                            {item.proposalType === 'solution' ? 'Solution' : (item.proposalType === 'productSolution' ? 'Product + Solution' : 'Product')}
+                          </span>
+                          {(() => { const cur = currentStepOf(item); return cur ? (
+                            <span title="Current step" style={{ display: 'table', marginTop: 4, fontFamily: 'Inter, sans-serif', fontSize: '0.68rem', fontWeight: 700, padding: '2px 8px', borderRadius: 10, background: '#f1f5f9', color: '#475569' }}>
+                              {stepName(cur)}
+                            </span>
+                          ) : null; })()}
                         </td>
                         <td style={{ padding: '14px 18px', fontWeight: 700, color: '#0B2A6F' }}>
                           {item.companyName}
@@ -734,15 +835,13 @@ export default function ProposalHub() {
                         </td>
                         <td style={{ padding: '14px 18px', textAlign: 'right' }}>
                           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 6, alignItems: 'center' }}>
+                            {/* Confirmed / Completed proposals are view-only: View takes the place of Edit */}
                             <button
-                              onClick={() => {
-                                setSelectedProposal(item);
-                                handleTabChange('generator');
-                              }}
-                              title="Open in Document Editor"
+                              onClick={() => (rowActionOf(item) === 'View' ? handleViewProposal(item) : handleEditProposal(item))}
+                              title={rowActionOf(item) === 'View' ? 'View (read-only)' : 'Open in Document Editor'}
                               style={{ padding: '5px 9px', borderRadius: 6, background: '#eff6ff', color: '#0284c7', border: '1px solid #bfdbfe', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.75rem', fontWeight: 700 }}
                             >
-                              <Eye size={13} /> Edit
+                              <Eye size={13} /> {rowActionOf(item)}
                             </button>
                             
                             <button
@@ -763,7 +862,7 @@ export default function ProposalHub() {
                               {exportingId === `${item.id}-pdf` ? <RefreshCw size={12} className="spin" /> : <Download size={12} />} PDF
                             </button>
 
-                            {isAdmin && (
+                            {canDelete && (
                               <button
                                 onClick={() => handleDeleteProposal(item.id, item.refNo)}
                                 title="Delete Proposal"
@@ -772,9 +871,30 @@ export default function ProposalHub() {
                                 <Trash2 size={13} />
                               </button>
                             )}
+
+                            <button
+                              onClick={() => setExpandedRef(prev => (prev === (item.refNo || item.id) ? null : (item.refNo || item.id)))}
+                              aria-expanded={expandedRef === (item.refNo || item.id)}
+                              aria-controls={`proposal-panel-${item.id}`}
+                              title={expandedRef === (item.refNo || item.id) ? 'Hide version history' : 'Show version history & status'}
+                              aria-label={expandedRef === (item.refNo || item.id) ? 'Hide version history' : 'Show version history and status'}
+                              style={{ padding: '5px 8px', borderRadius: 6, background: '#f8fafc', color: '#475569', border: '1px solid #cbd5e1', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            >
+                              <ChevronDown size={13} style={{ transition: 'transform 0.2s ease', transform: expandedRef === (item.refNo || item.id) ? 'rotate(180deg)' : 'none' }} />
+                            </button>
                           </div>
                         </td>
                       </tr>
+                      {expandedRef === (item.refNo || item.id) && (
+                        <tr id={`proposal-panel-${item.id}`} style={{ borderBottom: '1px solid #f1f5f9' }}>
+                          <td colSpan={7} style={{ padding: 0 }}>
+                            <div style={{ width: 0, minWidth: '100%' }}>
+                              <ProposalStatusPanel key={item.refNo || item.id} proposal={item} userEmail={userEmail} onChanged={handleStatusChanged} onEdit={() => handleEditProposal(item)} showToast={showToast} />
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                      </React.Fragment>
                     ))}
                   </tbody>
                 </table>

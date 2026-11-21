@@ -9,6 +9,19 @@ try {
   $word.Visible = $false
   $word.DisplayAlerts = 0
   $doc = $word.Documents.Open($Src, $false, $true)
+  # the table of contents is rebuilt first, so its page numbers are those of this document (a stored Word file of an older version too)
+  try { foreach ($pass in 1..2) { foreach ($toc in $doc.TablesOfContents) { $toc.Update() } } } catch {}
+  try {
+  # a heading with no text (a picture on a Heading 1 line) still comes back from Word's rebuild as an entry with only a page number:
+  # those entries are taken out of the contents, so it never shows a blank line "........ 14"
+  foreach ($toc in $doc.TablesOfContents) {
+    $paras = $toc.Range.Paragraphs
+    for ($i = $paras.Count; $i -ge 1; $i--) {
+      $text = [string]$paras.Item($i).Range.Text
+      if (($text -match '[0-9]') -and (($text -replace '[^\p{L}]', '') -eq '')) { try { $paras.Item($i).Range.Delete() | Out-Null } catch {} }
+    }
+  }
+  } catch {}
   # 17 = wdExportFormatPDF (pixel-perfect native Word PDF export)
   $doc.ExportAsFixedFormat($Dst, 17)
   $doc.Close([ref]$false)

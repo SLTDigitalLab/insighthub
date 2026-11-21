@@ -101,6 +101,26 @@ class UserService {
     return this.users.map(({ approvalToken, declineToken, ...safeUser }) => safeUser);
   }
 
+  /**
+   * Admin: set a user's section and sub-section (the reference number of their proposals is built from them).
+   * Section must be one of the known sections; sub-section is stored uppercase.
+   */
+  updateSectionProfile(userId, { section, subSection }) {
+    const user = this.getUserById(userId);
+    if (!user) throw new Error('User not found.');
+    const sub = String(subSection || '').trim().toUpperCase();
+    if (!/^[A-Z0-9]{1,20}$/.test(sub)) throw new Error('Sub-section must be 1-20 letters or digits.');
+    const hierarchy = this.formatUserHierarchy({ section, subSection: sub, designation: user.designation });
+    if (!['Enterprise Large', 'Enterprise Medium', 'Government', 'Carrier business', 'REBM'].includes(hierarchy.section)) throw new Error('Unknown section.');
+    user.section = hierarchy.section;
+    user.subSection = hierarchy.subSection;
+    user.department = hierarchy.department;
+    user.userType = hierarchy.userType;
+    user.rebmArea = hierarchy.section === 'REBM' ? hierarchy.subSection : '';
+    this.saveUsers();
+    return user;
+  }
+
   getUserById(id) {
     return this.users.find(u => u.id === id);
   }
@@ -130,10 +150,9 @@ class UserService {
       ? section
       : (isMobitel ? 'Mobitel SME' : 'Enterprise Large');
 
-    let resolvedSubSection = '';
-    if (!isMobitel && resolvedSection === 'REBM') {
-      resolvedSubSection = subSection || rebmArea || 'WPC1';
-    }
+    // Every section can carry a sub-section (stored uppercase, it is part of the proposal reference number); REBM keeps its WPC1 default
+    let resolvedSubSection = String(subSection || rebmArea || '').trim().toUpperCase();
+    if (resolvedSection === 'REBM' && !resolvedSubSection) resolvedSubSection = 'WPC1';
 
     const resolvedDesignation = (designation && designation.toLowerCase().includes('section'))
       ? 'Section Manager'
@@ -205,7 +224,7 @@ class UserService {
       user.designation = hierarchy.designation;
       user.userType = hierarchy.userType;
       user.department = hierarchy.department;
-      user.rebmArea = hierarchy.subSection;
+      user.rebmArea = hierarchy.section === 'REBM' ? hierarchy.subSection : ''; // REBM area only
       user.serviceNumber = serviceNumber?.trim() || user.serviceNumber || '';
       user.mobileNumber = mobileNumber?.trim() || user.mobileNumber || '';
       user.role = role || user.role || 'user';
@@ -228,7 +247,7 @@ class UserService {
       designation: hierarchy.designation,
       userType: hierarchy.userType,
       department: hierarchy.department,
-      rebmArea: hierarchy.subSection,
+      rebmArea: hierarchy.section === 'REBM' ? hierarchy.subSection : '',
       serviceNumber: serviceNumber?.trim() || '',
       mobileNumber: mobileNumber?.trim() || '',
       status: 'approved',
@@ -292,7 +311,7 @@ class UserService {
       user.designation = hierarchy.designation;
       user.userType = hierarchy.userType;
       user.department = hierarchy.department;
-      user.rebmArea = hierarchy.subSection;
+      user.rebmArea = hierarchy.section === 'REBM' ? hierarchy.subSection : ''; // REBM area only
       user.serviceNumber = serviceNumber?.trim() || user.serviceNumber || '';
       user.mobileNumber = mobileNumber?.trim() || user.mobileNumber || '';
       user.note = note?.trim() || '';
@@ -314,7 +333,7 @@ class UserService {
       designation: hierarchy.designation,
       userType: hierarchy.userType,
       department: hierarchy.department,
-      rebmArea: hierarchy.subSection,
+      rebmArea: hierarchy.section === 'REBM' ? hierarchy.subSection : '',
       serviceNumber: serviceNumber?.trim() || '',
       mobileNumber: mobileNumber?.trim() || '',
       note: note?.trim() || '',
@@ -337,6 +356,11 @@ class UserService {
   /**
    * Verify if a Microsoft authenticated user has approved access
    */
+  // Who may delete proposals: admins, and users whose designation is Section Manager (an Account Manager may not)
+  canDeleteProposals(role, designation) {
+    return role === 'admin' || /section\s*manager/i.test(String(designation || ''));
+  }
+
   verifyAccess(email) {
     if (!email) {
       return { approved: false, status: 'missing_email', message: 'No email provided.' };

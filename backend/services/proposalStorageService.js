@@ -1,39 +1,35 @@
 const fs = require('fs');
 const path = require('path');
 const { v4: uuidv4 } = require('uuid');
+const docs = require('./proposalDocsService');
+
+// Saved proposals ("Generated Proposals"). Flat file, same pattern as the rest of the app.
+// A record holds the edit screen's `fields` (proposal/fieldSchema.js keys) plus the template version it was generated with.
+// Templates are not handled here: see templateStoreService.js.
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const PROPOSALS_FILE = path.join(DATA_DIR, 'saved_proposals.json');
-const TEMPLATE_META_FILE = path.join(DATA_DIR, 'template_meta.json');
-const TEMPLATE_PATH = path.join(__dirname, '..', 'templates', 'proposal_template.docx');
 
-// Ensure data directory exists
-if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
-}
-
+fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(PROPOSALS_FILE)) {
   fs.writeFileSync(PROPOSALS_FILE, JSON.stringify([]), 'utf8');
 }
 
-if (!fs.existsSync(TEMPLATE_META_FILE)) {
-  const initialMeta = {
-    filename: 'proposal_template.docx',
-    uploadedBy: 'System Default',
-    updatedAt: new Date().toISOString(),
-    sizeBytes: fs.existsSync(TEMPLATE_PATH) ? fs.statSync(TEMPLATE_PATH).size : 0,
-    version: '1.0'
-  };
-  fs.writeFileSync(TEMPLATE_META_FILE, JSON.stringify(initialMeta, null, 2), 'utf8');
-}
-
-function readProposals() {
+// The whole file as stored (nothing is migrated or dropped here, so a write never changes records it does not touch)
+function readAll() {
   try {
-    return JSON.parse(fs.readFileSync(PROPOSALS_FILE, 'utf8'));
+    const raw = JSON.parse(fs.readFileSync(PROPOSALS_FILE, 'utf8'));
+    return Array.isArray(raw) ? raw : [];
   } catch (err) {
     console.error('[proposalStorage] Error reading saved proposals:', err.message);
     return [];
   }
+}
+
+// Records of the short-lived 'v2' dev format (values instead of fields) cannot be opened; they are left in the file but not listed.
+// Reads normalise a record in memory only (docs.normalize); the file is migrated ONLY by scripts/migrate-proposal-versions.js --write.
+function readProposals() {
+  return readAll().filter(p => p && p.schema !== 'v2');
 }
 
 function writeProposals(list) {
@@ -44,249 +40,102 @@ function writeProposals(list) {
   }
 }
 
-const { execFile } = require('child_process');
-const os = require('os');
+const NOT_MIGRATED = 'This proposal is stored in the old format. Run "node scripts/migrate-proposal-versions.js --write" in the backend folder, then try again.';
+const matches = (p, key) => !!p && p.schema !== 'v2' && ((key && p.refNo === key) || p.id === key); // a proposal without a reference number is found by its id
 
-const WORD_COM_SCRIPT = path.join(__dirname, '..', '..', 'scripts', 'convert_doc_word.ps1');
+// Changing a stored record needs the version model; an old-format record is never converted as a side effect of a save
+const SENT_STATUSES = ['Sent', 'Revised & Sent', 'Confirmed', 'Completed'];
 
-function convertDocWithWordCom(docBuffer) {
-  return new Promise((resolve, reject) => {
-    if (process.platform !== 'win32' || !fs.existsSync(WORD_COM_SCRIPT)) {
-      return reject(new Error('Native Microsoft Word COM script unavailable'));
-    }
-    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'ih-word-conv-'));
-    const tempDoc = path.join(tempDir, 'input.doc');
-    const tempDocx = path.join(tempDir, 'output.docx');
-    fs.writeFileSync(tempDoc, docBuffer);
-
-    execFile('powershell', ['-ExecutionPolicy', 'Bypass', '-File', WORD_COM_SCRIPT, tempDoc, tempDocx], { timeout: 60000 }, (err) => {
-      try {
-        if (err) throw err;
-        if (!fs.existsSync(tempDocx)) {
-          throw new Error('Converted .docx was not created by Microsoft Word COM.');
-        }
-        const docxBuffer = fs.readFileSync(tempDocx);
-        resolve(docxBuffer);
-      } catch (e) {
-        reject(e);
-      } finally {
-        fs.rmSync(tempDir, { recursive: true, force: true });
-      }
-    });
-  });
-}
-
-/**
- * Converts legacy .doc to .docx without layout corruption.
- * If native Microsoft Word COM is available, it uses Word's native engine (100% fidelity).
- * Otherwise, it avoids running lossy LibreOffice conversion and instructs the user to upload .docx directly.
- */
-async function convertDocToDocx(docBuffer) {
-  // 1. Try native Microsoft Word COM automation first (preserves 100% of formatting, tables, fonts, and DrawingML)
-  try {
-    const wordBuffer = await convertDocWithWordCom(docBuffer);
-    console.log('[proposalStorage] Converted .doc to .docx using native Microsoft Word COM (100% layout and formatting preserved).');
-    return { buffer: wordBuffer, method: 'msword_native_com' };
-  } catch (wordErr) {
-    console.warn('[proposalStorage] Native Microsoft Word COM conversion unavailable:', wordErr.message);
-  }
-
-  // 2. Avoid lossy headless LibreOffice conversion which destroys tables, margins, and styles.
-  throw new Error(
-    'Automated server conversion of legacy .doc files alters formatting and tables. ' +
-    'To avoid any layout distortion, please open your file in Microsoft Word, click "File > Save As > Word Document (.docx)", ' +
-    'and upload the .docx file directly. Native .docx templates maintain 100% exact formatting with zero layout changes.'
-  );
-}
-
-function getActiveTemplatePath() {
-  try {
-    if (fs.existsSync(TEMPLATE_META_FILE)) {
-      const meta = JSON.parse(fs.readFileSync(TEMPLATE_META_FILE, 'utf8'));
-      if (meta.activePath && fs.existsSync(meta.activePath)) {
-        return meta.activePath;
-      }
-    }
-  } catch (e) {}
-  return TEMPLATE_PATH;
-}
-
-function safelyWriteTemplate(filePath, buffer) {
-  // 1. Try direct write first
-  try {
-    fs.writeFileSync(filePath, buffer);
-    return { targetPath: filePath, fallback: false };
-  } catch (err) {
-    if (err.code !== 'EBUSY' && err.code !== 'EPERM') {
-      throw err;
-    }
-  }
-
-  // 2. On Windows, terminate any headless/background zombie WINWORD processes holding locks
-  if (process.platform === 'win32') {
-    try {
-      const { execSync } = require('child_process');
-      execSync('powershell -NoProfile -Command "Get-Process WINWORD -ErrorAction SilentlyContinue | Where-Object MainWindowHandle -eq 0 | Stop-Process -Force"', { timeout: 4000 });
-      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
-      fs.writeFileSync(filePath, buffer);
-      return { targetPath: filePath, fallback: false };
-    } catch (kErr) {}
-  }
-
-  // 3. Retry direct write
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      fs.writeFileSync(filePath, buffer);
-      return { targetPath: filePath, fallback: false };
-    } catch (err) {
-      if (err.code === 'EBUSY' || err.code === 'EPERM') {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 250);
-      } else {
-        throw err;
-      }
-    }
-  }
-
-  // 4. If filePath is still locked by Microsoft Word GUI on user's computer:
-  // Gracefully write to an active fallback template path so the user is NEVER blocked!
-  const dir = path.dirname(filePath);
-  const activeFallbackPath = path.join(dir, `active_template_${Date.now()}.docx`);
-  fs.writeFileSync(activeFallbackPath, buffer);
-
-  // Clean up older active_template_*.docx files (except the newly created one)
-  try {
-    const files = fs.readdirSync(dir);
-    for (const f of files) {
-      if (f.startsWith('active_template_') && f !== path.basename(activeFallbackPath)) {
-        try { fs.unlinkSync(path.join(dir, f)); } catch (e) {}
-      }
-    }
-  } catch (e) {}
-
-  return { targetPath: activeFallbackPath, fallback: true };
+function assertMigrated(record) {
+  if (!docs.isMigrated(record)) throw Object.assign(new Error(NOT_MIGRATED), { status: 409 });
 }
 
 module.exports = {
-  saveProposal: ({ refNo, companyName, business = {}, fields = {}, user = {}, products = [] }) => {
-    const list = readProposals();
-    const newProposal = {
+  saveProposal: ({ refNo, companyName, business = {}, fields = {}, templateId = '', templateVersion = null, user = {}, products = [], proposalType = 'product', solution = null }) => {
+    const list = readAll();
+    const now = new Date().toISOString();
+    const proposal = {
       id: uuidv4(),
-      refNo: refNo || fields.refNo || `SLT-${Math.floor(10000000 + Math.random() * 90000000)}`,
-      companyName: companyName || fields.companyName || business.name || 'Untitled Enterprise Proposal',
-      category: business.category || fields.category || 'Enterprise',
-      address: business.address || fields.address || '',
-      date: fields.proposalDate || new Date().toISOString(),
-      generatedBy: user.email || 'dineshpi@slt.com.lk',
-      generatorName: user.name || 'Account Manager',
-      products: Array.isArray(products) ? products : (fields.products || []),
-      fields: fields,
-      createdAt: new Date().toISOString()
+      refNo: proposalType === 'solution' || proposalType === 'productSolution' ? (refNo || '') : (refNo || fields.refNo || ''), // a solution proposal's reference is only ever the built one
+      companyName: companyName || fields.companyName || business.name || '',
+      category: business.category || '',
+      address: business.address || '',
+      date: fields.proposalDate || now,
+      generatedBy: user.email || '',
+      generatorName: user.name || '',
+      products: Array.isArray(products) ? products : [],
+      fields,
+      templateId,
+      templateVersion,
+      createdAt: now,
+      status: 'Draft',
+      versioning: docs.VERSIONING,
+      currentVersion: 1,
+      // only solution proposals carry a type; a record without one is a product proposal (docs.normalize)
+      ...(proposalType === 'solution' || proposalType === 'productSolution' ? { proposalType, solution: solution || {} } : {}),
     };
-
-    list.unshift(newProposal);
+    // v1 = the content as first generated; its Draft event is the first history entry
+    proposal.versions = [docs.makeSnapshot(proposal, { versionNumber: 1, reason: 'created', userEmail: user.email || '', createdAt: now })];
+    proposal.statusHistory = [docs.makeEvent(proposal, { status: 'Draft', versionNumber: 1, userEmail: user.email || '', createdAt: now })];
+    list.unshift(proposal);
     writeProposals(list);
-    return newProposal;
+    return proposal;
   },
 
-  getAllProposals: () => {
-    return readProposals();
+  getAllProposals: () => readProposals().map(docs.normalize),
+
+  getProposalById: (id) => docs.normalize((id && readProposals().find(p => p.id === id || p.refNo === id)) || null),
+
+  // false when the stored record is still in the old format (see scripts/migrate-proposal-versions.js)
+  isMigrated: (id) => { const p = id && readProposals().find(r => r.id === id || r.refNo === id); return !p || docs.isMigrated(p); },
+
+  // Applies mutate(record) to the stored record and saves it; returns the normalised record, or null if not found
+  updateProposal: (refNo, mutate) => {
+    const list = readAll();
+    const idx = list.findIndex(p => matches(p, refNo));
+    if (idx === -1) return null;
+    assertMigrated(list[idx]);
+    const next = mutate(docs.normalize(list[idx]));
+    list[idx] = next;
+    writeProposals(list);
+    return docs.normalize(next);
   },
 
-  getProposalById: (id) => {
-    const list = readProposals();
-    return list.find(p => p.id === id || p.refNo === id) || null;
+  // A content change (edit saved from the editor, regenerated revision). mutate(record) returns the record with the new content.
+  // When the content (fields / company name) differs, or `force` is set, this creates the next version: a full snapshot plus a
+  // history event on it; earlier versions and their files are never touched. Otherwise it only saves what mutate changed.
+  // Returns { proposal, changed, versionNumber } or null when the proposal does not exist.
+  reviseProposal: (refNo, mutate, { reason = 'edit', userEmail = '', note = '', force = false } = {}) => {
+    const list = readAll();
+    const idx = list.findIndex(p => matches(p, refNo));
+    if (idx === -1) return null;
+    assertMigrated(list[idx]);
+    const before = docs.normalize(list[idx]);
+    docs.assertEditable(before); // Confirmed / Completed proposals are view-only (409)
+    const after ={ ...mutate(before), versions: before.versions, statusHistory: before.statusHistory, currentVersion: before.currentVersion };
+    const changed = force || !docs.sameJson(before.fields, after.fields) || (before.companyName || '') !== (after.companyName || '');
+    if (!changed) {
+      list[idx] = after;
+      writeProposals(list);
+      return { proposal: docs.normalize(after), changed: false, versionNumber: before.currentVersion };
+    }
+    const now = new Date().toISOString();
+    const versionNumber = before.currentVersion + 1;
+    // Only a proposal that has already gone to the customer becomes Revised; a Draft (or an already Revised one) keeps its status
+    const status = SENT_STATUSES.includes(before.status) ? 'Revised' : before.status;
+    const next = { ...after, currentVersion: versionNumber, status };
+    next.versions = [...before.versions, docs.makeSnapshot(next, { versionNumber, reason, userEmail, createdAt: now })];
+    next.statusHistory = [...before.statusHistory, docs.makeEvent(next, { status, versionNumber, note: note || (reason === 'revision' ? 'Revision generated' : 'Content edited'), userEmail, createdAt: now })];
+    list[idx] = next;
+    writeProposals(list);
+    return { proposal: docs.normalize(next), changed: true, versionNumber };
   },
 
   deleteProposal: (id) => {
-    const list = readProposals();
-    const filtered = list.filter(p => p.id !== id && p.refNo !== id);
-    writeProposals(filtered);
+    const list = readAll();
+    const target = id && list.find(p => p && (p.id === id || p.refNo === id));
+    writeProposals(list.filter(p => !p || (p.id !== id && (!id || p.refNo !== id))));
+    if (target) docs.removeProposalDir(docs.keyOf(target)); // the folder is named after the reference or, without a usable one, the id
     return true;
   },
-
-  saveLatestTemplate: async (fileBuffer, originalName, adminEmail) => {
-    const isDocx = /\.docx$/i.test(originalName);
-    if (!isDocx) {
-      throw new Error('Converting legacy .doc files causes formatting errors. Please save your file as .docx in Microsoft Word and upload the .docx file directly.');
-    }
-
-    // Inspect tags in read-only mode without mutating the document
-    let tagsCount = 0;
-    let warnings = [];
-    try {
-      const PizZip = require('pizzip');
-      const zip = new PizZip(fileBuffer);
-      const docXml = zip.file('word/document.xml')?.asText() || '';
-      const tags = [...new Set(docXml.match(/\{[a-zA-Z0-9_@#\/]+\}/g) || [])];
-      tagsCount = tags.length;
-      if (!docXml.includes('{companyName}')) {
-        warnings.push('Template does not appear to contain the "{companyName}" placeholder.');
-      }
-    } catch (e) {
-      console.warn('[proposalStorage] Could not inspect tags:', e.message);
-    }
-
-    // Save the uploaded .docx buffer directly - 100% exact layout preservation!
-    const writeResult = safelyWriteTemplate(TEMPLATE_PATH, fileBuffer);
-    console.log(`[proposalStorage] Latest template (.docx) saved directly (${fileBuffer.length} bytes, ${tagsCount} tags detected, target: ${writeResult.targetPath})`);
-
-    const meta = {
-      filename: originalName || 'proposal_template.docx',
-      savedFormat: 'docx',
-      uploadedFormat: 'docx',
-      convertedFromDoc: false,
-      uploadedBy: adminEmail || 'Admin',
-      updatedAt: new Date().toISOString(),
-      sizeBytes: fileBuffer.length,
-      originalSizeBytes: fileBuffer.length,
-      tagsCount,
-      warnings,
-      version: `v${Date.now()}`,
-      activePath: writeResult.targetPath
-    };
-
-    fs.writeFileSync(TEMPLATE_META_FILE, JSON.stringify(meta, null, 2), 'utf8');
-    return meta;
-  },
-
-  resetToDefaultTemplate: () => {
-    const DEFAULT_TEMPLATE = path.join(__dirname, '..', 'templates', 'default_proposal_template.docx');
-    if (!fs.existsSync(DEFAULT_TEMPLATE)) {
-      throw new Error('Default system template backup not found');
-    }
-    const defaultBuffer = fs.readFileSync(DEFAULT_TEMPLATE);
-    const writeResult = safelyWriteTemplate(TEMPLATE_PATH, defaultBuffer);
-    const meta = {
-      filename: 'default_proposal_template.docx',
-      savedFormat: 'docx',
-      uploadedFormat: 'docx',
-      convertedFromDoc: false,
-      uploadedBy: 'System (Restored Default)',
-      updatedAt: new Date().toISOString(),
-      sizeBytes: defaultBuffer.length,
-      version: '1.0',
-      activePath: writeResult.targetPath
-    };
-    fs.writeFileSync(TEMPLATE_META_FILE, JSON.stringify(meta, null, 2), 'utf8');
-    return meta;
-  },
-
-  getTemplateMeta: () => {
-    try {
-      if (fs.existsSync(TEMPLATE_META_FILE)) {
-        return JSON.parse(fs.readFileSync(TEMPLATE_META_FILE, 'utf8'));
-      }
-    } catch (e) {}
-    const activePath = getActiveTemplatePath();
-    return {
-      filename: 'proposal_template.docx',
-      uploadedBy: 'System',
-      updatedAt: new Date().toISOString(),
-      sizeBytes: fs.existsSync(activePath) ? fs.statSync(activePath).size : 0,
-      activePath
-    };
-  },
-
-  getActiveTemplatePath,
-  TEMPLATE_PATH
 };

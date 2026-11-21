@@ -1,0 +1,166 @@
+{
+  "name": "Solution Proposal Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-solution",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4a5b-8c9d-0e1f2a3b4c01",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "proposal-solution"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n// n8n puts the POST body under .body; fall back to the item itself when testing.\n\nconst grid = body.grid || {};\nconst schema = Array.isArray(body.schema) ? body.schema : [];\nif (!Array.isArray(grid.cells) || grid.cells.length === 0) throw new Error('grid.cells must contain at least one cell');\nif (schema.length === 0) throw new Error('schema must contain at least one tag');\n// The logged-in user's details are NOT sent to the model: the backend fills account-manager tags itself (see \"userSource\").\n\nconst prompt = [\n  'REF_NO: ' + (body.refNo || ''),\n  'TODAY: ' + (body.today || ''),\n  'ROW FLAG KEY: \"' + (body.groupFlag || '_group') + '\" - on every heading row and every total / sub-total row of a loop, add this key to that row object as the JSON boolean true (e.g. {\"item\": \"Total\", ..., \"' + (body.groupFlag || '_group') + '\": true}). Do not add it to other rows.',\n  '',\n  'TAG SCHEMA (the tags of the Word template you must fill; \"context\" is the template text around the tag, children = the fields of a loop):',\n  JSON.stringify(schema),\n  '',\n  'SHEET \"' + (grid.sheetName || '') + '\" - MERGED RANGES (the content of a merged range is in its top-left cell):',\n  JSON.stringify((grid.merges || []).map(function (m) { return m.range; })),\n  '',\n  'SHEET CELLS - every non-empty cell as {a: address, v: value[, t: displayed text]}; t = what the sheet displays when it differs from v:',\n  JSON.stringify(grid.cells.map(function (c) { var o = { a: c.address, v: c.value }; if (c.text) o.t = c.text; return o; }))\n].join('\\n');\n\nreturn [{ json: { prompt: prompt, schema: schema } }];"
+      },
+      "id": "a1b2c3d4-0002-4a5b-8c9d-0e1f2a3b4c02",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "systemMessage": "You fill in a customer solution proposal (a Word template) from the data of ONE Excel quotation sheet.\n\nYou receive in the user message: REF_NO, TODAY, the ROW FLAG KEY, the TAG SCHEMA of the Word template, the sheet's MERGED RANGES and every non-empty CELL of the sheet. Each cell is {a: address, v: value, t: displayed text (only when it differs from the value)}.\n\nThe sheet can be laid out in any way and its labels can be spelled in any way. Work out from the cells themselves, using row/column positions, merged ranges and the wording of nearby cells, where these are: the customer details, the solution bill of quantities (the main priced item table), the optional items (if any) and the terms and conditions. Do not assume a fixed position or exact label spelling.\n\nReturn ONLY one valid JSON object, no markdown fences, no commentary, in exactly this shape:\n{\"values\": {<tag name>: <value>, ...}, \"missing\": [<tag name>, ...], \"userSource\": [{\"tag\": <tag name>, \"field\": \"name|phone|email|designation|division\"}], \"quotationRef\": \"<the quotation / PR reference VALUE from the sheet, or empty>\", \"meta\": {\"customerName\": \"<customer / company name from the sheet, or empty>\"}}\n\nHOW TO FILL \"values\" - one key per tag in the TAG SCHEMA, using the tag names EXACTLY as given:\n- A tag of type \"text\": a plain string.\n- A tag of type \"rawXml\": a plain string; separate paragraphs with a newline and start a bullet line with \"- \". No XML, no HTML, no markdown.\n- A tag of type \"loop\" is a table or list. Return an array of row objects, one object per row, in the order of the sheet. Every row object has EXACTLY the keys listed in that loop's \"children\" - use each child name character for character; never rename, abbreviate, add or drop a key. A child that is itself a loop (it has its own \"children\") is an array of row objects in the same way.\n- Every loop in the schema has a \"note\": it lists the loop's fields and says whether the loop has money fields. Follow the note of each loop. Never return a table's row of column headings as a row.\n- A loop only holds the fields listed in its children. Several loops may be built from the SAME table in the sheet: each loop takes only the columns it has fields for. Match every field to a sheet column by the MEANING of the field name and by the column headings printed in the sheet and in the tag's \"context\". A field that matches no column is \"\" in every row.\n- Decide which loop each part of the sheet belongs to by the loop's fields and context. For example: a loop with only a description and a quantity is the plain item list; a loop with unit price, cost, taxes and total fields is the priced table; a second loop with the same money fields is the optional-items table, used ONLY when the sheet has a SEPARATE optional-items table (when optional items sit inside the main priced table, follow the check list at the end); a loop with a label and a nested list of lines is the terms and conditions (one row per term heading, its nested rows are the individual lines or points).\n- Heading rows and total rows: a heading row (for example a title above a set of items) or a total / sub-total row that sits inside a table stays in the loop as a row and gets the row flag: add the key named in ROW FLAG KEY to that row object with the JSON boolean true. Put the row's label text in the field that holds the description (the first text field) and its amounts in the matching money fields. A total row belongs to the loop that has the money fields; do not add it to a loop that has no money fields. Rows that are not heading or total rows do not get the flag.\n\nCOPY, NEVER COMPUTE:\n- Copy prices, quantities, totals, taxes, discounts and the terms and conditions text EXACTLY as they appear in the sheet. Never calculate, add up, round, convert or invent a number. Do not add or remove thousands separators or decimals. When a cell has a displayed text \"t\", copy that text; otherwise copy the value as a string.\n- If the sheet shows \"-\" for a value, return \"-\".\n- Do not translate or reword terms and conditions or item descriptions; keep their order.\n- If a tag asks for a number the sheet does not contain, return an empty string for it. Never estimate it.\n\nSPECIAL TAGS:\n- A tag that stands for a detail of the SLT account manager / sales contact who submits the proposal (their name, designation, phone, email or division - not the customer's contact person) is NOT filled from the sheet and you do not write a value for it. Return \"\" for it in \"values\" and list it in \"userSource\" as {\"tag\": <tag name>, \"field\": <which detail it asks for: name, phone, email, designation or division>}. The system fills it from the logged-in user's profile. Never list such a tag in \"missing\".\n- A tag that clearly asks for the proposal reference number gets REF_NO exactly when REF_NO is not empty, and \"\" when REF_NO is empty. NEVER copy a reference, PR number, quotation number or any label (such as \"PR:\") from the sheet into it; the system builds the reference number itself and fills this tag. Never list it in \"missing\". A tag that asks for the proposal date gets TODAY.\n- \"quotationRef\": the quotation / PR reference of THIS quotation as it appears in the sheet, but ONLY its VALUE: the text or number written after the label (for example after \"PR:\", \"Ref:\", \"Ref No:\", \"Quotation No:\", \"Quote #\"), or in the cell next to / below the label cell. NEVER return the label itself (\"PR:\", \"Ref No\", \"Quotation Reference\" ...). Copy the value exactly as it is written. If the sheet has no such value (only the label, or nothing), return \"\".\n- A tag that asks for the initial / one-time charge or the total cost of the solution gets the solution's total cost WITH taxes exactly as shown in the sheet (the final amount of the main priced table's total row). If the main priced table contains several alternative options (each with its own total) and no single overall total, it gets \"As per the selected option\" instead.\n- A tag that asks for a monthly / recurring charge or a commitment period (or similar) gets \"N/A\" when the sheet has no such value. Do not list it in \"missing\".\n- A letter, scope, summary or other narrative tag that has no source text in the sheet: write it yourself in the formal style of a business proposal, using ONLY the customer name, the scope and the item descriptions found in the sheet. Narrative text must contain NO prices, quantities, totals or other numbers from the sheet.\n- A tag that repeats information already filled for another tag (for example an acknowledgement company name, address or solution name) gets the same value as that tag: company name = the customer name, address = the customer location/address, solution = the project scope.\n\nWhen you cannot find a tag's content in the sheet and none of the rules above covers it, return \"\" (or [] for a loop) and add the tag name to \"missing\". Never guess.\n\nRULES:\n- Return every tag of the schema exactly once and no other keys.\n- Escape double quotes inside strings properly so the JSON is valid.\n- Plain text only. No self-correction or meta commentary.\n\nBEFORE YOU ANSWER, CHECK:\n- Every row of every priced table in the sheet is in the matching loop, including total/sub-total rows (with the group flag). The only row you leave out is the row of column headings.\n- The row of column headings of a table (e.g. \"Item / Qty / Unit Price\") is not a data row; never return it as a row.\n- Every term/condition label in the sheet that has text next to or below it is a row in the terms loop, in sheet order. Labels with no text are skipped.\n- No row of the terms loop uses a section heading (such as the title of the terms section itself, e.g. \"Terms & Conditions\") as its label. A note or text that sits under such a heading gets its own row labelled with its own label (e.g. \"Note\"), or is skipped if it has no label.\n- Every tag asking for an initial/one-time/total charge has the main table's total-with-taxes value. If the main priced table contains several alternative options (each with its own total) and no single overall total, these tags get \"As per the selected option\" instead. Monthly/recurring/commitment tags are \"N/A\" if the sheet has none.\n- Every account-manager tag is listed in userSource, with \"\" as its value, and is not in \"missing\".\n- No value is a sheet label (text ending in ':' such as 'Customer Location:'). If a tag's only candidate is a label, leave it \"\" and list it in \"missing\".\n- Every total / sub-total row (its description is a word such as Total, Amount, Sub Total, Final Total or Grand Total, or its amounts are the sum of the rows above it) has the group flag set to true.\n- A total / sub-total row goes only in a loop that has money fields; never in a loop that has only description and quantity fields.\n- Use the optional-items loop only when the sheet has a SEPARATE optional-items table. When optional items sit inside the main priced table and the table's totals include them, keep them in the main loop exactly as the sheet shows, with their heading row (e.g. \"OPTIONAL ITEMS\") flagged, and return the optional-items loop as [] (it is then not listed in \"missing\").\n- A tag that asks for a person's job title / designation contains a job title only: text that the sheet labels as a title or designation, or that is plainly a job title. The value next to a reference, date, location or project label, a place, an address or a company name is never a designation. If the sheet has no job title, leave it \"\" and list it in \"missing\"."
+        }
+      },
+      "id": "a1b2c3d4-0003-4a5b-8c9d-0e1f2a3b4c03",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5.4",
+        "options": {
+          "temperature": 0,
+          "responseFormat": "json_object"
+        }
+      },
+      "id": "a1b2c3d4-0004-4a5b-8c9d-0e1f2a3b4c04",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $('Webhook').first().json;\nconst request = input.body || input; // what the backend sent (refNo when already fixed, else refRequest)\nconst schema = $('Build Prompt').first().json.schema || [];\n// Only tag names from the schema are ever returned; the backend checks the answer again.\n\n// The VALUE of the quotation reference, safe to use as the end of the reference number: label prefixes (\"PR:\", \"PR -\", \"Ref:\",\n// \"Ref No:\", \"Quotation No:\", \"Quote #\") removed, slashes / spaces -> \"-\", every character except letters, digits, \".\", \"_\", \"-\" dropped.\n// \"\" when nothing usable is left (e.g. the AI returned only the label \"PR:\").\nfunction cleanQuotationRef(raw) {\n  var v = String(raw == null ? '' : raw).trim();\n  var label = /^\\s*(?:(?:quotation|quote|proposal|reference|ref|pr)\\b\\s*(?:no\\.?|number|num\\.?|#)?\\s*[:#\\-.]*\\s*)+/i;\n  for (var i = 0; i < 4; i++) { var next = v.replace(label, ''); if (next === v) break; v = next; }\n  v = v.replace(/^[\\s:#.\\-]+/, '');\n  return v.replace(/[\\s\\/\\\\]+/g, '-').replace(/[^A-Za-z0-9._-]/g, '').replace(/-{2,}/g, '-').replace(/^[-._]+|[-._]+$/g, '');\n}\n\nlet raw = String($input.first().json.output || '').trim();\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed = null;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  const start = raw.indexOf('{');\n  const end = raw.lastIndexOf('}');\n  if (start !== -1 && end > start) {\n    try { parsed = JSON.parse(raw.substring(start, end + 1)); } catch (e2) { parsed = null; }\n  }\n}\n\nif (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {\n  return [{ json: { error: 'invalid_ai_output', raw: raw.substring(0, 20000) } }];\n}\n\nconst values = (parsed.values && typeof parsed.values === 'object' && !Array.isArray(parsed.values)) ? parsed.values : {};\nconst names = schema.map(function (t) { return t.name; });\nconst missing = Array.isArray(parsed.missing) ? parsed.missing.filter(function (n) { return names.indexOf(n) !== -1; }) : [];\nconst meta = (parsed.meta && typeof parsed.meta === 'object') ? parsed.meta : {};\nconst userFields = ['name', 'phone', 'email', 'designation', 'division'];\nconst userSource = Array.isArray(parsed.userSource) ? parsed.userSource.filter(function (u) {\n  return u && names.indexOf(u.tag) !== -1 && userFields.indexOf(u.field) !== -1;\n}).map(function (u) { return { tag: u.tag, field: u.field }; }) : [];\n\n// Reference number: a fixed one (Regenerate) is echoed back. Otherwise it is SLTM-<section>-<sub-section>-<quotationRef>, or \"\" when the\n// section, sub-section or the cleaned quotation reference is missing - never a partial reference, never the raw value from the Excel.\nconst quotationRef = cleanQuotationRef(parsed.quotationRef);\nlet refNo = '';\nif (request.refNo) {\n  refNo = String(request.refNo).trim();\n} else if (request.refRequest && quotationRef) {\n  const norm = function (v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); };\n  const section = norm(request.refRequest.section);\n  const sub = norm(request.refRequest.subSection);\n  if (section && sub) refNo = 'SLTM-' + section + '-' + sub + '-' + quotationRef;\n  if (!/^SLTM-[A-Z0-9]+-[A-Z0-9]+-[A-Za-z0-9._-]+$/.test(refNo)) refNo = '';\n}\n\nreturn [{ json: { values: values, missing: missing, userSource: userSource, quotationRef: quotationRef, refNo: refNo, meta: { customerName: typeof meta.customerName === 'string' ? meta.customerName : '' } } }];"
+      },
+      "id": "a1b2c3d4-0005-4a5b-8c9d-0e1f2a3b4c05",
+      "name": "Parse AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0006-4a5b-8c9d-0e1f2a3b4c06",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

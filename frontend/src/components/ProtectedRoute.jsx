@@ -66,6 +66,7 @@ const ProtectedRoute = ({ children, requireAdmin = false }) => {
           }
 
           localStorage.setItem('userRole', role || 'user');
+          localStorage.setItem('userDesignation', res.data.user?.designation || ''); // lets the UI show Section Manager-only actions
           setIsAllowed(true);
         } else {
           // Verification failed

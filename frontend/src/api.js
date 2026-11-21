@@ -158,5 +158,163 @@ export const clearAllSearchHistory = async (email) => {
   return response.data;
 };
 
+/**
+ * Proposal status tracking + document uploads (the backend checks the x-user-email header)
+ */
+const proposalAuth = (email) => ({ 'x-user-email': email || '' });
+const proposalUrl = (refNo) => `/api/proposals/${encodeURIComponent(refNo)}`;
 
+// Ordered (oldest -> newest) status history, each entry with its documents
+export const getProposalHistory = async (refNo, email) => {
+  const response = await axios.get(`${proposalUrl(refNo)}/history`, { headers: proposalAuth(email), timeout: 15000 });
+  return response.data;
+};
 
+// Adds a history entry (new version/status). files: { <docType>: File }
+export const updateProposalStatus = async (refNo, { status, note, files = {} }, email) => {
+  const formData = new FormData();
+  formData.append('status', status);
+  formData.append('note', note || '');
+  Object.entries(files).forEach(([docType, file]) => { if (file) formData.append(docType, file); });
+  const response = await axios.post(`${proposalUrl(refNo)}/status`, formData, { headers: proposalAuth(email), timeout: 120000 });
+  return response.data;
+};
+
+// Adds / replaces one document on an existing history entry
+export const uploadHistoryDocument = async (refNo, historyId, docType, file, email) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await axios.post(`${proposalUrl(refNo)}/history/${encodeURIComponent(historyId)}/documents/${encodeURIComponent(docType)}`, formData, { headers: proposalAuth(email), timeout: 120000 });
+  return response.data;
+};
+
+// Returns a Blob (the route is authenticated, so it cannot be opened as a plain link)
+export const downloadProposalDocument = async (refNo, docId, email) => {
+  const response = await axios.get(`${proposalUrl(refNo)}/documents/${encodeURIComponent(docId)}`, { headers: proposalAuth(email), responseType: 'blob', timeout: 120000 });
+  return response.data;
+};
+
+// One version: { versionNumber, isCurrent, snapshotAvailable, snapshot: { fields, ... } | null, events: [...] }
+export const getProposalVersion = async (refNo, versionNumber, email) => {
+  const response = await axios.get(`${proposalUrl(refNo)}/versions/${encodeURIComponent(versionNumber)}`, { headers: proposalAuth(email), timeout: 15000 });
+  return response.data;
+};
+
+// Word / PDF of one version (no version = the current one). Returns { blob, fileName }
+export const downloadProposalVersionFile = async (refNo, format, versionNumber, email) => {
+  const response = await axios.get(`${proposalUrl(refNo)}/download`, { params: { format, ...(versionNumber ? { version: versionNumber } : {}) }, headers: proposalAuth(email), responseType: 'blob', timeout: 180000 });
+  const match = (response.headers['content-disposition'] || '').match(/filename="?([^"]+)"?/);
+  return { blob: response.data, fileName: match ? match[1] : `Proposal${versionNumber ? `_v${versionNumber}` : ''}.${format}` }; // the first argument is the proposal id
+};
+
+// Word / PDF of one step of the timeline (stepId = the history event id; none = the current step). Returns { blob, fileName }
+export const downloadProposalStepFile = async (refNo, format, stepId, email) => {
+  const response = await axios.get(`${proposalUrl(refNo)}/download`, { params: { format, ...(stepId ? { step: stepId } : {}) }, headers: proposalAuth(email), responseType: 'blob', timeout: 180000 });
+  const match = (response.headers['content-disposition'] || '').match(/filename="?([^"]+)"?/);
+  return { blob: response.data, fileName: match ? match[1] : `Proposal.${format}` };
+};
+
+// Saves an edit of a product proposal. A content change creates the next version; returns { changed, currentVersion, history, proposal }
+export const saveProposalFields = async (refNo, fields, email) => {
+  const response = await axios.put(`${proposalUrl(refNo)}/fields`, { fields }, { headers: proposalAuth(email), timeout: 30000 });
+  return response.data;
+};
+
+/**
+ * Solution proposals: a quotation Excel + the active solution template (all routes check the x-user-email header)
+ */
+const solutionUrl = (path) => `/api/proposals/solution${path}`;
+
+export const getSolutionTemplate = async (email) => {
+  const response = await axios.get(solutionUrl('/template'), { headers: proposalAuth(email), timeout: 15000 });
+  return response.data;
+};
+
+export const uploadSolutionExcel = async (file, email) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await axios.post(solutionUrl('/upload'), formData, { headers: proposalAuth(email), timeout: 120000 });
+  return response.data;
+};
+
+export const extractSolutionSheet = async (uploadId, sheetName, user, email) => {
+  const response = await axios.post(solutionUrl('/extract'), { uploadId, sheetName, user }, { headers: proposalAuth(email), timeout: 200000 });
+  return response.data;
+};
+
+export const getSolutionProposal = async (refNo, email) => {
+  const response = await axios.get(solutionUrl(`/${encodeURIComponent(refNo)}`), { headers: proposalAuth(email), timeout: 15000 });
+  return response.data;
+};
+
+// logo: undefined = unchanged, '' = removed, a PNG / JPG data URL = the new customer logo
+export const saveSolutionFields = async (refNo, fields, companyName, email, logo) => {
+  const response = await axios.put(solutionUrl(`/${encodeURIComponent(refNo)}/fields`), { fields, companyName, logo }, { headers: proposalAuth(email), timeout: 30000 });
+  return response.data;
+};
+
+// Returns a Blob (Word or PDF)
+export const exportSolutionProposal = async ({ fields, templateId, companyName, format, id, logo }, email) => {
+  const response = await axios.post(solutionUrl('/export'), { fields, templateId, companyName, format, id, logo }, { headers: proposalAuth(email), responseType: 'blob', timeout: 180000 });
+  return response.data;
+};
+
+// Runs the AI agent again on the stored Excel and sheet (same reference number); the server replaces the values
+export const regenerateSolutionProposal = async (refNo, user, email) => {
+  const response = await axios.post(solutionUrl(`/${encodeURIComponent(refNo)}/regenerate`), { user }, { headers: proposalAuth(email), timeout: 200000 });
+  return response.data;
+};
+
+export const downloadSolutionSource = async (refNo, email) => {
+  const response = await axios.get(solutionUrl(`/${encodeURIComponent(refNo)}/source`), { headers: proposalAuth(email), responseType: 'blob', timeout: 60000 });
+  return response.data;
+};
+
+/**
+ * Product + Solution proposals: the chosen business + products and a quotation Excel, filled into the active Product + Solution template
+ */
+const psUrl = (path) => `/api/proposals/product-solution${path}`;
+
+export const getProductSolutionTemplate = async (email) => {
+  const response = await axios.get(psUrl('/template'), { headers: proposalAuth(email), timeout: 15000 });
+  return response.data;
+};
+
+export const uploadProductSolutionExcel = async (file, email) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await axios.post(psUrl('/upload'), formData, { headers: proposalAuth(email), timeout: 120000 });
+  return response.data;
+};
+
+// selection = { business, productIds } from the product step
+export const extractProductSolution = async (uploadId, sheetName, user, email, selection = {}) => {
+  const response = await axios.post(psUrl('/extract'), { uploadId, sheetName, user, productIds: selection.productIds }, { headers: proposalAuth(email), timeout: 600000 });
+  return response.data;
+};
+
+export const getProductSolutionProposal = async (refNo, email) => {
+  const response = await axios.get(psUrl(`/${encodeURIComponent(refNo)}`), { headers: proposalAuth(email), timeout: 15000 });
+  return response.data;
+};
+
+export const saveProductSolutionFields = async (refNo, fields, companyName, email, logo) => {
+  const response = await axios.put(psUrl(`/${encodeURIComponent(refNo)}/fields`), { fields, companyName, logo }, { headers: proposalAuth(email), timeout: 30000 });
+  return response.data;
+};
+
+// Returns a Blob (Word or PDF)
+export const exportProductSolutionProposal = async ({ fields, templateId, companyName, format, id, logo }, email) => {
+  const response = await axios.post(psUrl('/export'), { fields, templateId, companyName, format, id, logo }, { headers: proposalAuth(email), responseType: 'blob', timeout: 180000 });
+  return response.data;
+};
+
+export const regenerateProductSolutionProposal = async (refNo, user, email) => {
+  const response = await axios.post(psUrl(`/${encodeURIComponent(refNo)}/regenerate`), { user }, { headers: proposalAuth(email), timeout: 600000 });
+  return response.data;
+};
+
+export const downloadProductSolutionSource = async (refNo, email) => {
+  const response = await axios.get(psUrl(`/${encodeURIComponent(refNo)}/source`), { headers: proposalAuth(email), responseType: 'blob', timeout: 60000 });
+  return response.data;
+};

@@ -1,0 +1,201 @@
+{
+  "name": "Proposal Agent v2",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-v2",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c3af3bc7-0f2e-4c98-bc62-254a2d0ff9e9",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "proposal-v2"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n// n8n puts the POST body under .body; fall back to the item itself when testing.\n\nconst aiFields = Array.isArray(body.aiFields) ? body.aiFields : [];\nconst company = body.company || {};\nconst products = Array.isArray(body.products) ? body.products : [];\nconst catalogue = Array.isArray(body.catalogue) ? body.catalogue : [];\nconst rep = body.rep || {};\nif (aiFields.length === 0) throw new Error('aiFields must contain at least one field');\nif (!company.name) throw new Error('company.name is required');\n\nconst slimProducts = products.map(function (p) {\n  // Only the fields that describe the product (no terms, no diagram names).\n  return { id: p.id, name: p.name, description: p.description, features: p.features };\n});\n\nconst fieldSpec = aiFields.map(function (f) {\n  const base = { key: f.key, label: f.label, type: f.type, instruction: f.hint || '' };\n  if (f.type === 'table') base.row_keys = (f.columns || []).map(function (c) { return { key: c.key, label: c.label }; });\n  return base;\n});\n\nconst prompt = [\n  'CUSTOMER COMPANY:', JSON.stringify(company, null, 2),\n  '', 'SELECTED SLT PRODUCTS (' + slimProducts.length + '):', JSON.stringify(slimProducts, null, 2),\n  '', 'PRODUCT CATALOGUE (ids you may use in recommendations):', JSON.stringify(catalogue),\n  '', 'SALES REP (for tone only; do not mention by name):', JSON.stringify({ name: rep.name || '', designation: rep.designation || '' }),\n  '', 'FIELDS TO FILL (return exactly one key per field key):', JSON.stringify(fieldSpec, null, 2)\n].join('\\n');\n\nreturn [{ json: { prompt: prompt, aiFields: aiFields } }];"
+      },
+      "id": "e93214b4-b208-427a-81e3-8546780faa79",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "systemMessage": "You fill in the customer-specific parts of an SLT-MOBITEL enterprise business proposal.\n\nYou receive: the customer company, the SLT products selected for this proposal, the product catalogue, and a list of FIELDS TO FILL. Each field has a key, a label, a type and an instruction.\n\nReturn ONLY one valid JSON object, no markdown fences, no commentary. It must contain exactly one key per field key in FIELDS TO FILL:\n- type 'text': a short plain-text string.\n- type 'longText': plain text; separate paragraphs with a blank line.\n- type 'table': an array of objects, each with exactly the keys listed in row_keys. Follow the field's instruction for how many rows; when it says one row per selected product, keep the order of the selected products. For a field whose rows pick products from the catalogue, use catalogue ids only. A key named highPriority holds true or false; every other value is a string.\n\nRules:\n- Use ONLY facts found in the company data, the product data, and what the knowledge base search tool returns. Search the knowledge base for each selected product by name before writing about it.\n- NEVER invent prices, speeds, numbers, dates, contract terms, phone numbers, email addresses, people, titles or URLs. If a value is not stated in the provided data, return an empty string for it rather than guess.\n- Plain text only: no XML, no HTML, no markdown, no bullet symbols, no asterisks.\n- Do not use double-quote characters inside string values; use single quotes instead.\n- Do not mention any person by name.\n- Write in the formal style of a business proposal.\n- If the instruction for a field is unclear, return an empty string for it.\n- No self-correction or meta commentary."
+        }
+      },
+      "id": "665f7e3b-8a91-42ff-a14b-2e4b97e4acb2",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5.4-mini",
+        "options": {}
+      },
+      "id": "1c9372db-0a68-4d69-83af-4fe6b725f33d",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search SLT-Mobitel's official vector database across all strategic pillars for official enterprise products, specifications, and solution features. Search each selected product by name.",
+        "method": "POST",
+        "url": "https://insighthub.raccoon-ai.io/api/vector/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"{query}\",\n  \"nResults\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The product or solution search query string for vector search",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "e3c9e79c-b45b-4adb-8dd5-ddc7af42aa1b",
+      "name": "Knowledge Base Vector Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const aiFields = $('Build Prompt').first().json.aiFields || [];\n// The field list the backend sent; only these keys are ever returned.\n\nlet raw = String($input.first().json.output || '').trim();\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed = null;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  const start = raw.indexOf('{');\n  const end = raw.lastIndexOf('}');\n  if (start !== -1 && end > start) {\n    try { parsed = JSON.parse(raw.substring(start, end + 1)); } catch (e2) { parsed = null; }\n  }\n}\n\nif (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {\n  return [{ json: { error: 'invalid_ai_output', raw: raw.substring(0, 2000) } }];\n}\n\nconst text = function (v) {\n  if (typeof v === 'string') return v;\n  if (typeof v === 'number') return String(v);\n  return '';\n};\nconst cell = function (v) {\n  return typeof v === 'boolean' ? v : text(v);\n};\n\nconst values = {};\naiFields.forEach(function (f) {\n  const v = parsed[f.key];\n  if (f.type === 'table') {\n    const rows = Array.isArray(v) ? v : [];\n    values[f.key] = rows.filter(function (r) { return r && typeof r === 'object'; }).map(function (r) {\n      const row = {};\n      (f.columns || []).forEach(function (c) { row[c.key] = cell(r[c.key]); });\n      return row;\n    });\n  } else {\n    values[f.key] = text(v);\n  }\n});\n\nreturn [{ json: { values: values } }];"
+      },
+      "id": "f0db88f9-54ae-4153-82f0-6def8f8263df",
+      "name": "Parse AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "53f2f5e9-6e8f-4c5a-847e-a9d39b70a1b8",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base Vector Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
