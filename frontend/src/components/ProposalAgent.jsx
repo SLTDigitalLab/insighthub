@@ -193,7 +193,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   const [preview, setPreview] = useState({ url: '', pages: {}, fields: null });
   // Last good preview: blob URL of the PDF, section pages, and the fields it was made from
   const [previewError, setPreviewError] = useState('');
-  const [viewMode, setViewMode] = useState(() => savedSession?.viewMode || 'doc');
+  const [viewMode, setViewMode] = useState('doc');
   // 'doc' (interactive live document sheet) | 'pdf' (LibreOffice PDF iframe)
   const [jump, setJump] = useState({ page: 1, n: 0 });
   // Page the preview is showing; n changes on every chip click so the viewer reloads at that page
@@ -201,7 +201,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   // 'editor' | 'preview' on screens <= 960px
   const urlRef = useRef('');
   const seq = useRef(0);
-  const contactEdits = useRef(savedSession?.contactEdits || {});
+  const contactEdits = useRef({});
   // Contact Us values the rep has typed (key -> value), kept across Generate for this session
   // urlRef = current blob URL (freed when replaced / on leaving); seq drops out-of-date preview responses
 
@@ -421,19 +421,6 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
       refreshPreview(initialProposal.fields);
     }
   }, [initialProposal]);
-
-  // Reconnection and tab visibility recovery (e.g. returning from YouTube or other tabs)
-  useEffect(() => {
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        if (step === 'edit' && fields && viewMode === 'pdf' && !preview.url && !previewing) {
-          refreshPreview(fields);
-        }
-      }
-    };
-    document.addEventListener('visibilitychange', handleVisibility);
-    return () => document.removeEventListener('visibilitychange', handleVisibility);
-  }, [step, fields, viewMode, preview.url, previewing]);
 
   const [confirmFreshOpen, setConfirmFreshOpen] = useState(false);
 

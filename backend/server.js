@@ -424,7 +424,7 @@ app.post('/api/lead-discovery', async (req, res) => {
 
     return res.json({
       success: true,
-      agent: "Lead Discovery (Live n8n Cloud)",
+      agent: "Find new businesses (Live n8n Cloud)",
       resultsCount: n8nResults ? n8nResults.length : 0,
       results: n8nResults || []
     });
@@ -892,6 +892,28 @@ const sendEmailNotification = async ({ toEmail, subject, htmlBody }) => {
 // MICROSOFT SSO & ACCESS CONTROL ROUTES
 // ==========================================
 
+// Extract corporate work email from Entra ID token claims, normalizing B2B guest #EXT# UPNs if needed
+const extractEmailFromClaims = (payload = {}) => {
+  const candidates = [payload.email, payload.preferred_username, payload.upn, payload.unique_name];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const val = String(raw).toLowerCase().trim();
+    if (!val.includes('#ext#')) return val;
+  }
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const val = String(raw).toLowerCase().trim();
+    if (val.includes('#ext#')) {
+      const prefix = val.split('#ext#')[0];
+      const splitIdx = prefix.lastIndexOf('_');
+      if (splitIdx > 0) {
+        return `${prefix.slice(0, splitIdx)}@${prefix.slice(splitIdx + 1)}`;
+      }
+    }
+  }
+  return '';
+};
+
 // 0. Microsoft OAuth Code Exchange Fallback Endpoint
 app.post('/api/auth/ms-code-exchange', async (req, res) => {
   try {
@@ -925,8 +947,8 @@ app.post('/api/auth/ms-code-exchange', async (req, res) => {
     if (tokenData.id_token) {
       const parts = tokenData.id_token.split('.');
       if (parts.length >= 2) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        email = (payload.email || payload.preferred_username || payload.upn || payload.unique_name || '').toLowerCase().trim();
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+        email = extractEmailFromClaims(payload);
         name = payload.name || payload.given_name || (email ? email.split('@')[0] : '');
       }
     }
@@ -974,7 +996,7 @@ app.post('/api/auth/verify-access', (req, res) => {
 // 2. Self-Service Access Request (From Microsoft Authenticated User)
 app.post('/api/auth/request-access', async (req, res) => {
   try {
-    const { name, email, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, note } = req.body;
+    const { name, email, company, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, note } = req.body;
 
     if (!email) {
       return res.status(400).json({
@@ -986,7 +1008,8 @@ app.post('/api/auth/request-access', async (req, res) => {
     const result = userService.requestAccess({
       name: name || email.split('@')[0],
       email: email,
-      section: section || 'Enterprise Large',
+      company: company || (email.toLowerCase().includes('@mobitel.lk') ? 'Mobitel' : 'SLT'),
+      section: section || (email.toLowerCase().includes('@mobitel.lk') ? 'Mobitel SME' : 'Enterprise Large'),
       subSection: subSection || rebmArea || '',
       designation: designation || 'Account Manager',
       userType,
@@ -1020,7 +1043,7 @@ app.post('/api/auth/request-access', async (req, res) => {
         <div style="padding: 28px 36px;">
           <h2 style="color: #0f172a; margin: 0 0 16px; font-size: 18px;">New User Requesting Platform Access</h2>
           <p style="color: #475569; font-size: 14px; line-height: 1.5; margin-bottom: 20px;">
-            A user has authenticated via Microsoft Entra ID (@slt.com.lk) and is requesting access to InsightHub:
+            A user has authenticated via Microsoft Entra ID (@slt.com.lk / @mobitel.lk) and is requesting access to InsightHub:
           </p>
 
           <table style="width: 100%; border-collapse: collapse; margin-bottom: 24px; background: #f8fafc; border-radius: 8px; overflow: hidden; border: 1px solid #e2e8f0;">
@@ -1135,7 +1158,7 @@ app.post('/api/admin/invite-user', async (req, res) => {
     if (!verifyAdminRequest(req)) {
       return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
     }
-    const { email, name, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, role, invitedBy } = req.body;
+    const { email, name, company, section, subSection, designation, userType, rebmArea, serviceNumber, mobileNumber, role, invitedBy } = req.body;
 
     if (!email) {
       return res.status(400).json({ success: false, error: 'Email address is required.' });
@@ -1144,7 +1167,8 @@ app.post('/api/admin/invite-user', async (req, res) => {
     const { user, isNew } = userService.inviteUser({
       email,
       name,
-      section: section || 'Enterprise Large',
+      company: company || (email.toLowerCase().includes('@mobitel.lk') ? 'Mobitel' : 'SLT'),
+      section: section || (email.toLowerCase().includes('@mobitel.lk') ? 'Mobitel SME' : 'Enterprise Large'),
       subSection: subSection || rebmArea || '',
       designation: designation || 'Account Manager',
       userType,
@@ -1492,6 +1516,17 @@ app.post('/api/admin/user-action', async (req, res) => {
         success: true,
         message: `User ${user.name} (${user.email}) approved successfully. Notification email dispatched.`,
         user: { id: user.id, name: user.name, email: user.email, status: user.status }
+      });
+
+    } else if (action === 'delete') {
+      const deletedEmail = user.email;
+      const deletedName = user.name;
+      userService.deleteUser(user);
+
+      return res.json({
+        success: true,
+        message: `User ${deletedName} (${deletedEmail}) permanently removed from database.`,
+        deletedUserId: userId
       });
 
     } else if (action === 'decline' || action === 'revoke') {

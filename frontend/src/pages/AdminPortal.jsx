@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import {
   ShieldCheck, Users, CheckCircle, XCircle, Clock, Search,
   Eye, RefreshCw, LogOut, ArrowLeft, Loader2, AlertCircle,
@@ -7,12 +7,23 @@ import {
 } from 'lucide-react';
 import axios from 'axios';
 
-export const ENTERPRISE_SECTIONS = [
+export const SLT_SECTIONS = [
   'Enterprise Large',
   'Enterprise Medium',
   'Government',
   'Carrier business',
   'REBM'
+];
+
+export const MOBITEL_SECTIONS = [
+  'Mobitel SME',
+  'Mobitel LB',
+  'Mobitel MB'
+];
+
+export const ENTERPRISE_SECTIONS = [
+  ...SLT_SECTIONS,
+  ...MOBITEL_SECTIONS
 ];
 
 export const REBM_SUB_SECTIONS = [
@@ -29,6 +40,8 @@ export const DESIGNATIONS = [
 
 const AdminPortal = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const queryTab = searchParams.get('tab');
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
@@ -38,13 +51,23 @@ const AdminPortal = () => {
 
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState('invite'); // 'invite' | 'pending' | 'approved' | 'declined' | 'all'
+  const [activeTab, setActiveTab] = useState(queryTab || 'invite'); // 'invite' | 'pending' | 'approved' | 'declined' | 'all'
   const [searchTerm, setSearchTerm] = useState('');
   const [sectionFilter, setSectionFilter] = useState('all');
   const [subSectionFilter, setSubSectionFilter] = useState('all');
   const [designationFilter, setDesignationFilter] = useState('all');
 
-  // Structured Invite User Form State (5 Enterprise Sections & 19 REBM Sub-Sections)
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    if (newTab === 'invite') {
+      setSearchParams({});
+    } else {
+      setSearchParams({ tab: newTab });
+    }
+  };
+
+  // Structured Invite User Form State (SLT vs Mobitel Organizations & Sections)
+  const [inviteCompany, setInviteCompany] = useState('SLT'); // 'SLT' | 'Mobitel'
   const [inviteSection, setInviteSection] = useState('Enterprise Large');
   const [inviteSubSection, setInviteSubSection] = useState('WPC1');
   const [inviteOtherSub, setInviteOtherSub] = useState(''); // sub-section of a non-REBM section (free text, stored uppercase)
@@ -109,8 +132,17 @@ const AdminPortal = () => {
     checkAdminPermission();
   }, [navigate]);
 
-  const fetchUsers = async (adminEmailOverride) => {
-    setLoading(true);
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    // Auto-refresh users every 12 seconds so new access requests pop up in real-time
+    const pollInterval = setInterval(() => {
+      fetchUsers(null, false);
+    }, 12000);
+    return () => clearInterval(pollInterval);
+  }, [isAuthenticated]);
+
+  const fetchUsers = async (adminEmailOverride, showSpinner = true) => {
+    if (showSpinner) setLoading(true);
     try {
       const email = (adminEmailOverride || localStorage.getItem('userEmail') || '').toLowerCase().trim();
       const res = await axios.get(`/api/admin/users?requesterEmail=${encodeURIComponent(email)}`, {
@@ -121,9 +153,9 @@ const AdminPortal = () => {
       }
     } catch (err) {
       console.error('Error fetching users:', err);
-      showToast('Failed to load users list.', 'error');
+      if (showSpinner) showToast('Failed to load users list.', 'error');
     } finally {
-      setLoading(false);
+      if (showSpinner) setLoading(false);
     }
   };
 
@@ -199,13 +231,14 @@ const AdminPortal = () => {
         {
           email: inviteEmail.trim(),
           name: inviteFullName.trim(),
+          company: inviteCompany,
           section: inviteSection,
-          subSection: inviteSection === 'REBM' ? inviteSubSection : inviteOtherSub.trim().toUpperCase(),
+          subSection: inviteCompany === 'SLT' && inviteSection === 'REBM' ? inviteSubSection : inviteOtherSub.trim().toUpperCase(),
           designation: inviteDesignation,
-          userType: inviteSection === 'REBM'
+          userType: inviteCompany === 'SLT' && inviteSection === 'REBM'
             ? `REBM - ${inviteSubSection} (${inviteDesignation})`
             : `${inviteSection} (${inviteDesignation})`,
-          rebmArea: inviteSection === 'REBM' ? inviteSubSection : '',
+          rebmArea: inviteCompany === 'SLT' && inviteSection === 'REBM' ? inviteSubSection : '',
           serviceNumber: inviteServiceNumber.trim(),
           mobileNumber: inviteMobileNumber.trim(),
           role: inviteRole,
@@ -418,6 +451,15 @@ const AdminPortal = () => {
     return matchesTab && matchesSection && matchesSubSection && matchesDesignation && matchesSearch;
   });
 
+  // Smart sort: pending requests ALWAYS appear at the very top, followed by newest registrations first
+  const sortedUsers = [...filteredUsers].sort((a, b) => {
+    if (a.status === 'pending_approval' && b.status !== 'pending_approval') return -1;
+    if (a.status !== 'pending_approval' && b.status === 'pending_approval') return 1;
+    const timeA = new Date(a.requestedAt || a.createdAt || 0).getTime();
+    const timeB = new Date(b.requestedAt || b.createdAt || 0).getTime();
+    return timeB - timeA;
+  });
+
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#0f172a', fontFamily: 'system-ui, sans-serif' }}>
       {/* Toast Notification */}
@@ -459,7 +501,14 @@ const AdminPortal = () => {
         position: 'sticky', top: 0, zIndex: 100
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', flexWrap: 'wrap' }}>
-          <img src="/insighthub-logo.png" alt="InsightHub" style={{ height: '36px', width: 'auto' }} />
+          <a
+            href="/"
+            onClick={(e) => { e.preventDefault(); navigate('/'); }}
+            title="Go to InsightHub Dashboard"
+            style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', textDecoration: 'none' }}
+          >
+            <img src="/insighthub-logo.png" alt="InsightHub" style={{ height: '46px', width: 'auto', objectFit: 'contain' }} />
+          </a>
           <div style={{ height: '24px', width: '1px', background: '#cbd5e1' }}></div>
           <div>
             <h1 style={{ fontSize: '1.1rem', fontWeight: 800, margin: 0, color: '#0f172a' }}>
@@ -497,17 +546,40 @@ const AdminPortal = () => {
 
       {/* Main Admin Content Container */}
       <div className="admin-portal-container" style={{ maxWidth: '1200px', margin: '2rem auto', padding: '0 1.5rem', boxSizing: 'border-box' }}>
-        {/* KPI Stats Banner */}
+        {/* KPI Stats Banner (Interactive Clickable Filters) */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem', marginBottom: '2rem' }}>
-          <div style={{ background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+          <div
+            onClick={() => handleTabChange('pending')}
+            style={{
+              background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem',
+              border: activeTab === 'pending' ? '2px solid #f59e0b' : '1px solid #e2e8f0',
+              boxShadow: activeTab === 'pending' ? '0 8px 20px rgba(245, 158, 11, 0.15)' : '0 4px 6px -1px rgba(0,0,0,0.02)',
+              cursor: 'pointer', transition: 'all 0.15s ease'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Pending Requests</span>
               <Clock size={20} style={{ color: '#f59e0b' }} />
             </div>
-            <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b', margin: 0 }}>{pendingUsers.length}</p>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.6rem' }}>
+              <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#f59e0b', margin: 0 }}>{pendingUsers.length}</p>
+              {pendingUsers.length > 0 && (
+                <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#b45309', background: '#fef3c7', padding: '2px 8px', borderRadius: '999px' }}>
+                  Awaiting Action
+                </span>
+              )}
+            </div>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+          <div
+            onClick={() => handleTabChange('approved')}
+            style={{
+              background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem',
+              border: activeTab === 'approved' ? '2px solid #10b981' : '1px solid #e2e8f0',
+              boxShadow: activeTab === 'approved' ? '0 8px 20px rgba(16, 185, 129, 0.15)' : '0 4px 6px -1px rgba(0,0,0,0.02)',
+              cursor: 'pointer', transition: 'all 0.15s ease'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Authorized Users</span>
               <CheckCircle size={20} style={{ color: '#10b981' }} />
@@ -515,7 +587,15 @@ const AdminPortal = () => {
             <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#10b981', margin: 0 }}>{approvedUsers.length}</p>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+          <div
+            onClick={() => handleTabChange('declined')}
+            style={{
+              background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem',
+              border: activeTab === 'declined' ? '2px solid #ef4444' : '1px solid #e2e8f0',
+              boxShadow: activeTab === 'declined' ? '0 8px 20px rgba(239, 68, 68, 0.15)' : '0 4px 6px -1px rgba(0,0,0,0.02)',
+              cursor: 'pointer', transition: 'all 0.15s ease'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Declined Requests</span>
               <XCircle size={20} style={{ color: '#ef4444' }} />
@@ -523,7 +603,15 @@ const AdminPortal = () => {
             <p style={{ fontSize: '1.8rem', fontWeight: 800, color: '#ef4444', margin: 0 }}>{declinedUsers.length}</p>
           </div>
 
-          <div style={{ background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.02)' }}>
+          <div
+            onClick={() => handleTabChange('all')}
+            style={{
+              background: '#ffffff', padding: '1.25rem 1.5rem', borderRadius: '1rem',
+              border: activeTab === 'all' ? '2px solid #0066FF' : '1px solid #e2e8f0',
+              boxShadow: activeTab === 'all' ? '0 8px 20px rgba(0, 102, 255, 0.15)' : '0 4px 6px -1px rgba(0,0,0,0.02)',
+              cursor: 'pointer', transition: 'all 0.15s ease'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
               <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase' }}>Total Accounts</span>
               <Users size={20} style={{ color: '#0066FF' }} />
@@ -532,11 +620,174 @@ const AdminPortal = () => {
           </div>
         </div>
 
+        {/* High-Priority Pending Approvals Action Queue Banner */}
+        {pendingUsers.length > 0 && (
+          <div style={{
+            background: 'linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%)',
+            border: '2px solid #f59e0b',
+            borderRadius: '1rem',
+            padding: '1.35rem 1.5rem',
+            marginBottom: '2rem',
+            boxShadow: '0 10px 25px -5px rgba(245, 158, 11, 0.18)'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{
+                  width: '42px', height: '42px', borderRadius: '50%', background: '#ffffff',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#d97706',
+                  border: '2px solid #fcd34d', boxShadow: '0 2px 8px rgba(245, 158, 11, 0.2)'
+                }}>
+                  <Clock size={22} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 800, color: '#92400e', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span>Pending Access Requests</span>
+                    <span style={{
+                      background: '#f59e0b', color: '#ffffff', fontSize: '0.75rem',
+                      padding: '2px 9px', borderRadius: '999px', fontWeight: 800
+                    }}>
+                      {pendingUsers.length} awaiting approval
+                    </span>
+                  </h3>
+                  <p style={{ margin: '0.2rem 0 0', fontSize: '0.82rem', color: '#b45309' }}>
+                    The following staff members have requested access to InsightHub. Approve or decline below:
+                  </p>
+                </div>
+              </div>
+
+              {activeTab !== 'pending' && (
+                <button
+                  onClick={() => handleTabChange('pending')}
+                  style={{
+                    padding: '0.5rem 1rem', borderRadius: '0.6rem', background: '#ffffff',
+                    border: '1.5px solid #fcd34d', color: '#92400e', fontSize: '0.84rem', fontWeight: 700,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.04)'
+                  }}
+                >
+                  Focus Pending Tab ({pendingUsers.length}) →
+                </button>
+              )}
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1rem' }}>
+              {pendingUsers.map(u => {
+                const isMobitel = u.company === 'Mobitel' || MOBITEL_SECTIONS.includes(u.section);
+                return (
+                  <div key={u.id || u.email} style={{
+                    background: '#ffffff', borderRadius: '0.85rem', border: '1px solid #fde68a',
+                    padding: '1.25rem', display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                    boxShadow: '0 4px 12px rgba(245, 158, 11, 0.08)'
+                  }}>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '0.5rem', marginBottom: '0.65rem' }}>
+                        <div>
+                          <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
+                            {u.name || u.email.split('@')[0]}
+                          </h4>
+                          <p style={{ margin: '0.15rem 0 0', fontSize: '0.84rem', color: '#0066FF', fontWeight: 600 }}>
+                            {u.email}
+                          </p>
+                        </div>
+                        <span style={{
+                          padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.74rem', fontWeight: 800,
+                          background: isMobitel ? '#ecfdf5' : '#eff6ff',
+                          color: isMobitel ? '#059669' : '#0066FF',
+                          border: isMobitel ? '1.5px solid #a7f3d0' : '1.5px solid #bfdbfe'
+                        }}>
+                          {isMobitel ? '📱 Mobitel' : '🏢 SLT'}
+                        </span>
+                      </div>
+
+                      <div style={{
+                        display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.8rem',
+                        color: '#475569', marginBottom: '0.85rem', background: '#f8fafc', padding: '0.75rem',
+                        borderRadius: '0.65rem', border: '1px solid #e2e8f0'
+                      }}>
+                        <div>
+                          <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem', fontWeight: 700 }}>SECTION</span>
+                          <strong style={{ color: '#0f172a' }}>{u.section || 'N/A'}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem', fontWeight: 700 }}>DESIGNATION</span>
+                          <strong style={{ color: '#0f172a' }}>{u.designation || 'Account Manager'}</strong>
+                        </div>
+                        <div>
+                          <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem', fontWeight: 700 }}>SERVICE NO</span>
+                          <span>{u.serviceNumber || '—'}</span>
+                        </div>
+                        <div>
+                          <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem', fontWeight: 700 }}>MOBILE</span>
+                          <span>{u.mobileNumber || '—'}</span>
+                        </div>
+                        {u.subSection && (
+                          <div style={{ gridColumn: 'span 2' }}>
+                            <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem', fontWeight: 700 }}>REBM AREA</span>
+                            <strong>{u.subSection}</strong>
+                          </div>
+                        )}
+                        {u.note && (
+                          <div style={{ gridColumn: 'span 2' }}>
+                            <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.7rem', fontWeight: 700 }}>NOTE</span>
+                            <em style={{ color: '#334155' }}>"{u.note}"</em>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '0.5rem', paddingTop: '0.65rem', borderTop: '1px solid #f1f5f9' }}>
+                      <button
+                        onClick={() => handleUserAction(u.id, 'approve')}
+                        disabled={actionLoading}
+                        style={{
+                          flex: 1, padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: 'none',
+                          background: '#10b981', color: '#ffffff', fontWeight: 700, fontSize: '0.84rem',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem',
+                          boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)'
+                        }}
+                      >
+                        <Check size={16} /> Approve & Grant Access
+                      </button>
+                      <button
+                        onClick={() => handleUserAction(u.id, 'decline')}
+                        disabled={actionLoading}
+                        style={{
+                          padding: '0.65rem 0.95rem', borderRadius: '0.6rem', border: '1px solid #fecaca',
+                          background: '#fff1f2', color: '#dc2626', fontWeight: 700, fontSize: '0.84rem',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem'
+                        }}
+                      >
+                        <X size={16} /> Decline
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (window.confirm(`Permanently remove access request for ${u.name || u.email}?`)) {
+                            handleUserAction(u.id, 'delete');
+                          }
+                        }}
+                        disabled={actionLoading}
+                        title="Delete request permanently"
+                        style={{
+                          padding: '0.65rem 0.85rem', borderRadius: '0.6rem', border: '1px solid #e2e8f0',
+                          background: '#ffffff', color: '#64748b', fontWeight: 700, fontSize: '0.84rem',
+                          cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center'
+                        }}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Action Tabs Toolbar */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', marginBottom: '1.5rem' }}>
-          <div style={{ display: 'flex', gap: '0.5rem', background: '#e2e8f0', padding: '0.35rem', borderRadius: '0.75rem' }}>
+          <div style={{ display: 'flex', gap: '0.5rem', background: '#e2e8f0', padding: '0.35rem', borderRadius: '0.75rem', flexWrap: 'wrap' }}>
             <button
-              onClick={() => setActiveTab('invite')}
+              onClick={() => handleTabChange('invite')}
               style={{
                 padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none',
                 background: activeTab === 'invite' ? '#0066FF' : 'transparent',
@@ -544,24 +795,24 @@ const AdminPortal = () => {
                 fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem'
               }}
             >
-              <UserPlus size={15} /> Invite / Authorize SLT Users
+              <UserPlus size={15} /> Pre-Authorize / Add User
             </button>
 
             <button
-              onClick={() => setActiveTab('pending')}
+              onClick={() => handleTabChange('pending')}
               style={{
                 padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none',
-                background: activeTab === 'pending' ? '#ffffff' : 'transparent',
-                color: activeTab === 'pending' ? '#0f172a' : '#475569',
+                background: activeTab === 'pending' ? (pendingUsers.length > 0 ? '#f59e0b' : '#ffffff') : (pendingUsers.length > 0 ? '#fef3c7' : 'transparent'),
+                color: activeTab === 'pending' ? (pendingUsers.length > 0 ? '#ffffff' : '#0f172a') : (pendingUsers.length > 0 ? '#92400e' : '#475569'),
                 fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.4rem',
                 boxShadow: activeTab === 'pending' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
               }}
             >
-              Pending ({pendingUsers.length})
+              <Clock size={15} /> Pending Requests ({pendingUsers.length})
             </button>
 
             <button
-              onClick={() => setActiveTab('approved')}
+              onClick={() => handleTabChange('approved')}
               style={{
                 padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none',
                 background: activeTab === 'approved' ? '#ffffff' : 'transparent',
@@ -574,7 +825,20 @@ const AdminPortal = () => {
             </button>
 
             <button
-              onClick={() => setActiveTab('all')}
+              onClick={() => handleTabChange('declined')}
+              style={{
+                padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none',
+                background: activeTab === 'declined' ? '#ffffff' : 'transparent',
+                color: activeTab === 'declined' ? '#0f172a' : '#475569',
+                fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer',
+                boxShadow: activeTab === 'declined' ? '0 2px 4px rgba(0,0,0,0.05)' : 'none'
+              }}
+            >
+              Declined ({declinedUsers.length})
+            </button>
+
+            <button
+              onClick={() => handleTabChange('all')}
               style={{
                 padding: '0.5rem 1rem', borderRadius: '0.5rem', border: 'none',
                 background: activeTab === 'all' ? '#ffffff' : 'transparent',
@@ -603,9 +867,16 @@ const AdminPortal = () => {
               }}
             >
               <option value="all">All Sections</option>
-              {ENTERPRISE_SECTIONS.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
+              <optgroup label="SLT Sections">
+                {SLT_SECTIONS.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Mobitel Sections">
+                {MOBITEL_SECTIONS.map(s => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
+              </optgroup>
             </select>
 
             {/* REBM Sub-Section Filter */}
@@ -679,15 +950,56 @@ const AdminPortal = () => {
                 Pre-Authorize & Add User
               </h3>
               <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0 }}>
-                Select the user's <strong>Enterprise Section</strong>, <strong>REBM Sub-Section</strong> (if applicable), <strong>Status / Designation</strong> (Section Manager or Account Manager), and employee credentials.
+                Select whether the user is <strong>SLT (Telecom)</strong> or <strong>Mobitel</strong>, choose their section, status / designation, and employee credentials.
               </p>
             </div>
 
             <form onSubmit={handleInviteUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1.25rem', alignItems: 'flex-end' }}>
-              {/* 1. Section Dropdown */}
+              {/* 1. Organization: SLT vs Mobitel */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
-                  Section *
+                  Organization *
+                </label>
+                <div style={{ display: 'flex', gap: '0.4rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInviteCompany('SLT');
+                      setInviteSection('Enterprise Large');
+                    }}
+                    style={{
+                      flex: 1, padding: '0.65rem 0.4rem', fontSize: '0.85rem', fontWeight: 700,
+                      borderRadius: '0.65rem', cursor: 'pointer', transition: 'all 0.15s ease',
+                      border: inviteCompany === 'SLT' ? '2px solid #0066FF' : '1px solid #cbd5e1',
+                      background: inviteCompany === 'SLT' ? '#eff6ff' : '#ffffff',
+                      color: inviteCompany === 'SLT' ? '#0066FF' : '#475569'
+                    }}
+                  >
+                    SLT (Telecom)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setInviteCompany('Mobitel');
+                      setInviteSection('Mobitel SME');
+                    }}
+                    style={{
+                      flex: 1, padding: '0.65rem 0.4rem', fontSize: '0.85rem', fontWeight: 700,
+                      borderRadius: '0.65rem', cursor: 'pointer', transition: 'all 0.15s ease',
+                      border: inviteCompany === 'Mobitel' ? '2px solid #10b981' : '1px solid #cbd5e1',
+                      background: inviteCompany === 'Mobitel' ? '#ecfdf5' : '#ffffff',
+                      color: inviteCompany === 'Mobitel' ? '#059669' : '#475569'
+                    }}
+                  >
+                    Mobitel
+                  </button>
+                </div>
+              </div>
+
+              {/* 2. Section Dropdown (Dynamic based on SLT or Mobitel) */}
+              <div>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                  {inviteCompany === 'Mobitel' ? 'Mobitel Section *' : 'SLT Section *'}
                 </label>
                 <select
                   value={inviteSection}
@@ -697,14 +1009,14 @@ const AdminPortal = () => {
                     border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
                   }}
                 >
-                  {ENTERPRISE_SECTIONS.map(sec => (
+                  {(inviteCompany === 'Mobitel' ? MOBITEL_SECTIONS : SLT_SECTIONS).map(sec => (
                     <option key={sec} value={sec}>{sec}</option>
                   ))}
                 </select>
               </div>
 
-              {/* 2. REBM Sub-Section Dropdown (Only shown if Section is REBM) */}
-              {inviteSection === 'REBM' && (
+              {/* 3. REBM Sub-Section Dropdown (Only shown if SLT and Section is REBM) */}
+              {inviteCompany === 'SLT' && inviteSection === 'REBM' && (
                 <div>
                   <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
                     REBM Sub-Section (19 Areas) *
@@ -819,15 +1131,25 @@ const AdminPortal = () => {
               {/* 7. Email */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
-                  Email (@slt.com.lk) *
+                  Work Email (@slt.com.lk / @mobitel.lk) *
                 </label>
                 <div style={{ position: 'relative' }}>
                   <Mail size={16} style={{ position: 'absolute', left: '0.8rem', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                   <input
                     type="email"
-                    placeholder="user@slt.com.lk"
+                    placeholder="user@slt.com.lk or user@mobitel.lk"
                     value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setInviteEmail(val);
+                      if (val.toLowerCase().includes('@mobitel.lk') && inviteCompany !== 'Mobitel') {
+                        setInviteCompany('Mobitel');
+                        setInviteSection('Mobitel SME');
+                      } else if (val.toLowerCase().includes('@slt.com.lk') && inviteCompany !== 'SLT') {
+                        setInviteCompany('SLT');
+                        setInviteSection('Enterprise Large');
+                      }
+                    }}
                     required
                     style={{
                       width: '100%', padding: '0.7rem 0.85rem 0.7rem 2.3rem', fontSize: '0.88rem',
@@ -892,27 +1214,35 @@ const AdminPortal = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.length === 0 ? (
+              {sortedUsers.length === 0 ? (
                 <tr>
                   <td colSpan={7} style={{ padding: '3rem 1rem', textAlign: 'center', color: '#94a3b8' }}>
                     No user records found matching the current filters.
                   </td>
                 </tr>
               ) : (
-                filteredUsers.map((u) => {
+                sortedUsers.map((u) => {
                   const isApproved = u.status === 'approved';
                   const isPending = u.status === 'pending_approval';
                   const isDeclined = u.status === 'declined';
                   const isSectionMgr = (u.designation && u.designation.toLowerCase().includes('section')) ||
                                        (u.userType && u.userType.toLowerCase().includes('section'));
                   const displayDesignation = isSectionMgr ? 'Section Manager' : 'Account Manager';
+                  const isMobitel = u.company === 'Mobitel' || MOBITEL_SECTIONS.includes(u.section);
                   const isRebm = u.section === 'REBM' || (u.userType && u.userType.includes('REBM')) || !!u.rebmArea;
                   const displaySection = isRebm
                     ? `REBM - ${u.subSection || u.rebmArea || ''}`
-                    : (u.section || u.department || 'Enterprise Large');
+                    : (u.section || u.department || (isMobitel ? 'Mobitel SME' : 'Enterprise Large'));
 
                   return (
-                    <tr key={u.id || u.email} style={{ borderBottom: '1px solid #f1f5f9', transition: 'background 0.15s' }}>
+                    <tr
+                      key={u.id || u.email}
+                      style={{
+                        borderBottom: isPending ? '2px solid #fde68a' : '1px solid #f1f5f9',
+                        background: isPending ? '#fffbeb' : '#ffffff',
+                        transition: 'background 0.15s'
+                      }}
+                    >
                       <td style={{ padding: '1rem 1.25rem' }}>
                         <div style={{ fontWeight: 700, color: '#0f172a' }}>{u.name || u.email.split('@')[0]}</div>
                         <div style={{ fontSize: '0.78rem', color: '#64748b', display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.2rem' }}>
@@ -947,9 +1277,9 @@ const AdminPortal = () => {
                           display: 'inline-flex', alignItems: 'center',
                           fontSize: '0.75rem', fontWeight: 700,
                           padding: '0.25rem 0.65rem', borderRadius: '0.4rem',
-                          background: isRebm ? '#f0fdf4' : '#f8fafc',
-                          color: isRebm ? '#166534' : '#0f172a',
-                          border: `1px solid ${isRebm ? '#bbf7d0' : '#cbd5e1'}`
+                          background: isMobitel ? '#ecfdf5' : (isRebm ? '#f0fdf4' : '#eff6ff'),
+                          color: isMobitel ? '#059669' : (isRebm ? '#166534' : '#0066FF'),
+                          border: `1px solid ${isMobitel ? '#a7f3d0' : (isRebm ? '#bbf7d0' : '#bfdbfe')}`
                         }}>
                           {displaySection}
                         </span>
@@ -1029,33 +1359,69 @@ const AdminPortal = () => {
                             >
                               <X size={14} /> Decline
                             </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Permanently remove ${u.name || u.email}?`)) {
+                                  handleUserAction(u.id, 'delete');
+                                }
+                              }}
+                              disabled={actionLoading}
+                              title="Delete permanently"
+                              style={{
+                                padding: '0.45rem 0.65rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1',
+                                background: '#f8fafc', color: '#64748b', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center'
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
                           </div>
                         ) : isApproved && u.role !== 'admin' ? (
-                          <button
-                            onClick={() => handleUserAction(u.id, 'revoke')}
-                            disabled={actionLoading}
-                            title="Revoke access"
-                            style={{
-                              padding: '0.45rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #fecaca',
-                              background: '#fff1f2', color: '#dc2626', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
-                              display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
-                            }}
-                          >
-                            <Trash2 size={13} /> Revoke Access
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                            <button
+                              onClick={() => handleUserAction(u.id, 'revoke')}
+                              disabled={actionLoading}
+                              title="Revoke access"
+                              style={{
+                                padding: '0.45rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #fecaca',
+                                background: '#fff1f2', color: '#dc2626', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
+                              }}
+                            >
+                              <Trash2 size={13} /> Revoke Access
+                            </button>
+                          </div>
                         ) : isDeclined ? (
-                          <button
-                            onClick={() => handleUserAction(u.id, 'approve')}
-                            disabled={actionLoading}
-                            title="Re-authorize user"
-                            style={{
-                              padding: '0.45rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #bfdbfe',
-                              background: '#eff6ff', color: '#0066FF', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
-                              display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
-                            }}
-                          >
-                            <Check size={13} /> Re-Authorize
-                          </button>
+                          <div style={{ display: 'inline-flex', gap: '0.35rem' }}>
+                            <button
+                              onClick={() => handleUserAction(u.id, 'approve')}
+                              disabled={actionLoading}
+                              title="Re-authorize user"
+                              style={{
+                                padding: '0.45rem 0.75rem', borderRadius: '0.5rem', border: '1px solid #bfdbfe',
+                                background: '#eff6ff', color: '#0066FF', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center', gap: '0.3rem'
+                              }}
+                            >
+                              <Check size={13} /> Re-Authorize
+                            </button>
+                            <button
+                              onClick={() => {
+                                if (window.confirm(`Permanently remove record for ${u.name || u.email}?`)) {
+                                  handleUserAction(u.id, 'delete');
+                                }
+                              }}
+                              disabled={actionLoading}
+                              title="Delete permanently"
+                              style={{
+                                padding: '0.45rem 0.65rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1',
+                                background: '#f8fafc', color: '#64748b', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer',
+                                display: 'inline-flex', alignItems: 'center'
+                              }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         ) : (
                           <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>Master Admin</span>
                         )}

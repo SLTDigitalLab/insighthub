@@ -533,9 +533,8 @@ const SearchHistory = () => {
               }}
             >
               <option value="all">All AI Agents</option>
-              <option value="allResults">All Search Results (All Scores)</option>
-              <option value="lead">Lead Discovery & Prospecting</option>
-              <option value="newBusinesses">Find New Businesses</option>
+              <option value="lead">Find new businesses</option>
+              <option value="newBusinesses">Sunday Observer Registry</option>
               <option value="research">Customer Research</option>
               <option value="product">Product Recommendations</option>
               <option value="meeting">Meeting Preparation</option>
@@ -676,7 +675,7 @@ const SearchHistory = () => {
                             padding: '0.2rem 0.6rem',
                             borderRadius: '0.4rem'
                           }}>
-                            {item.agentName || 'Lead Discovery'}
+                            {item.agentName || 'Find new businesses'}
                           </span>
                           <span style={{ fontSize: '0.78rem', color: '#94a3b8' }}>
                             {new Date(item.timestamp).toLocaleString()}

@@ -3,6 +3,27 @@ import { useNavigate, Link } from 'react-router-dom';
 import { ShieldCheck, ArrowRight, AlertCircle, Loader2, Lock } from 'lucide-react';
 import axios from 'axios';
 
+const extractEmailFromClaims = (payload = {}) => {
+  const candidates = [payload.email, payload.preferred_username, payload.upn, payload.unique_name];
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const val = String(raw).toLowerCase().trim();
+    if (!val.includes('#ext#')) return val;
+  }
+  for (const raw of candidates) {
+    if (!raw) continue;
+    const val = String(raw).toLowerCase().trim();
+    if (val.includes('#ext#')) {
+      const prefix = val.split('#ext#')[0];
+      const splitIdx = prefix.lastIndexOf('_');
+      if (splitIdx > 0) {
+        return `${prefix.slice(0, splitIdx)}@${prefix.slice(splitIdx + 1)}`;
+      }
+    }
+  }
+  return '';
+};
+
 const Login = () => {
   const navigate = useNavigate();
 
@@ -27,7 +48,7 @@ const Login = () => {
           const parts = idToken.split('.');
           if (parts.length >= 2) {
             const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-            const email = (payload.email || payload.preferred_username || payload.upn || payload.unique_name || '').toLowerCase().trim();
+            const email = extractEmailFromClaims(payload);
             const name = payload.name || payload.given_name || (email ? email.split('@')[0] : '');
             
             if (email) {
@@ -184,7 +205,7 @@ const Login = () => {
 
     try {
       const clientId = '437e0ec1-9151-438f-9ddb-d86e6e25527d';
-      const tenantId = '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
+      const tenantId = import.meta.env.VITE_MSAL_TENANT_ID || '534253fc-dfb6-462f-b5ca-cbe81939f5ee';
       const redirectUri = encodeURIComponent(window.location.origin + '/login');
       const nonce = Math.random().toString(36).substring(2) + Date.now().toString(36);
 
@@ -322,7 +343,7 @@ const Login = () => {
             <ShieldCheck size={16} /> Enterprise Single Sign-On (SSO)
           </div>
           <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b', lineHeight: 1.5 }}>
-            Access is restricted to authorized Sri Lanka Telecom staff using verified <strong>@slt.com.lk</strong> Microsoft credentials.
+            Access is restricted to authorized SLT-Mobitel staff using verified <strong>@slt.com.lk</strong> or <strong>@mobitel.lk</strong> Microsoft credentials.
           </p>
         </div>
 

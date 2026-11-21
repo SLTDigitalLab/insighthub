@@ -21,3 +21,6 @@ test-templates/
 
 # solution proposals: Excel uploads waiting for a sheet to be chosen (runtime data)
 backend/data/solution_pending/
+
+backend/templates/active_template_*.docx
+backend/templates/*backup*.docx

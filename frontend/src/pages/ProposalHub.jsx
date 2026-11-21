@@ -231,6 +231,7 @@ export default function ProposalHub() {
     setViewOnly(false);
     try {
       localStorage.removeItem('insightHub_activeProposalSession');
+      sessionStorage.removeItem('insightHub_activeProposalTabSession');
     } catch {}
   };
 
@@ -357,7 +358,7 @@ export default function ProposalHub() {
       )}
 
       {/* Top Header (shared with the Solution and Product + Solution pages) */}
-      <ProposalHubHeader activeTab={activeTab} onTab={handleTabChange} count={savedProposals.length} showGenerate={isAdmin} showTemplate={isAdmin} />
+      <ProposalHubHeader activeTab={activeTab} onTab={tab => { if (tab === 'generator') setSelectedProposal(null); if (tab === 'archive') fetchSavedProposals(); handleTabChange(tab); }} count={savedProposals.length} showGenerate={isAdmin} showTemplate={isAdmin} />
 
       {/* Main Content Area */}
       <main className="proposal-hub-main" style={{ flex: 1, padding: activeTab === 'generator' ? '20px 24px' : '32px 36px', maxWidth: activeTab === 'generator' ? '100%' : '1350px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -404,6 +405,9 @@ export default function ProposalHub() {
                 onSaved={handleProposalSaved}
                 viewOnly={viewOnly}
                 onViewBack={handleViewBack}
+                onProposalGenerated={() => {
+                  fetchSavedProposals();
+                }}
               />
             </div>
           )}
@@ -772,7 +776,10 @@ export default function ProposalHub() {
                   {proposalSearch ? 'No proposals match your search query.' : 'Generated proposals will appear here automatically.'}
                 </p>
                 <button
-                  onClick={() => handleTabChange('generator')}
+              onClick={() => {
+                setSelectedProposal(null);
+                handleTabChange('generator');
+              }}
                   style={{ padding: '8px 18px', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: 6, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
                 >
                   Generate First Proposal
