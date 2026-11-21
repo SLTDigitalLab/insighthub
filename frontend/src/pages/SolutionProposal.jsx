@@ -422,7 +422,8 @@ export default function SolutionProposal({ flow = DEFAULT_FLOW, selection = null
     // The customer logo upload sits in the section of the form that holds the template's logo place (the About block of the templates we have);
     // a template without such a section, or without a logo place at all, gets it on its own at the top of the fields
     const logoInSection = schema.some(t => t.name === logoField && t.type !== 'loop');
-    const logoNode = (inSection) => (
+    const hideLogo = flow.templateType === 'solution'; // the Solution proposal has no customer logo box (Product + Solution keeps it)
+    const logoNode = (inSection) => hideLogo ? null : (
       <CustomerLogoField logo={logoOf(fields)} place={logoPlace} inSection={inSection}
         onChange={url => { setFields(prev => ({ ...prev, __meta: { ...(prev.__meta || {}), leadLogo: url } })); setDirty(true); }} />
     );
@@ -461,7 +462,7 @@ export default function SolutionProposal({ flow = DEFAULT_FLOW, selection = null
               </div>
             )}
             <div style={{ ...card, padding: 16 }}>
-              {!logoInSection && logoNode(false)}
+              {!hideLogo && !logoInSection && logoNode(false)}
               {schema.map(tag => (
                 <TagField key={tag.name} tag={tag} value={fields[tag.name]} path={[tag.name]} prefix="" onChange={onChange} warn={warn} placeholder={placeholders[tag.name]}
                   above={logoInSection && tag.name === logoField ? logoNode(true) : null} />

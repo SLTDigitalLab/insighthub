@@ -128,7 +128,27 @@ function ensurePsSeeded() {
   console.log('[templateStore] Imported the Product + Solution template as version 1 (active).');
   return list;
 }
-const indexFor = type => (type === PS_TYPE ? ensurePsSeeded() : ensureInitialised());
+// The Solution template starts with the one shipped in backend/templates (as version 1, active), the same way as the Product + Solution
+// one. Only done for the solution type and only while it has no version at all, so an upload made by an admin is never replaced and the
+// product and Product + Solution templates are never touched by it.
+const SOLUTION_SEED_FILE = path.join(__dirname, '..', 'templates', 'Solution_Proposal_Template_Tagged.docx');
+function ensureSolutionSeeded() {
+  const list = ensureInitialised();
+  if (list.some(t => typeOf(t) === 'solution')) return list;
+  if (!fs.existsSync(SOLUTION_SEED_FILE)) return list;
+  const buffer = fs.readFileSync(SOLUTION_SEED_FILE);
+  const report = extractTags(buffer);
+  if (report.errors.length || !report.tags.length) {
+    console.error('[templateStore] The Solution seed template could not be used:', report.errors.map(e => e.message).join('; ') || 'no tags');
+    return list;
+  }
+  // the seed already holds its tags: it is stored as it is (no tagged copy is needed)
+  addVersion(list, { buffer, filename: 'Solution_Proposal_Template_Tagged.docx', uploadedBy: 'System (seed)', tags: report.tags, active: true, type: 'solution', extra: { type: 'solution', kind: 'seed', bindings: {} } });
+  writeIndex(list);
+  console.log('[templateStore] Imported the Solution template as version 1 (active).');
+  return list;
+}
+const indexFor = type => (type === PS_TYPE ? ensurePsSeeded() : (type === 'solution' ? ensureSolutionSeeded() : ensureInitialised()));
 
 // Newest first. type: 'product' (default), 'solution' or 'productSolution'; each type has its own single active template.
 function list(type = 'product') {

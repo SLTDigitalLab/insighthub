@@ -64,7 +64,7 @@ async function previewPdf(fields) {
 // products and has a Back button (onBack) instead of "Change business"; its button "Upload the Excel sheet" hands the choice to
 // onProductsChosen({ productIds }) instead of generating a product proposal, and the Product page's saved draft session is neither read nor
 // written. Without mode (the Product page) nothing changes.
-export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null, onClearProposal = null, onSaved = null, mode = null, onProductsChosen = null, onBack = null, viewOnly = false, onViewBack = null }) {
+export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null, onClearProposal = null, onSaved = null, onProposalGenerated = null, mode = null, onProductsChosen = null, onBack = null, viewOnly = false, onViewBack = null }) {
   // Read any saved draft session so tab switching or browser sleep never loses in-progress proposal
   const savedSession = useMemo(() => {
     if (mode) return null;
@@ -275,6 +275,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
       setChecks({ notes: Array.isArray(data.notes) ? data.notes : [], failed: Array.isArray(data.sources?.failed) ? data.sources.failed : [] });
       setRefFromSection(data.refFromSection !== false);
       setStep('edit');
+      if (onProposalGenerated) onProposalGenerated(data); // the server saved the proposal: the hub reloads its list and count
     } catch (err) { setError(await apiError(err)); } finally { setBusy(''); }
   }
 
