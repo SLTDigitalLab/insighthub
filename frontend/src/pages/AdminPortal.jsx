@@ -47,6 +47,8 @@ const AdminPortal = () => {
   // Structured Invite User Form State (5 Enterprise Sections & 19 REBM Sub-Sections)
   const [inviteSection, setInviteSection] = useState('Enterprise Large');
   const [inviteSubSection, setInviteSubSection] = useState('WPC1');
+  const [inviteOtherSub, setInviteOtherSub] = useState(''); // sub-section of a non-REBM section (free text, stored uppercase)
+  const [profileEdit, setProfileEdit] = useState(null); // { user, section, subSection, saving } while the section editor is open
   const [inviteDesignation, setInviteDesignation] = useState('Account Manager');
   const [inviteFullName, setInviteFullName] = useState('');
   const [inviteServiceNumber, setInviteServiceNumber] = useState('');
@@ -184,6 +186,11 @@ const AdminPortal = () => {
       return;
     }
 
+    if (inviteSection !== 'REBM' && !/^[A-Za-z0-9]{1,20}$/.test(inviteOtherSub.trim())) {
+      showToast('Please enter the sub-section (letters and digits only).', 'error');
+      return;
+    }
+
     setInviteLoading(true);
     try {
       const currentAdmin = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
@@ -193,7 +200,7 @@ const AdminPortal = () => {
           email: inviteEmail.trim(),
           name: inviteFullName.trim(),
           section: inviteSection,
-          subSection: inviteSection === 'REBM' ? inviteSubSection : '',
+          subSection: inviteSection === 'REBM' ? inviteSubSection : inviteOtherSub.trim().toUpperCase(),
           designation: inviteDesignation,
           userType: inviteSection === 'REBM'
             ? `REBM - ${inviteSubSection} (${inviteDesignation})`
@@ -223,6 +230,25 @@ const AdminPortal = () => {
       showToast(err.response?.data?.error || 'Error authorizing user.', 'error');
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const saveProfile = async () => {
+    const { user, section, subSection } = profileEdit;
+    if (!/^[A-Za-z0-9]{1,20}$/.test(String(subSection).trim())) {
+      showToast('Sub-section must be 1-20 letters or digits.', 'error');
+      return;
+    }
+    setProfileEdit(p => ({ ...p, saving: true }));
+    try {
+      const currentAdmin = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+      await axios.post('/api/admin/user-profile', { userId: user.id, section, subSection: String(subSection).trim().toUpperCase(), requesterEmail: currentAdmin }, { headers: { 'x-user-email': currentAdmin } });
+      showToast('Section updated.', 'success');
+      setProfileEdit(null);
+      fetchUsers();
+    } catch (err) {
+      showToast((err.response && err.response.data && err.response.data.error) || 'Failed to update section.', 'error');
+      setProfileEdit(p => (p ? { ...p, saving: false } : p));
     }
   };
 
@@ -395,6 +421,24 @@ const AdminPortal = () => {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#0f172a', fontFamily: 'system-ui, sans-serif' }}>
       {/* Toast Notification */}
+      {profileEdit && (
+        <div onClick={() => !profileEdit.saving && setProfileEdit(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 420, padding: '1.25rem 1.5rem', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>Section &amp; sub-section</h3>
+            <p style={{ margin: '0.3rem 0 1rem', fontSize: '0.8rem', color: '#64748b' }}>{profileEdit.user.email}. Used in the reference number of the proposals this user generates.</p>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.3rem' }}>Section</label>
+            <select value={profileEdit.section} onChange={e => setProfileEdit(p => ({ ...p, section: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', marginBottom: '0.9rem' }}>
+              {ENTERPRISE_SECTIONS.map(sec => <option key={sec} value={sec}>{sec}</option>)}
+            </select>
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, marginBottom: '0.3rem' }}>Sub-section</label>
+            <input type="text" value={profileEdit.subSection} maxLength={20} onChange={e => setProfileEdit(p => ({ ...p, subSection: e.target.value.toUpperCase() }))} placeholder="e.g. WPE" style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem', boxSizing: 'border-box' }} />
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.1rem' }}>
+              <button type="button" disabled={profileEdit.saving} onClick={() => setProfileEdit(null)} style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+              <button type="button" disabled={profileEdit.saving} onClick={saveProfile} style={{ padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: 'none', background: '#0066FF', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{profileEdit.saving ? 'Saving...' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {toast && (
         <div style={{
           position: 'fixed', top: '1.5rem', right: '1.5rem', zIndex: 9999,
@@ -680,6 +724,25 @@ const AdminPortal = () => {
                 </div>
               )}
 
+              {inviteSection !== 'REBM' && (
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
+                    Sub-Section *
+                  </label>
+                  <input
+                    type="text"
+                    value={inviteOtherSub}
+                    maxLength={20}
+                    onChange={(e) => setInviteOtherSub(e.target.value.toUpperCase())}
+                    placeholder="e.g. KEY"
+                    style={{
+                      width: '100%', padding: '0.7rem 0.85rem', fontSize: '0.88rem', fontWeight: 600, boxSizing: 'border-box',
+                      border: '1px solid #cbd5e1', borderRadius: '0.65rem', outline: 'none', background: '#ffffff', color: '#0f172a'
+                    }}
+                  />
+                </div>
+              )}
+
               {/* 3. Status / Designation */}
               <div>
                 <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.35rem' }}>
@@ -890,6 +953,21 @@ const AdminPortal = () => {
                         }}>
                           {displaySection}
                         </span>
+                        {!isRebm && u.subSection && (
+                          <span style={{ marginLeft: '0.4rem', fontSize: '0.75rem', fontWeight: 700, color: '#475569' }}>· {u.subSection}</span>
+                        )}
+                        {isApproved && (!u.section || !(u.subSection || u.rebmArea)) && (
+                          <div style={{ fontSize: '0.7rem', color: '#b45309', fontWeight: 700, marginTop: '0.2rem' }}>Section / sub-section not set</div>
+                        )}
+                        {isApproved && (
+                          <button
+                            type="button"
+                            onClick={() => setProfileEdit({ user: u, section: ENTERPRISE_SECTIONS.includes(u.section) ? u.section : 'Enterprise Large', subSection: u.subSection || u.rebmArea || '', saving: false })}
+                            style={{ display: 'block', marginTop: '0.3rem', padding: 0, background: 'none', border: 'none', color: '#0066FF', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            Edit section
+                          </button>
+                        )}
                       </td>
 
                       {/* Designation */}

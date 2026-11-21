@@ -2,7 +2,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 // React hooks for state, effects, memoised lists and DOM refs
 import axios from 'axios';
 // Same HTTP client as the rest of InsightHub
-import { Search, Building2, MapPin, Star, Download, ChevronDown, ChevronRight, ArrowLeft, Loader2, FileText, Plus, Trash2, Sparkles, X, RefreshCw, Upload } from 'lucide-react';
+import { Search, Building2, MapPin, Star, Download, ChevronDown, ChevronRight, ArrowLeft, Loader2, FileText, Plus, Trash2, Sparkles, X, RefreshCw, Upload, Save } from 'lucide-react';
+import { saveProposalFields, downloadProposalStepFile } from '../api';
+import ViewOnlyBanner from './ViewOnlyBanner';
+import { isFinalStatus } from '../utils/proposalSteps';
 // Same icon library the Dashboard already uses
 import ConfirmModal from './ConfirmModal';
 
@@ -43,6 +46,11 @@ function saveBlob(blob, fileName) {
   URL.revokeObjectURL(url);
 }
 
+const MAX_DIAGRAM_BYTES = 10 * 1024 * 1024; // the server refuses larger diagram uploads too
+
+// "ABOUT YOU & HOW WE CAN HELP YOU" -> "About You & How We Can Help You"
+const titleCase = s => String(s || '').toLowerCase().replace(/(^|[\s(/-])([a-z])/g, (_, a, b) => a + b.toUpperCase());
+
 async function previewPdf(fields) {
   const res = await axios.post(`${API}/export`, { fields, format: 'pdf' }, { responseType: 'blob', timeout: 150000 });
   // The same PDF the Export PDF button downloads
@@ -52,12 +60,23 @@ async function previewPdf(fields) {
   // pages = { cover, letter, requirements, about, solution, investment } -> PDF page numbers, for the quick-jump chips
 }
 
-export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null, onClearProposal = null }) {
+// mode: 'productSolution' = the Product + Solution page uses only the product picker: no business search or business form, it starts at the
+// products and has a Back button (onBack) instead of "Change business"; its button "Upload the Excel sheet" hands the choice to
+// onProductsChosen({ productIds }) instead of generating a product proposal, and the Product page's saved draft session is neither read nor
+// written. Without mode (the Product page) nothing changes.
+export default function ProposalAgent({ user = {}, accent = '#0284c7', initialProposal = null, onClearProposal = null, onSaved = null, mode = null, onProductsChosen = null, onBack = null, viewOnly = false, onViewBack = null }) {
   // Read any saved draft session so tab switching or browser sleep never loses in-progress proposal
   const savedSession = useMemo(() => {
+    if (mode) return null;
     try {
       const raw = localStorage.getItem(ACTIVE_SESSION_KEY);
-      return raw ? JSON.parse(raw) : null;
+      const session = raw ? JSON.parse(raw) : null;
+      // A session saved by a different version of the editor (fields without the requirement / investment tables) cannot be opened
+      if (session?.fields && !(Array.isArray(session.fields.requirements) && Array.isArray(session.fields.investment))) {
+        localStorage.removeItem(ACTIVE_SESSION_KEY);
+        return null;
+      }
+      return session;
     } catch {
       return null;
     }
@@ -65,6 +84,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
 
   // user = logged-in rep's account details { name, email, designation, phone, division } (any missing one is ''); accent = this agent's sidebar colour
   const [step, setStep] = useState(() => {
+    if (mode === 'productSolution') return 'products'; // no business step in this flow
     if (initialProposal?.fields) return 'edit';
     if (savedSession?.step === 'edit' && savedSession?.fields) return 'edit';
     if (savedSession?.step === 'products' && savedSession?.business) return 'products';
@@ -99,10 +119,68 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   const [busy, setBusy] = useState('');
   // '' or what is running: 'search' | 'generate' | 'docx' | 'pdf'
   const [error, setError] = useState('');
+  const [saveMsg, setSaveMsg] = useState(''); // result of the last Save changes (only when a saved proposal is being edited)
   const [results, setResults] = useState([]);
   const [manual, setManual] = useState({ name: '', address: '', category: '' });
   // Business typed in by hand — used when the search isn't available or doesn't find the business
   const [catalogue, setCatalogue] = useState([]);
+  // Client-logo placeholders of the active template ({ kind, location }); null until loaded
+  const [logoSlots, setLogoSlots] = useState(null);
+  // Per-product network diagrams (override for this proposal in fields.diagramOverrides; optional default for the product)
+  const [diagramBusy, setDiagramBusy] = useState('');
+  const [diagramErr, setDiagramErr] = useState({});
+  const [diagramDefault, setDiagramDefault] = useState({});
+  const [noThumb, setNoThumb] = useState({});
+  const [diagramVer, setDiagramVer] = useState(0);
+  async function changeDiagram(r, file, asDefault) {
+    if (!file) return;
+    const fail = msg => setDiagramErr(m => ({ ...m, [r.id]: msg }));
+    fail('');
+    if (!file.type.startsWith('image/')) return fail('This file is not an image. Use a PNG, JPG, SVG or WebP file.');
+    if (file.size > MAX_DIAGRAM_BYTES) return fail(`The file is larger than ${MAX_DIAGRAM_BYTES / (1024 * 1024)} MB.`);
+    setDiagramBusy(r.id);
+    try {
+      const image = await new Promise((resolve, reject) => { const fr = new FileReader(); fr.onload = () => resolve(fr.result); fr.onerror = () => reject(new Error('The file could not be read.')); fr.readAsDataURL(file); });
+      const { data } = await axios.post(`${API}/diagrams/upload`, { productId: r.id, image, setDefault: asDefault }, { timeout: 120000 });
+      setFields(f => ({ ...f, diagramOverrides: { ...(f.diagramOverrides || {}), [r.id]: data.image } }));
+      setNoThumb(m => ({ ...m, [r.id]: false }));
+      if (asDefault) setDiagramVer(v => v + 1);
+    } catch (err) {
+      fail(err.response?.data?.error || err.message || 'The diagram could not be uploaded.');
+    } finally {
+      setDiagramBusy('');
+    }
+  }
+  const resetDiagram = id => {
+    setDiagramErr(m => ({ ...m, [id]: '' }));
+    setNoThumb(m => ({ ...m, [id]: false }));
+    setFields(f => { const { [id]: _drop, ...rest } = f.diagramOverrides || {}; return { ...f, diagramOverrides: rest }; });
+  };
+  const [logoInfoFailed, setLogoInfoFailed] = useState(false);
+  // Read again on page load, when the tab / window is shown again (e.g. after a template was uploaded elsewhere), and at each mount
+  useEffect(() => {
+    const load = () => axios.get(`${API}/template/info`, { params: { _: Date.now() } })
+      .then(({ data }) => {
+        const list = data?.template?.logoPlaceholders;
+        if (Array.isArray(list)) { setLogoSlots(list); setLogoInfoFailed(false); } else setLogoInfoFailed(true); // an older server does not send it
+      })
+      .catch(err => { console.warn('[proposalAgent/template-info]', err.message); setLogoInfoFailed(true); });
+    load();
+    const onShow = () => { if (document.visibilityState !== 'hidden') load(); };
+    window.addEventListener('focus', onShow);
+    document.addEventListener('visibilitychange', onShow);
+    window.addEventListener('proposal-template-changed', load); // fired by the Upload Latest Template tab after an upload
+    return () => { window.removeEventListener('focus', onShow); document.removeEventListener('visibilitychange', onShow); window.removeEventListener('proposal-template-changed', load); };
+  }, []);
+  // Editor sections (proposal/fieldSchema.js section ids) -> the sidebar block that edits them
+  const SIDEBAR_OF = { cover: 'coverLetter', letter: 'coverLetter', requirements: 'requirements', about: 'about', investment: 'investment', terms: 'terms', contact: 'contact', acknowledgement: 'ack' };
+  // Where the card goes: at the top of the section that edits the field next to the template's first logo placeholder, else its own section
+  const logoHome = (logoSlots === null && !logoInfoFailed) ? null
+    : ((logoSlots && logoSlots[0] && SIDEBAR_OF[logoSlots[0].nearSection]) || 'own');
+  const logoUsed = logoInfoFailed || logoSlots === null || logoSlots.length > 0;
+  const logoCaption = logoSlots === null ? '' : (logoSlots.length === 0
+    ? 'Not used in the current template'
+    : `Placed in: ${[...new Set(logoSlots.map(l => titleCase(l.location)).filter(Boolean))].join(', ') || 'the template'}`);
   const [suggested, setSuggested] = useState([]);
   // false when the server used the neutral SLT- prefix because the account has no Section
   // Ticked product ids, in the order ticked (= order in the proposal)
@@ -203,7 +281,8 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   async function handleExport(format) {
     setBusy(format); setError('');
     try {
-      const file = await exportFile(fields, format);
+      // view-only (Confirmed / Completed): the file is the current step's document
+      const file = viewOnly && initialProposal ? await downloadProposalStepFile(initialProposal.id || initialProposal.refNo, format, undefined, user.email) : await exportFile(fields, format);
       saveBlob(file.blob, file.fileName);
       // Downloads the Word or PDF file
     } catch (err) {
@@ -214,6 +293,17 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
         setError(msg);
       }
     } finally { setBusy(''); }
+  }
+
+  // Saves the edits of a saved proposal. A content change becomes the next version (v1 stays as it was); no change creates nothing.
+  async function handleSaveChanges() {
+    setBusy('save'); setError(''); setSaveMsg('');
+    try {
+      const d = await saveProposalFields(initialProposal.id || initialProposal.refNo, fields, user.email);
+      if (onSaved && d.proposal) onSaved(d.proposal);
+      setSaveMsg(d.changed ? `Saved as v${d.currentVersion}` : `No changes to save (still v${d.currentVersion})`);
+      setTimeout(() => setSaveMsg(''), 6000);
+    } catch (err) { setError(await apiError(err)); } finally { setBusy(''); }
   }
 
   const set = (key, value) => {
@@ -290,6 +380,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
 
   // Auto-persist active proposal session to localStorage (prevents loss on tab switch, sleep, or reload)
   useEffect(() => {
+    if (mode) return;
     if (step === 'edit' && fields && business) {
       try {
         const payload = {
@@ -371,7 +462,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
 
   function jumpTo(key) {
     if (viewMode === 'pdf' && preview.url) {
-      const page = key === 'cover' ? 1 : preview.pages[key];
+      const page = preview.pages[key];
       if (page) setJump(j => ({ page, n: j.n + 1 }));
     } else {
       const el = document.getElementById(`proposal-sec-${key}`);
@@ -404,9 +495,11 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   const refField = () => (
     <label style={S.label}>
       <span>Proposal Ref. No.</span>
-      <input style={{ ...S.input, background: '#f1f5f9', cursor: 'default' }} value={fields.refNo || ''} readOnly title="Issued automatically; unique" />
-      {/* Read-only: the server issues each reference once and records it, so it is never repeated */}
-      <span style={{ fontSize: '0.72rem' }}>Issued automatically; unique{refFromSection ? '' : ' · No section in your account'}</span>
+      <input style={S.input} value={fields.refNo || ''} onChange={e => set('refNo', e.target.value)} title="Issued automatically; you can edit it" />
+      {/* The backend builds it once when the proposal is created; what is typed here and saved is kept */}
+      {fields.refNo
+        ? <span style={{ fontSize: '0.72rem' }}>Issued automatically; you can edit it</span>
+        : <span style={{ fontSize: '0.78rem', color: '#64748b' }}>No reference number found — the proposal is generated without one.</span>}
     </label>
   );
   // Same reference on the cover, every page header and the Acknowledgements page
@@ -477,7 +570,13 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
     );
   }
 
-  const bizBar = (
+  const editBizBar = mode === 'productSolution' ? (
+    <div style={S.bizBar}>
+      <button style={S.ghost} onClick={() => onBack && onBack()}>
+        <ArrowLeft size={16} /> Back
+      </button>
+    </div>
+  ) : (
     <div style={S.bizBar}>
       <button style={S.ghost} onClick={() => setStep(step === 'edit' ? 'products' : 'search')}>
         <ArrowLeft size={16} /> {step === 'edit' ? 'Change products' : 'Change business'}
@@ -505,6 +604,17 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
     </div>
   );
   // Bar showing the chosen business, with a back button
+  const bizBar = viewOnly && initialProposal ? (
+    <div>
+      <ViewOnlyBanner status={initialProposal.status} onBack={onViewBack} />
+      <div style={S.bizBar}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: '1.08rem', color: 'var(--text-main, #0f172a)' }}>{business.name}</div>
+          <div style={S.meta}>{[business.category, business.address].filter(Boolean).join(' · ')}</div>
+        </div>
+      </div>
+    </div>
+  ) : editBizBar;
 
   /* ───────────── Step 2: choose products, then Generate ───────────── */
   if (step === 'products') {
@@ -515,11 +625,18 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
         <div style={S.productsHead}>
           <div>
             <div style={S.h2}>Which SLT-Mobitel products should go in the proposal?</div>
+            {mode === 'productSolution' && <div style={S.meta}>1. Choose SLT-Mobitel products &nbsp;→&nbsp; 2. Upload the quotation Excel &nbsp;→&nbsp; 3. Generate, edit and export</div>}
             <div style={S.meta}>{selected.length} selected{selected.length ? `: ${selected.map(id => byId[id]?.name).join(', ')}` : ''}</div>
           </div>
+          {mode === 'productSolution' ? (
+            <button style={{ ...S.primary, background: grad, opacity: selected.length ? 1 : 0.5 }} disabled={!selected.length} onClick={() => onProductsChosen && onProductsChosen({ productIds: selected })}>
+              <Upload size={18} /> Upload the Excel sheet
+            </button>
+          ) : (
           <button style={{ ...S.primary, background: grad, opacity: selected.length ? 1 : 0.5 }} disabled={!selected.length || busy === 'generate'} onClick={handleGenerate}>
             {busy === 'generate' ? <Loader2 size={18} className="spin" /> : <Sparkles size={18} />} Generate proposal
           </button>
+          )}
         </div>
         <div style={{ position: 'relative', marginBottom: 12 }}>
           <Search size={16} color="#94a3b8" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
@@ -556,53 +673,61 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
   }
 
   /* ───────────── Step 3: edit the generated proposal, preview, export ───────────── */
-  return (
-    <div>
-      {bizBar}
-      {error && <div style={S.error}>{error}</div>}
+  // Per-product diagram controls (thumbnail, change / reset, optional product default) for a requirements row
+  const diagramControls = r => {
+                  const override = (fields.diagramOverrides || {})[r.id];
+                  const busy = diagramBusy === r.id;
+                  return (
+                    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #e2e8f0' }}>
+                      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ width: 84, height: 54, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 6, overflow: 'hidden', flex: '0 0 auto' }}>
+                          {noThumb[r.id] && !override
+                            ? <span style={{ fontSize: '0.68rem', color: '#94a3b8', textAlign: 'center' }}>No diagram</span>
+                            : <img
+                                src={override || `${API}/diagrams/${r.id}/default?v=${diagramVer}`}
+                                alt={`${(byId[r.id]?.name || r.title || "Product")} diagram`}
+                                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                                onError={() => setNoThumb(m => ({ ...m, [r.id]: true }))}
+                              />}
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 0 }}>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            <label style={{ ...S.ghost, padding: '4px 10px', fontSize: '0.78rem', margin: 0, cursor: busy ? 'wait' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+                              <Upload size={13} /> {busy ? 'Uploading…' : 'Change diagram'}
+                              <input
+                                type="file"
+                                accept="image/png,image/jpeg,image/svg+xml,image/webp"
+                                style={{ display: 'none' }}
+                                disabled={busy}
+                                onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; changeDiagram(r, file, !!diagramDefault[r.id]); }}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              style={{ ...S.ghost, padding: '4px 10px', fontSize: '0.78rem', opacity: override ? 1 : 0.5, cursor: override ? 'pointer' : 'default' }}
+                              disabled={!override || busy}
+                              onClick={() => resetDiagram(r.id)}
+                              title="Remove this proposal's own diagram and go back to the product's default"
+                            >
+                              Reset to default
+                            </button>
+                          </div>
+                          <label style={{ ...S.meta, gap: 6, cursor: 'pointer', margin: 0 }}>
+                            <input type="checkbox" checked={!!diagramDefault[r.id]} onChange={e => setDiagramDefault(m => ({ ...m, [r.id]: e.target.checked }))} />
+                            Use as default for this product in future proposals
+                          </label>
+                        </div>
+                      </div>
+                      {diagramErr[r.id] && <div style={{ ...S.error, marginTop: 6, marginBottom: 0, padding: '6px 10px', fontSize: '0.78rem' }}>{diagramErr[r.id]}</div>}
+                    </div>
+                  );
+  };
 
-      {/* Mobile-only toggle switcher between Form Editor and Live Preview */}
-      <div className="proposal-mobile-tab-toggle">
-        <button
-          type="button"
-          onClick={() => setMobileStep3Tab('editor')}
-          className="proposal-mobile-tab-btn"
-          style={{
-            background: mobileStep3Tab === 'editor' ? '#ffffff' : 'transparent',
-            color: mobileStep3Tab === 'editor' ? accent : '#64748b',
-            boxShadow: mobileStep3Tab === 'editor' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-          }}
-        >
-          <FileText size={16} /> Edit Form
-        </button>
-        <button
-          type="button"
-          onClick={() => {
-            if (!preview.url && viewMode === 'pdf') refreshPreview();
-            setMobileStep3Tab('preview');
-          }}
-          className="proposal-mobile-tab-btn"
-          style={{
-            background: mobileStep3Tab === 'preview' ? '#ffffff' : 'transparent',
-            color: mobileStep3Tab === 'preview' ? accent : '#64748b',
-            boxShadow: mobileStep3Tab === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
-          }}
-        >
-          <Sparkles size={16} /> Live Preview
-        </button>
-      </div>
-
-      <div className="proposal-split-container" style={S.split}>
-        <div className={`proposal-split-left ${mobileStep3Tab === 'preview' ? 'mobile-hidden-pane' : ''}`} style={S.left}>
-          <div style={S.h2}>Edit proposal</div>
-          <p style={{ ...S.meta, marginBottom: 12 }}>Click Refresh preview to see your edits in the PDF.</p>
-
-          <Section title="Cover & letter (pages 1–3)">
-            {field('Business name', 'companyName')}
+  const logoCard = (
             <div style={{ marginBottom: 14, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10, padding: '12px 14px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
                 <span style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-main, #0f172a)' }}>
-                  Client Company Logo (Cover Page)
+                  Client Company Logo
                 </span>
                 {fields.leadLogo && (
                   <span style={{ fontSize: '0.72rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
@@ -627,7 +752,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
                         {fields.companyName || 'Client'} Logo
                       </div>
                       <div style={{ fontSize: '0.73rem', color: '#64748b' }}>
-                        Placed on the cover page to the right of the Mobitel logo
+                        {logoCaption}
                       </div>
                     </div>
                     <label style={{ ...S.ghost, padding: '6px 12px', fontSize: '0.82rem', cursor: 'pointer', margin: 0, borderColor: '#0B2A6F', color: '#0B2A6F', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -656,8 +781,8 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
                   </div>
 
                   {/* Logo Display Size Controls */}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Cover Logo Size:</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap', ...(logoUsed ? {} : { opacity: 0.45, pointerEvents: 'none' }) }} aria-disabled={!logoUsed}>
+                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#475569' }}>Logo Size:</span>
                     {[
                       { id: 'small', label: 'Small' },
                       { id: 'medium', label: 'Medium (Normal)' },
@@ -668,6 +793,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
                         <button
                           key={opt.id}
                           type="button"
+                          disabled={!logoUsed}
                           onClick={() => set('leadLogoSize', opt.id)}
                           style={{
                             border: active ? '1.5px solid #0B2A6F' : '1px solid #cbd5e1',
@@ -717,6 +843,54 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
                 </div>
               )}
             </div>
+  );
+
+  return (
+    <div>
+      {bizBar}
+      {error && <div style={S.error}>{error}</div>}
+
+      {/* Mobile-only toggle switcher between Form Editor and Live Preview */}
+      <div className="proposal-mobile-tab-toggle">
+        <button
+          type="button"
+          onClick={() => setMobileStep3Tab('editor')}
+          className="proposal-mobile-tab-btn"
+          style={{
+            background: mobileStep3Tab === 'editor' ? '#ffffff' : 'transparent',
+            color: mobileStep3Tab === 'editor' ? accent : '#64748b',
+            boxShadow: mobileStep3Tab === 'editor' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+          }}
+        >
+          <FileText size={16} /> Edit Form
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (!preview.url && viewMode === 'pdf') refreshPreview();
+            setMobileStep3Tab('preview');
+          }}
+          className="proposal-mobile-tab-btn"
+          style={{
+            background: mobileStep3Tab === 'preview' ? '#ffffff' : 'transparent',
+            color: mobileStep3Tab === 'preview' ? accent : '#64748b',
+            boxShadow: mobileStep3Tab === 'preview' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+          }}
+        >
+          <Sparkles size={16} /> Live Preview
+        </button>
+      </div>
+
+      <div className="proposal-split-container" style={S.split}>
+        <div className={`proposal-split-left ${mobileStep3Tab === 'preview' ? 'mobile-hidden-pane' : ''}`} style={S.left}>
+          <fieldset disabled={viewOnly} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
+          <div style={S.h2}>Edit proposal</div>
+          <p style={{ ...S.meta, marginBottom: 12 }}>Click Refresh preview to see your edits in the PDF.</p>
+          {logoHome === 'own' && <Section title="Client Logo">{logoCard}</Section>}
+
+          <Section title="Cover & letter (pages 1–3)">
+            {logoHome === 'coverLetter' && logoCard}
+            {field('Business name', 'companyName')}
             <div className="proposal-two-col" style={S.two}>{refField()}{field('Date (DD/MM/YYYY)', 'proposalDate')}</div>
             {field('Addressed to', 'recipientDesignation')}
             {field('Address line 1', 'addressLine1')}
@@ -730,6 +904,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
           </Section>
 
           <Section title="Your requirements (page 6)">
+            {logoHome === 'requirements' && logoCard}
             {fields.requirements.map((r, i) => (
               <div key={i} style={S.card}>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -738,6 +913,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
                 </div>
                 <textarea rows={3} style={{ ...S.input, marginTop: 6 }} value={r.text} onChange={e => setRow('requirements', i, 'text', e.target.value)} />
                 <div style={S.meta}>{r.id ? 'Network diagram included' : 'No diagram (custom requirement)'}</div>
+                {r.id && diagramControls(r)}
                 {(byId[r.id]?.features || []).length > 0 && (
                   <div style={{ marginTop: 8 }}>
                     <label style={{ ...S.meta, gap: 6, cursor: 'pointer', color: 'var(--text-main, #0f172a)', fontWeight: 600 }}>
@@ -757,6 +933,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
           </Section>
 
           <Section title="About you and how we can help you (page 7)">
+            {logoHome === 'about' && logoCard}
             {field('About the business (2–4 sentences)', 'aboutDescription', 5)}
             <p style={S.meta}>Written only from the business details above. Add facts you know about the customer; nothing is looked up.</p>
             <div style={{ ...S.groupLabel, marginTop: 6 }}>Recommended SLT-MOBITEL products</div>
@@ -785,6 +962,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
           </Section>
 
           <Section title="Your investment (LKR)">
+            {logoHome === 'investment' && logoCard}
             {fields.investment.map((r, i) => (
               <div key={i} style={S.card}>
                 <input style={{ ...S.input, width: '100%', boxSizing: 'border-box', fontWeight: 600 }} placeholder="Description" value={r.description} onChange={e => setRow('investment', i, 'description', e.target.value)} />
@@ -802,7 +980,19 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
             <p style={S.meta}>Blank prices print as "On request"; a blank QoS template prints "N/A".</p>
           </Section>
 
+          <Section title="Terms and conditions">
+            {logoHome === 'terms' && logoCard}
+            {Array.isArray(fields.productTerms) && fields.productTerms.length > 0 ? fields.productTerms.map((r, i) => (
+              <label key={r.id || i} style={S.label}>
+                <span>{i + 1}. {r.name}</span>
+                <textarea rows={5} style={S.input} value={r.terms || ''} onChange={e => setRow('productTerms', i, 'terms', e.target.value)} />
+              </label>
+            )) : <p style={S.meta}>The terms of each product are taken from the product catalogue when the document is made. Generate the proposal again to edit them here.</p>}
+            <p style={S.meta}>Each product's own terms, printed under its name in the template's product terms section (if the template has one). Edit them for this proposal only; clear a box and that product prints no terms.</p>
+          </Section>
+
           <Section title="Contact page">
+            {logoHome === 'contact' && logoCard}
             <div style={S.groupLabel}>Primary Contact</div>
             <div className="proposal-two-col" style={S.two}>{field('Name', 'amName')}{field('Designation', 'amDesignation')}</div>
             <div className="proposal-two-col" style={S.two}>{field('Contact Number', 'amPhone')}{field('Email', 'amEmail')}</div>
@@ -816,6 +1006,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
           </Section>
 
           <Section title="Acknowledgements page">
+            {logoHome === 'ack' && logoCard}
             {field('Addressee line 1', 'ackAddressee1')}
             {field('Addressee line 2', 'ackAddressee2')}
             <div className="proposal-two-col" style={S.two}>{field('Proposal submission date (DD/MM/YYYY)', 'ackDate')}{refField()}</div>
@@ -831,6 +1022,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
             {field('Commitment Period', 'ackCommitment')}
             <p style={S.meta}>An empty line prints the dotted line for the customer to fill in by hand.</p>
           </Section>
+          </fieldset>
         </div>
 
         <div className={`proposal-split-right ${mobileStep3Tab === 'editor' ? 'mobile-hidden-pane' : ''}`} style={S.right}>
@@ -877,7 +1069,8 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
               </div>
 
               {[['Cover', 'cover'], ['Letter', 'letter'], ['Requirements', 'requirements'], ['About', 'about'], ['Solution', 'solution'], ['Investment', 'investment']].map(([label, key]) => {
-                const page = key === 'cover' ? (preview.url ? 1 : 0) : preview.pages[key];
+                const page = preview.url ? preview.pages[key] : 0;
+                if (viewMode === 'pdf' && preview.url && !page) return null; // section not found in this template's PDF: no chip
                 return (
                   <button
                     key={label}
@@ -896,7 +1089,15 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
               {previewing && <span style={S.meta}><Loader2 size={14} className="spin" /> Updating preview...</span>}
               {!previewing && previewStale && <span style={S.meta}>Edits not in preview yet</span>}
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              {initialProposal && (initialProposal.id || initialProposal.refNo) && !isFinalStatus(initialProposal.status) && ( // Confirmed / Completed: view-only
+                <>
+                  {saveMsg && <span style={S.meta} role="status">{saveMsg}</span>}
+                  <button style={S.ghost} disabled={!!busy} onClick={handleSaveChanges} title="Save these edits. A content change creates a new version.">
+                    {busy === 'save' ? <Loader2 size={16} className="spin" /> : <Save size={16} />} Save changes
+                  </button>
+                </>
+              )}
               <button style={S.ghost} disabled={!!busy} onClick={() => handleExport('docx')}>
                 {busy === 'docx' ? <Loader2 size={16} className="spin" /> : <Download size={16} />} Word
               </button>
@@ -925,7 +1126,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
           <div style={{ ...S.previewArea, overflow: 'hidden' }}>
             {viewMode === 'pdf' ? (
               preview.url ? (
-                <iframe key={`${preview.url}-${jump.n}`} src={`${preview.url}#page=${jump.page}&view=FitH`} title="Proposal preview" style={{ width: '100%', height: '100%', border: 0, display: 'block' }} />
+                <iframe key={`${preview.url}-${jump.n}`} src={`${preview.url}#page=${jump.page}&view=FitH&navpanes=0`} title="Proposal preview" style={{ width: '100%', height: '100%', border: 0, display: 'block' }} />
               ) : previewing ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#64748b' }}>
                   <Loader2 size={36} className="spin" color={accent} />
@@ -1014,42 +1215,24 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'flex-end', textAlign: 'right' }}>
               <div>
                 <div style={{ fontSize: '1.05rem', fontWeight: 800, color: '#1e293b' }}>
-                  {fields.companyName || 'Lead Company'}
+                  {fields.companyName || ''}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>Client Enterprise</div>
               </div>
-              {fields.leadLogo ? (
-                <img
-                  src={fields.leadLogo}
-                  alt={fields.companyName}
-                  style={{
-                    maxHeight: fields.leadLogoSize === 'large' ? 56 : fields.leadLogoSize === 'small' ? 32 : 44,
-                    maxWidth: fields.leadLogoSize === 'large' ? 165 : fields.leadLogoSize === 'small' ? 95 : 130,
-                    objectFit: 'contain',
-                    borderRadius: 6,
-                    border: '1px solid #cbd5e1',
-                    padding: 4
-                  }}
-                  onError={(e) => { e.target.style.display = 'none'; }}
-                />
-              ) : (
-                <div style={{ width: 40, height: 40, borderRadius: 8, background: '#f8fafc', border: '1.5px solid #cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0B2A6F', fontWeight: 800, fontSize: '0.9rem' }}>
-                  {(fields.companyName || 'LEAD').split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()}
-                </div>
-              )}
+              {/* Cover page has no logo placeholder in the template, so no logo is drawn here (it moved to the About page below) */}
             </div>
           </div>
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
             <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#0B2A6F', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '4px 10px' }}>
-              Proposal Ref. No. {fields.refNo || 'PENDING'}
+              Proposal Ref. No. {fields.refNo || ''}
             </div>
             <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Date: {fields.proposalDate || '—'}</div>
           </div>
 
           <div style={{ marginTop: 24, padding: '18px 20px', background: '#f8fafc', borderRadius: 8, border: '1px solid #e2e8f0' }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Proposed Solution</div>
-            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: navy, marginTop: 4 }}>{fields.solutionName || 'Customized Enterprise Solution'}</div>
+            <div style={{ fontSize: '1.25rem', fontWeight: 800, color: navy, marginTop: 4 }}>{fields.solutionName || ''}</div>
             <div style={{ marginTop: 12, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, fontSize: '0.84rem' }}>
               <div>
                 <span style={{ color: '#64748b', fontSize: '0.76rem', display: 'block' }}>CUSTOMER COMPANY</span>
@@ -1057,11 +1240,11 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
               </div>
               <div>
                 <span style={{ color: '#64748b', fontSize: '0.76rem', display: 'block' }}>ADDRESSED TO</span>
-                <strong>{fields.recipientDesignation || 'General Manager'}</strong>
+                <strong>{fields.recipientDesignation || ''}</strong>
               </div>
               <div>
                 <span style={{ color: '#64748b', fontSize: '0.76rem', display: 'block' }}>LOCATION</span>
-                <span>{[fields.addressLine1, fields.addressLine2, fields.city].filter(Boolean).join(', ') || 'Sri Lanka'}</span>
+                <span>{[fields.addressLine1, fields.addressLine2, fields.city].filter(Boolean).join(', ')}</span>
               </div>
             </div>
           </div>
@@ -1074,11 +1257,11 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
           </div>
           <div style={{ fontSize: '0.88rem', lineHeight: 1.6, color: '#334155' }}>
             <p style={{ margin: '0 0 10px' }}>Dear Sir / Madam,</p>
-            <p style={{ margin: '0 0 12px', fontWeight: 600, color: navy }}>Business Proposal for {fields.companyName || 'Your Business'}</p>
+            <p style={{ margin: '0 0 12px', fontWeight: 600, color: navy }}>Business Proposal for {fields.companyName || ''}</p>
             <p style={{ margin: '0 0 12px', whiteSpace: 'pre-line' }}>{fields.solutionIntro1}</p>
             <p style={{ margin: '0 0 16px', whiteSpace: 'pre-line' }}>{fields.solutionIntro2}</p>
             <p style={{ margin: 0, color: '#64748b', fontSize: '0.82rem' }}>
-              Account Representative: <strong>{fields.amName || 'Enterprise Account Manager'}</strong> {fields.amPhone ? `(${fields.amPhone})` : ''} · {fields.amDesignation || 'Account Manager'}
+              Account Representative: <strong>{fields.amName || ''}</strong> {fields.amPhone ? `(${fields.amPhone})` : ''} · {fields.amDesignation || ''}
             </p>
           </div>
         </div>
@@ -1136,8 +1319,14 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
           <div style={{ fontSize: '1rem', fontWeight: 800, color: navy, marginBottom: 12 }}>
             ABOUT YOU AND HOW WE CAN HELP YOU
           </div>
+          {/* Client logo, centred directly above the about text, as {%client_logo} sits above {@aboutXml} in the template */}
+          {fields.leadLogo && (
+            <div style={{ textAlign: 'center', marginBottom: 14 }}>
+              <img src={fields.leadLogo} alt={fields.companyName} style={{ maxWidth: '30%', height: 'auto', objectFit: 'contain' }} onError={(e) => { e.target.style.display = 'none'; }} />
+            </div>
+          )}
           <p style={{ fontSize: '0.88rem', lineHeight: 1.6, color: '#334155', margin: '0 0 16px' }}>
-            {fields.aboutDescription || 'Customized strategic intelligence designed for your business scale and needs.'}
+            {fields.aboutDescription || ''}
           </p>
 
           <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase' }}>
@@ -1154,7 +1343,7 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
                     </span>
                   )}
                 </div>
-                <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.4 }}>{rec.reason || byId[rec.id]?.description || 'Recommended solution component.'}</p>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#64748b', lineHeight: 1.4 }}>{rec.reason || byId[rec.id]?.description || ''}</p>
               </div>
             ))}
           </div>
@@ -1182,15 +1371,15 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
                     <td style={{ padding: '8px 12px', fontWeight: 600 }}>{row.description || '—'}</td>
                     <td style={{ padding: '8px 12px', color: '#475569' }}>{row.bandwidth || '—'}</td>
                     <td style={{ padding: '8px 12px', color: '#475569' }}>{row.qosTemplate || 'N/A'}</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>{row.oneTimeCharge || 'On request'}</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#0369a1' }}>{row.monthlyRental || 'On request'}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600 }}>{row.oneTimeCharge || ''}</td>
+                    <td style={{ padding: '8px 12px', textAlign: 'right', fontWeight: 600, color: '#0369a1' }}>{row.monthlyRental || ''}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
           <div style={{ fontSize: '0.76rem', color: '#64748b', marginTop: 8 }}>
-            * Note: Applicable government taxes extra. Commitment Period: <strong>{fields.ackCommitment || '1 Year'}</strong>.
+            * Note: Applicable government taxes extra. Commitment Period: <strong>{fields.ackCommitment || ''}</strong>.
           </div>
         </div>
 
@@ -1198,8 +1387,8 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
         <div style={{ padding: '24px 36px', background: '#f8fafc', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
           <div style={{ padding: 12, background: '#ffffff', borderRadius: 6, border: border }}>
             <div style={{ fontSize: '0.74rem', fontWeight: 700, color: navy, textTransform: 'uppercase' }}>Primary Contact</div>
-            <div style={{ fontWeight: 700, fontSize: '0.88rem', marginTop: 2 }}>{fields.amName || 'Account Manager'}</div>
-            <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{fields.amDesignation || 'Regional Enterprise Executive'}</div>
+            <div style={{ fontWeight: 700, fontSize: '0.88rem', marginTop: 2 }}>{fields.amName || ''}</div>
+            <div style={{ fontSize: '0.78rem', color: '#64748b' }}>{fields.amDesignation || ''}</div>
             <div style={{ fontSize: '0.78rem', color: '#475569', marginTop: 4 }}>Phone: {fields.amPhone || '—'} · Email: {fields.amEmail || '—'}</div>
           </div>
           <div style={{ padding: 12, background: '#ffffff', borderRadius: 6, border: border }}>

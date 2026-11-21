@@ -1,0 +1,163 @@
+{
+  "name": "Proposal Template Mapper",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-template-mapper",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a21f5e3b-e3e0-4941-999d-0a435ff9988f",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "proposal-template-mapper"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n// n8n puts the POST body under .body; fall back to the item itself when testing.\n\nconst slots = Array.isArray(body.slots) ? body.slots : [];\nconst outline = body.outline || {};\nif (slots.length === 0) throw new Error('slots must contain at least one slot');\nif (!Array.isArray(outline.paragraphs)) throw new Error('outline.paragraphs is required');\n\nconst prompt = [\n  'SLOTS TO FIND (return exactly one answer per slot key):', JSON.stringify(slots, null, 1),\n  '', 'DOCUMENT OUTLINE:',\n  'Paragraphs (ref, text, red = runs written in red, cell = table cell it is in):', JSON.stringify(outline.paragraphs),\n  '', 'Tables:', JSON.stringify(outline.tables || []),\n  '', 'Images:', JSON.stringify(outline.images || []),\n  '', 'Word fields (SET holds a stored sample value and is never a location; a REF field shows a value and can be replaced as a whole, runs = its first and last run):', JSON.stringify(outline.fields || []),\n  '', 'SAMPLE VALUES THAT APPEAR IN MORE THAN ONE PLACE (text, places). If a value belongs to a slot, list every place:', JSON.stringify(outline.redValues || [])\n].join('\\n');\n\nreturn [{ json: { prompt: prompt, slots: slots } }];"
+      },
+      "id": "59e5fae6-f001-49d3-b59b-4fd26026f45a",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "systemMessage": "You analyse a Word proposal template that contains SAMPLE content, and find where each customer-specific value of a proposal belongs. You do not write the proposal and you do not change the document: you only point at locations.\n\nYou receive SLOTS TO FIND and a DOCUMENT OUTLINE. In the outline, text written in red (the 'red' lists, with run numbers) is the template author's marker for a part that changes for every customer. Red text is the strongest signal. ONLY red text and the displayed values of Word REF fields are variable. Text in black is fixed template wording and must NEVER be mapped, even if it looks like a name, a title or a company (for example a job title or a company name in black stays as it is). Word fields of type SET hold old sample values and are never locations; a REF field is a location and is replaced as a whole using its 'runs' from the fields list (its value may be empty).\n\nReturn ONLY one valid JSON object, no markdown fences, no commentary:\n{ \"mappings\": [ one object per slot ] }\n\nEach object has \"key\" (the slot key, unchanged) and \"status\": \"found\" or \"not_found\".\nFor a found slot add, according to the slot's \"action\":\n- replaceSpan (kind span): \"locations\": a list with one object per place in the document where this value is shown (the company name, for example, may appear in the cover, the letter and the acknowledgement). Each object has \"paragraph\" (ref), \"runs\": [first, last] = the run numbers holding the sample text to replace, taken from that paragraph's red lists, and \"evidence\" = the exact text of those runs.\n- replaceBlock (kind block): \"paragraphs\": [first ref, last ref] = the paragraph(s) holding the sample block, in the same part.\n- fillTable (kind table): \"table\" (ref), \"templateRow\" (row number of the sample row to repeat), \"columns\": { column key: cell number } for each table column you can match by its header or content.\n- insertImage (kind image): \"image\" (ref of a placeholder picture) or \"paragraph\" (ref where the picture belongs).\nAlso add (except for replaceSpan, whose locations carry their own evidence) \"evidence\": the exact text found at that location, copied from the outline (for a table, the header or row text); and always \"confidence\": a number from 0 to 1, and optionally \"note\" (one short sentence).\n\nRules:\n- NEVER guess. If you cannot find a location whose content clearly matches the slot, answer {\"key\": ..., \"status\": \"not_found\", \"note\": \"...\"}. A wrong location is worse than none.\n- Use only refs, run numbers, row numbers and cell numbers that appear in the outline.\n- Do not map two slots to the same place. Use each slot's label, section and hint to decide between slots that look alike (for example the company name in the letter is companyName, but the 'Company Name :' line of the acknowledgement page is ackCompanyName).\n- A sample value that appears in several places belongs to the same slot in every place: list every place (see SAMPLE VALUES THAT APPEAR IN MORE THAN ONE PLACE).\n- Lines of dots for the customer to fill in are not samples: answer not_found for those slots.\n- A block (replaceBlock) holds ONLY red sample paragraphs, never the black wording around them; give exactly two refs, the first and the last paragraph.\n- A short field (a name, a date, a number) is never a whole body paragraph.\n- For a picture slot, point at a paragraph with red placeholder text. Never choose a full-page or cover graphic.\n- Judge by the slot's label, section and hint, the surrounding wording, and what the sample text looks like (a date, a reference number, a company name, a person, an address).\n- Do not use double-quote characters inside string values; use single quotes instead.\n- No self-correction or meta commentary."
+        }
+      },
+      "id": "e7c20103-16dc-47f0-902c-43d90df59fee",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5.4-mini",
+        "options": {}
+      },
+      "id": "e7d3e3e8-29a8-4df1-859a-0dd20d93376f",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const slots = $('Build Prompt').first().json.slots || [];\n// The slot list the backend sent; only these keys are ever returned.\n\nlet raw = String($input.first().json.output || '').trim();\nraw = raw.replace(/```json/gi, '').replace(/```/g, '').trim();\n\nlet parsed = null;\ntry {\n  parsed = JSON.parse(raw);\n} catch (e) {\n  const start = raw.indexOf('{');\n  const end = raw.lastIndexOf('}');\n  if (start !== -1 && end > start) {\n    try { parsed = JSON.parse(raw.substring(start, end + 1)); } catch (e2) { parsed = null; }\n  }\n}\n\nif (!parsed || typeof parsed !== 'object' || !Array.isArray(parsed.mappings)) {\n  return [{ json: { error: 'invalid_ai_output', raw: raw.substring(0, 2000) } }];\n}\n\nconst wanted = {};\nslots.forEach(function (s) { wanted[s.key] = true; });\nconst seen = {};\nconst mappings = [];\nparsed.mappings.forEach(function (m) {\n  if (!m || typeof m !== 'object' || !wanted[m.key] || seen[m.key]) return;\n  seen[m.key] = true;\n  mappings.push(m);\n});\n\nreturn [{ json: { mappings: mappings } }];"
+      },
+      "id": "28f0813b-3fe2-4cdc-a1ea-922a8437d9ac",
+      "name": "Parse Mapping",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "51a91053-44d5-40fd-8a34-495e2c4bbe1b",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1040,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse Mapping",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Mapping": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

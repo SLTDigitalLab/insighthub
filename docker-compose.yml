@@ -11,6 +11,8 @@ services:
       - PORT=5000
       - N8N_WEBHOOK_BASE=https://sltrnddigitallab.app.n8n.cloud/webhook
       - CHROMA_URL=http://chromadb:8000
+      - METRICS_TOKEN=${METRICS_TOKEN:-}
+      - MONITORING_ALLOWED_IPS=${MONITORING_ALLOWED_IPS:-201.79.102.125,127.0.0.1,::1}
     ports:
       - "5000:5000"
     volumes:

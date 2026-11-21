@@ -8,6 +8,7 @@ backend/data/*.json
 !backend/data/users.default.json
 !backend/data/products.json
 backend/data/*.jsonl
+backend/data/templates/
 *.lock
 *.backup
 *.bak
@@ -16,3 +17,7 @@ scratch/
 backend/scratch/
 ~$*
 test_*.docx
+test-templates/
+
+# solution proposals: Excel uploads waiting for a sheet to be chosen (runtime data)
+backend/data/solution_pending/

@@ -1,0 +1,230 @@
+{
+  "name": "Product + Solution Proposal Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "proposal-product-solution",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0001-4000-8000-000000000001",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "proposal-product-solution"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n// n8n puts the POST body under .body; fall back to the item itself when testing.\n\nconst grid = body.grid || {};\nconst schema = Array.isArray(body.schema) ? body.schema : [];\nconst products = Array.isArray(body.products) ? body.products : [];\nif (!Array.isArray(grid.cells) || grid.cells.length === 0) throw new Error('grid.cells must contain at least one cell');\nif (schema.length === 0) throw new Error('schema must contain at least one tag');\nif (products.length === 0) throw new Error('products must contain at least one product');\n// The logged-in user's details and the reference number are NOT sent to the model: the backend fills account-manager tags itself\n// (see \"userSource\") and the reference number is built by the \"Build Reference\" node from the quotation reference the AI reads.\n\nconst prompt = [\n  'TODAY: ' + (body.today || ''),\n  'ROW FLAG KEY: \"' + (body.groupFlag || '_group') + '\" - on every heading row and every total / sub-total row of a loop that is built from the Excel, add this key to that row object as the JSON boolean true (e.g. {\"item\": \"Total\", ..., \"' + (body.groupFlag || '_group') + '\": true}). Do not add it to other rows.',\n  '',\n  'SELECTED SLT PRODUCTS (' + products.length + ', in this order; terms are the exact text to copy for product terms):',\n  JSON.stringify(products.map(function (p) { return { id: p.id, name: p.name, pillar: p.pillar, description: p.description, features: p.features, customerBenefits: p.customerBenefits, termsAndConditions: p.termsAndConditions }; })),\n  '',\n  'TAG SCHEMA (the tags of the Word template you must fill, read from the active template just now; \"context\" is the template text around the tag, \"section\" the heading it sits under, children = the fields of a loop):',\n  JSON.stringify(schema),\n  '',\n  'SHEET \"' + (grid.sheetName || '') + '\" - MERGED RANGES (the content of a merged range is in its top-left cell):',\n  JSON.stringify((grid.merges || []).map(function (m) { return m.range; })),\n  '',\n  'SHEET CELLS - every non-empty cell as {a: address, v: value[, t: displayed text]}; t = what the sheet displays when it differs from v:',\n  JSON.stringify(grid.cells.map(function (c) { var o = { a: c.address, v: c.value }; if (c.text) o.t = c.text; return o; }))\n].join('\\n');\n\nreturn [{ json: { prompt: prompt, schema: schema, products: products } }];"
+      },
+      "id": "a1b2c3d4-0002-4000-8000-000000000002",
+      "name": "Build Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.prompt }}",
+        "options": {
+          "systemMessage": "You fill in ONE customer proposal that combines SLT-MOBITEL products and a solution quotation. The proposal is a Word template; you receive its tags (read from the template at this moment), the SLT products the sales rep selected, and ONE Excel quotation sheet. The customer is the one named in the Excel sheet; there is no other customer information.\n\nYou receive in the user message: TODAY, the ROW FLAG KEY, the SELECTED SLT PRODUCTS, the TAG SCHEMA of the Word template, the sheet's MERGED RANGES and every non-empty CELL of the sheet. Each cell is {a: address, v: value, t: displayed text (only when it differs from the value)}.\n\nThe TAG SCHEMA is the only list of what to fill. It can change from year to year: tags can be added, renamed or removed. Never assume a tag exists and never expect a fixed name: decide what each tag needs from its name, its type, its \"context\" (the template text around it), its \"section\" and the fields of a loop. A tag you cannot fill is returned empty (and listed in \"missing\"); a tag that is not in the schema is never returned.\n\nReturn ONLY one valid JSON object, no markdown fences, no commentary, in exactly this shape:\n{\"values\": {<tag name>: <value>, ...}, \"missing\": [<tag name>, ...], \"userSource\": [{\"tag\": <tag name>, \"field\": \"name|phone|email|designation|division\"}], \"diagramTags\": [<tag name>, ...], \"quotationRef\": \"<the quotation / PR reference VALUE from the sheet, or empty>\", \"meta\": {\"customerName\": \"<customer / company name from the sheet, or empty>\"}}\n\nHOW TO FILL \"values\" - one key per tag in the TAG SCHEMA, using the tag names EXACTLY as given:\n- A tag of type \"text\": a plain string.\n- A tag of type \"rawXml\": a plain string; separate paragraphs with a newline and start a bullet line with \"- \". No XML, no HTML, no markdown.\n- A tag of type \"loop\" is a table or list. Return an array of row objects, one object per row. Every row object has EXACTLY the keys listed in that loop's \"children\" - use each child name character for character; never rename, abbreviate, add or drop a key. A child that is itself a loop (it has its own \"children\") is an array of row objects in the same way. Every loop has a \"note\" listing its fields and whether it has money fields; follow it.\n\nTWO KINDS OF CONTENT - decide for every tag, from its name, context and section, which kind it is:\n\nA) SOLUTION CONTENT, read from the Excel sheet by you. The sheet can be laid out in any way and its labels can be spelled in any way. Work out from the cells themselves, using row/column positions, merged ranges and the wording of nearby cells, where the customer details, the project scope, the bill of quantities (the main item table), the priced / investment tables, the optional items (if any) and the terms and conditions are. Do not assume a fixed position, row, column or exact label spelling.\n- Several loops may be built from the SAME table in the sheet: each loop takes only the columns it has fields for. Match every field to a sheet column by the MEANING of the field name and by the column headings printed in the sheet and in the tag's context. A field that matches no column is \"\" in every row.\n- Decide which loop each part of the sheet belongs to by the loop's fields and context: a loop with only a description and a quantity is the plain item list; a loop with unit price, cost, taxes and total fields is the priced table; a second loop with the same money fields is the optional-items table, used ONLY when the sheet has a SEPARATE optional-items table; a loop with a label and a nested list of lines is the Excel's terms and conditions (one row per term heading, its nested rows are the individual lines or points). A loop whose fields describe SLT products (see B) is NOT filled from the sheet.\n- Heading rows and total rows: a heading row or a total / sub-total row inside a sheet table stays in the loop as a row and gets the row flag: add the key named in ROW FLAG KEY with the JSON boolean true. Put the row's label text in the field that holds the description (the first text field) and its amounts in the matching money fields. A total row belongs only to a loop that has money fields. Rows that are not heading or total rows do not get the flag. Never return a table's row of column headings as a row.\n- COPY, NEVER COMPUTE: copy prices, quantities, totals, taxes, discounts and the terms and conditions text EXACTLY as they appear in the sheet. Never calculate, add up, round, convert or invent a number. Do not add or remove thousands separators or decimals. When a cell has a displayed text \"t\", copy that text; otherwise copy the value as a string. If the sheet shows \"-\" return \"-\". Do not translate or reword terms and item descriptions; keep their order. If a tag asks for a number the sheet does not contain, return \"\".\n\nB) PRODUCT CONTENT, about the SELECTED SLT PRODUCTS. Use ONLY facts from the product data you were given and from the knowledge base search tool. Search the knowledge base for EACH selected product by name before writing about it.\n- Narrative tags about the customer or the products (a cover letter, an \"about you / how we can help\" text, the requirements or technical description of the products, and similar): write them yourself from the selected products, the knowledge base and the customer name read from the Excel in the formal style of a business proposal, as paragraphs for a rawXml tag (separate paragraphs with a newline; a numbered product title on its own line is fine). Describe each selected product with its name, what it is and how it helps this customer, from the product data and the knowledge base. The customer is only the one named in the Excel sheet: use its name, and never invent facts about it (its size, business, address, people). NEVER invent prices, speeds, numbers, dates, contract terms, phone numbers, email addresses, people, titles or URLs.\n- The cover letter (the tag whose context shows it is the letter) MUST mention BOTH the selected products (by name) and the solution (what the Excel quotation is for, using only the customer name, the project scope and the item descriptions found in the sheet). Narrative text contains NO prices, quantities, totals or other numbers from the sheet.\n- Product table loops (a loop whose fields describe one SLT product per row, for example a name, speed / bandwidth, a QoS template, one-time and monthly charges): one row per selected product, in the order of the SELECTED SLT PRODUCTS, with the product's name from the product data. A charge, speed or QoS is filled ONLY when the sheet states it for that product or the product data does; otherwise it is \"\". Never invent a price.\n- Product terms loop (a loop of numbered product terms: a number, the product name and the terms text): one row per selected product that has \"termsAndConditions\", in order, numbered 1, 2, 3 ...; the terms text is copied EXACTLY from that product's \"termsAndConditions\", never shortened, reworded or invented. A product with no terms gets no row.\n- \"diagramTags\": list the names of the rawXml tags whose context or name shows they hold the products' network / technical DIAGRAMS (pictures) in the template. Such a tag is returned \"\" in \"values\": the system places the diagram pictures of the selected products there. Return [] when no tag is for diagrams.\n\nCUSTOMER NAME: \"meta.customerName\" is the customer / company name read from the Excel sheet. Every tag that asks for the customer or company name (in the heading, the address block, the acknowledgement ...) gets that name. If the sheet has no customer name, return \"\" for it and for those tags.\n\nSPECIAL TAGS:\n- A tag that stands for a detail of the SLT account manager / sales contact who submits the proposal (their name, designation, phone, email or division - not the customer's contact person) is NOT filled by you. Return \"\" for it in \"values\" and list it in \"userSource\" as {\"tag\": <tag name>, \"field\": <name, phone, email, designation or division>}. The system fills it from the logged-in user's profile. Never list such a tag in \"missing\".\n- A tag that clearly asks for the proposal reference number: return \"\" (the system fills it). NEVER copy a reference, PR number, quotation number or any label (such as \"PR:\") from the sheet into it. Never list it in \"missing\". A tag that asks for the proposal date gets TODAY.\n- \"quotationRef\": the quotation / PR reference of THIS quotation as it appears in the sheet, but ONLY its VALUE: the text or number written after the label (for example after \"PR:\", \"Ref:\", \"Ref No:\", \"Quotation No:\", \"Quote #\"), or in the cell next to / below the label cell. NEVER return the label itself. Copy the value exactly as written. If the sheet has no such value, return \"\".\n- Acknowledgement tags (the customer sign-off page: solution, initial / one-time charge, monthly charge, commitment period, company name, address ...): fill ONLY the tags that exist, each from the part of the proposal it belongs to. A tag that asks for the solution gets the project scope; the initial / one-time charge or total cost of the solution gets the solution's total cost WITH taxes exactly as shown in the sheet (the final amount of the main priced table's total row); if the main priced table contains several alternative options and no single overall total, it gets \"As per the selected option\". A monthly / recurring charge or a commitment period gets \"N/A\" when the sheet has no such value. NEVER add up, combine or compute figures: do not add the products' charges to the solution's, and do not total anything.\n- A tag that repeats information already filled for another tag (for example an acknowledgement company name or address) gets the same value as that tag.\n\nWhen you cannot find a tag's content and none of the rules above covers it, return \"\" (or [] for a loop) and add the tag name to \"missing\". Never guess.\n\nRULES:\n- Return every tag of the schema exactly once and no other keys in \"values\".\n- Escape double quotes inside strings properly so the JSON is valid. Do not use double-quote characters inside your own written text; use single quotes instead.\n- Plain text only. Do not mention any person by name. No self-correction or meta commentary.\n\nBEFORE YOU ANSWER, CHECK:\n- Every row of every priced table of the sheet is in the matching loop, including total / sub-total rows (with the row flag); the row of column headings is not a data row.\n- Every term / condition label in the sheet that has text next to or below it is a row in the Excel terms loop, in sheet order; labels with no text are skipped; no row uses a section heading (such as the title \"Terms & Conditions\") as its label.\n- A product loop has one row per selected product and no invented price; the product terms are copied exactly.\n- Every account-manager tag is listed in userSource with \"\" as its value and is not in \"missing\". No value is a sheet label (text ending in \":\"); if a tag's only candidate is a label, leave it \"\" and list it in \"missing\".\n- The letter mentions the selected products and the solution; no narrative text has a price or a number from the sheet.",
+          "maxIterations": 15
+        }
+      },
+      "id": "a1b2c3d4-0003-4000-8000-000000000003",
+      "name": "AI Agent",
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "model": "gpt-5.4",
+        "options": {
+          "temperature": 0,
+          "maxTokens": 16000,
+          "responseFormat": "json_object"
+        }
+      },
+      "id": "a1b2c3d4-0004-4000-8000-000000000004",
+      "name": "OpenAI Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1,
+      "position": [
+        400,
+        240
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "nEN04NIj7NPTYPKY",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "toolDescription": "Search SLT-Mobitel's official vector database across all strategic pillars for official enterprise products, specifications, and solution features. Search each selected product by name.",
+        "method": "POST",
+        "url": "https://insighthub.raccoon-ai.io/api/vector/search",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"query\": \"{query}\",\n  \"nResults\": 5\n}",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "query",
+              "description": "The product or solution search query string for vector search",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0005-4000-8000-000000000005",
+      "name": "Knowledge Base Vector Search",
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        600,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const schema = $('Build Prompt').first().json.schema || [];\n// Only tag names from the schema are ever returned; the backend checks the answer again.\n\nlet raw = String($input.first().json.output || '').trim();\n\n// Repairs the usual faults of a model's JSON: trailing commas, raw line breaks / tabs inside strings, unescaped double quotes inside\n// string values (65\" screen), and an answer cut off in the middle (open string / brackets are closed).\nfunction repairJson(text) {\n  let out = '';\n  const stack = [];\n  let inStr = false;\n  const n = text.length;\n  for (let i = 0; i < n; i++) {\n    const c = text[i];\n    if (inStr) {\n      if (c === '\\\\') {\n        const nx = text[i + 1];\n        if (nx !== undefined && '\"\\\\/bfnrtu'.indexOf(nx) !== -1) { out += c + nx; i++; } else { out += '\\\\\\\\'; }\n        continue;\n      }\n      if (c === '\"') {\n        let j = i + 1;\n        while (j < n && /\\s/.test(text[j])) j++;\n        const nx = text[j];\n        const top = stack[stack.length - 1];\n        // a real closing quote is followed by : , } ] or the end of the text\n        let closes = nx === undefined || nx === ':' || nx === '}' || nx === ']';\n        if (nx === ',') {\n          let k = j + 1;\n          while (k < n && /\\s/.test(text[k])) k++;\n          const after = text[k];\n          closes = after === undefined || '\"{[]}-0123456789tfn'.indexOf(after) !== -1;\n        }\n        if (nx === ':' && top !== '{') closes = false;\n        if (closes) { inStr = false; out += c; } else { out += '\\\\\"'; }\n        continue;\n      }\n      if (c === '\\n') { out += '\\\\n'; continue; }\n      if (c === '\\r') { continue; }\n      if (c === '\\t') { out += '\\\\t'; continue; }\n      out += c;\n      continue;\n    }\n    if (c === '\"') { inStr = true; out += c; continue; }\n    if (c === '{' || c === '[') { stack.push(c); out += c; continue; }\n    if (c === '}' || c === ']') {\n      out = out.replace(/,\\s*$/, '');\n      stack.pop();\n      out += c;\n      continue;\n    }\n    out += c;\n  }\n  if (inStr) out += '\"';\n  out = out.replace(/,\\s*$/, '').replace(/:\\s*$/, ': \"\"');\n  while (stack.length) { out = out.replace(/,\\s*$/, ''); out += stack.pop() === '{' ? '}' : ']'; }\n  return out;\n}\n\nfunction tryParse(text) {\n  try { const v = JSON.parse(text); return v && typeof v === 'object' && !Array.isArray(v) ? v : null; } catch (e) { return null; }\n}\n\n// 1) the text as it is, 2) without ``` / ```json fences, 3) the outermost { ... } of the text, 4) each of those repaired\nconst unfenced = raw.replace(/```[a-zA-Z]*/g, '').trim();\nconst start = unfenced.indexOf('{');\nconst end = unfenced.lastIndexOf('}');\nconst outer = start === -1 ? '' : unfenced.substring(start, end > start ? end + 1 : unfenced.length);\nconst fromStart = start === -1 ? '' : unfenced.substring(start);\nlet parsed = tryParse(raw) || tryParse(unfenced) || (outer && tryParse(outer));\nif (!parsed && outer) { try { parsed = tryParse(repairJson(outer)); } catch (e) { parsed = null; } }\nif (!parsed && fromStart && fromStart !== outer) { try { parsed = tryParse(repairJson(fromStart)); } catch (e) { parsed = null; } }\n\nif (!parsed) {\n  return [{ json: { error: 'invalid_ai_output', raw: raw.substring(0, 2000) } }];\n}\n\nconst values = (parsed.values && typeof parsed.values === 'object' && !Array.isArray(parsed.values)) ? parsed.values : {};\nconst names = schema.map(function (t) { return t.name; });\nconst rawXmlNames = schema.filter(function (t) { return t.type === 'rawXml'; }).map(function (t) { return t.name; });\nconst missing = Array.isArray(parsed.missing) ? parsed.missing.filter(function (n) { return names.indexOf(n) !== -1; }) : [];\nconst meta = (parsed.meta && typeof parsed.meta === 'object') ? parsed.meta : {};\nconst userFields = ['name', 'phone', 'email', 'designation', 'division'];\nconst userSource = Array.isArray(parsed.userSource) ? parsed.userSource.filter(function (u) {\n  return u && names.indexOf(u.tag) !== -1 && userFields.indexOf(u.field) !== -1;\n}).map(function (u) { return { tag: u.tag, field: u.field }; }) : [];\nconst diagramTags = Array.isArray(parsed.diagramTags) ? parsed.diagramTags.filter(function (n, i, all) { return rawXmlNames.indexOf(n) !== -1 && all.indexOf(n) === i; }) : [];\n\nreturn [{ json: { values: values, missing: missing, userSource: userSource, diagramTags: diagramTags, quotationRef: typeof parsed.quotationRef === 'string' ? parsed.quotationRef : (typeof parsed.quotationRef === 'number' ? String(parsed.quotationRef) : ''), meta: { customerName: typeof meta.customerName === 'string' ? meta.customerName : '' } } }];"
+      },
+      "id": "a1b2c3d4-0006-4000-8000-000000000006",
+      "name": "Parse AI Output",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Reference number of a Product + Solution proposal, built from the user's section / sub-section (sent as refRequest) and the quotation\n// reference the AI read from the Excel:\n//   section + sub-section + a usable Excel ref : SLTM-<SECTION>-<SUBSECTION>-SP<cleaned Excel ref>   e.g. SLTM-REBM-WPE-SP2026-0451 (no dash between SP and the ref)\n//   section + sub-section, no usable Excel ref : SLTM-<SECTION>-<SUBSECTION>-SP\n//   no section or no sub-section (admin)       : exactly \"SLTM-\"\n// A reference that is already fixed (Regenerate sends refNo) is only echoed back. This node never throws: on any problem it answers refNo \"\" and the\n// backend applies its own fallback (\"SLTM-\" or SLTM-<SECTION>-<SUBSECTION>-SP) - the reference can never stop a proposal.\nconst input = $input.first().json;\nif (input.error) return [{ json: input }]; // the AI answer itself was unusable: pass it on unchanged\n\nlet refNo = '';\nlet refError = '';\nlet quotationRef = '';\ntry {\n  const request = $('Webhook').first().json;\n  const body = request.body || request;\n\n  // The VALUE of the quotation reference, safe to use as the end of the reference number: label prefixes (\"PR:\", \"PR -\", \"Ref:\", \"Ref No:\",\n  // \"Quotation No:\", \"Quote #\") removed, slashes / spaces -> \"-\", every character except letters, digits, \".\", \"_\", \"-\" dropped.\n  const cleanQuotationRef = function (raw) {\n    var v = String(raw == null ? '' : raw).trim();\n    var label = /^\\s*(?:(?:quotation|quote|proposal|reference|ref|pr)\\b\\s*(?:no\\.?|number|num\\.?|#)?\\s*[:#\\-.]*\\s*)+/i;\n    for (var i = 0; i < 4; i++) { var next = v.replace(label, ''); if (next === v) break; v = next; }\n    v = v.replace(/^[\\s:#.\\-]+/, '');\n    return v.replace(/[\\s\\/\\\\]+/g, '-').replace(/[^A-Za-z0-9._-]/g, '').replace(/-{2,}/g, '-').replace(/^[-._]+|[-._]+$/g, '');\n  };\n  quotationRef = cleanQuotationRef(input.quotationRef);\n\n  if (body.refNo) {\n    refNo = String(body.refNo).trim();\n  } else {\n    const norm = function (v) { return String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, ''); };\n    const section = norm(body.refRequest && body.refRequest.section);\n    const sub = norm(body.refRequest && body.refRequest.subSection);\n    refNo = (section && sub) ? 'SLTM-' + section + '-' + sub + '-SP' + quotationRef : 'SLTM-';\n  }\n  if (!/^SLTM-(?:[A-Z0-9]+-[A-Z0-9]+-SP[A-Za-z0-9._-]*)?$/.test(refNo)) { refError = 'invalid reference ' + refNo; refNo = ''; }\n} catch (e) {\n  refNo = '';\n  refError = String((e && e.message) || e);\n}\n\nreturn [{ json: Object.assign({}, input, { refNo: refNo, quotationRef: quotationRef }, refError ? { refError: refError } : {}) }];"
+      },
+      "id": "a1b2c3d4-0007-4000-8000-000000000007",
+      "name": "Build Reference",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1040,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0008-4000-8000-000000000008",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1280,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Build Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Prompt": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Output": {
+      "main": [
+        [
+          {
+            "node": "Build Reference",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Reference": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Knowledge Base Vector Search": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

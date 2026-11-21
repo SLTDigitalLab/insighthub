@@ -13,7 +13,13 @@ const chromaService = require('./services/chromaService');
 const userService = require('./services/userService');
 const searchHistoryService = require('./services/searchHistoryService');
 
+const monitoring = require('./monitoring');
+
 const app = express();
+// Monitoring first so the metrics middleware sees every request; /metrics and /api/health/{storage,chromadb,monitoring}
+// are guarded by METRICS_TOKEN + MONITORING_ALLOWED_IPS. The existing /api/health below is untouched.
+app.use(monitoring.middleware);
+monitoring.mountRoutes(app);
 const PORT = process.env.PORT || 5005;
 const N8N_BASE_URL = process.env.N8N_WEBHOOK_BASE || 'https://sltrnddigitallab.app.n8n.cloud/webhook';
 const ADMIN_EMAILS = [
@@ -29,6 +35,8 @@ const APP_BASE_URL = process.env.APP_BASE_URL || 'https://insighthub.raccoon-ai.
 app.use(cors());
 app.use(express.json({ limit: '350mb' }));
 app.use(express.urlencoded({ extended: true, limit: '350mb' }));
+// Proposal documents are private: only the authenticated /api/proposals/:refNo/documents routes may serve them
+app.use(['/uploads/proposals', '/api/uploads/proposals'], (req, res) => res.status(404).json({ error: 'Not found' }));
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use('/api/proposals', require('./routes/proposals'));
@@ -1418,6 +1426,20 @@ app.get('/api/admin/users', (req, res) => {
   } catch (err) {
     console.error('[Admin Users Error]', err);
     res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+// Admin Portal: set a user's section / sub-section (used in the reference number of the proposals they generate)
+app.post('/api/admin/user-profile', (req, res) => {
+  try {
+    if (!verifyAdminRequest(req)) {
+      return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
+    }
+    const { userId, section, subSection } = req.body || {};
+    const user = userService.updateSectionProfile(userId, { section, subSection });
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
   }
 });
 
