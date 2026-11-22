@@ -10,6 +10,7 @@ const proposalStorage = require('../services/proposalStorageService');
 const draftService = require('../services/draftService');
 const renderService = require('../services/renderService');
 const store = require('../services/templateStoreService');
+const requireAdmin = require('../services/requireAdmin');
 const diagramService = require('../services/diagramService');
 const versionSvc = require('../services/proposalVersionService');
 const { diagramPath } = require('../services/ooxml');
@@ -315,7 +316,7 @@ router.get('/template/download', (req, res) => {
 });
 
 // Back to the first version (the system default template)
-router.post('/template/reset', (req, res) => {
+router.post('/template/reset', requireAdmin, (req, res) => {
   try {
     const first = store.list().slice().sort((a, b) => a.version - b.version)[0];
     if (!first) return res.status(404).json({ error: 'No template versions exist' });

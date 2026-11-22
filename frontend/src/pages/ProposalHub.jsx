@@ -11,7 +11,6 @@ import { downloadProposalStepFile } from '../api';
 import { currentStepOf, stepName, allRefsOf, currentStatusOf, rowActionOf } from '../utils/proposalSteps';
 import ProposalAgent from '../components/ProposalAgent';
 import ProposalStatusPanel, { STATUS_OPTIONS } from '../components/ProposalStatusPanel';
-import ProposalMaintenance from '../components/ProposalMaintenance';
 import ConfirmModal from '../components/ConfirmModal';
 import SolutionTemplatePanel from '../components/SolutionTemplatePanel';
 import ProductSolutionTemplatePanel from '../components/ProductSolutionTemplatePanel';
@@ -74,6 +73,7 @@ export default function ProposalHub() {
     const adminEmails = ['dineshpi@slt.com.lk', '020601@intranet.slt.com.lk', 'lahirus@slt.com.lk'];
     const adminRole = localStorage.getItem('userRole') === 'admin' || adminEmails.includes(email);
     setIsAdmin(adminRole);
+    if (!adminRole && activeTab === 'template') handleTabChange('generator'); // template upload is admin-only
     // Delete is for admins and Section Managers only (Account Managers do not see it)
     setCanDelete(adminRole || /section\s*manager/i.test(localStorage.getItem('userDesignation') || ''));
 
@@ -358,16 +358,14 @@ export default function ProposalHub() {
       )}
 
       {/* Top Header (shared with the Solution and Product + Solution pages) */}
-      <ProposalHubHeader activeTab={activeTab} onTab={tab => { if (tab === 'generator') setSelectedProposal(null); if (tab === 'archive') fetchSavedProposals(); handleTabChange(tab); }} count={savedProposals.length} showGenerate={isAdmin} showTemplate={isAdmin} />
+      <ProposalHubHeader activeTab={activeTab} onTab={tab => { if (tab === 'generator') setSelectedProposal(null); if (tab === 'archive') fetchSavedProposals(); handleTabChange(tab); }} count={savedProposals.length} showGenerate showTemplate={isAdmin} />
 
       {/* Main Content Area */}
       <main className="proposal-hub-main" style={{ flex: 1, padding: activeTab === 'generator' ? '20px 24px' : '32px 36px', maxWidth: activeTab === 'generator' ? '100%' : '1350px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         
         {/* TAB 1: Proposal Generator Wizard */}
         <div style={{ display: activeTab === 'generator' ? 'block' : 'none' }}>
-          {!isAdmin ? (
-            <ProposalMaintenance onBack={() => navigate('/dashboard')} />
-          ) : (
+          {(
             <div style={{ background: '#ffffff', borderRadius: 12, border: '1px solid #e2e8f0', boxShadow: '0 2px 10px rgba(0,0,0,0.03)', padding: '20px 16px' }}>
               {selectedProposal && !viewOnly && (
                 <div style={{
@@ -414,7 +412,7 @@ export default function ProposalHub() {
         </div>
 
         {/* TAB 2: Upload Latest Template (Admin Only) */}
-        {activeTab === 'template' && (
+        {isAdmin && activeTab === 'template' && (
           <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
             {[['product', 'Product template'], ['solution', 'Solution template'], ['productSolution', 'Product + Solution template']].map(([t, text]) => (
               <button
@@ -433,13 +431,13 @@ export default function ProposalHub() {
             ))}
           </div>
         )}
-        {activeTab === 'template' && templateType === 'solution' && (
+        {isAdmin && activeTab === 'template' && templateType === 'solution' && (
           <SolutionTemplatePanel userEmail={userEmail} showToast={showToast} />
         )}
-        {activeTab === 'template' && templateType === 'productSolution' && (
+        {isAdmin && activeTab === 'template' && templateType === 'productSolution' && (
           <ProductSolutionTemplatePanel userEmail={userEmail} showToast={showToast} />
         )}
-        {activeTab === 'template' && templateType === 'product' && (
+        {isAdmin && activeTab === 'template' && templateType === 'product' && (
           <div>
             <div style={{ marginBottom: 24 }}>
               <h2 style={{ fontSize: '1.45rem', fontWeight: 800, color: '#0B2A6F', margin: '0 0 6px' }}>Upload Latest Proposal Template</h2>

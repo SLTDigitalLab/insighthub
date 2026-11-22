@@ -4,6 +4,7 @@ import './index.css';
 import App from './App.jsx';
 
 // MSAL imports
+import axios from 'axios';
 import { PublicClientApplication } from '@azure/msal-browser';
 import { MsalProvider } from '@azure/msal-react';
 import { msalConfig } from './authConfig';
@@ -36,6 +37,15 @@ const parseOAuthHash = () => {
 };
 
 parseOAuthHash();
+
+// Every /api call tells the backend who is asking (the proposal routes check this header for admin-only actions)
+axios.interceptors.request.use((config) => {
+  try {
+    const email = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+    if (email && !(config.headers && config.headers.get && config.headers.get('x-user-email'))) config.headers.set('x-user-email', email);
+  } catch { /* no storage: the backend treats the call as anonymous */ }
+  return config;
+});
 
 const renderApp = (instance) => {
   const rootElement = document.getElementById('root');

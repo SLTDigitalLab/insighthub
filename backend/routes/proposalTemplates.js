@@ -3,9 +3,10 @@ const multer = require('multer');
 const store = require('../services/templateStoreService');
 const drafts = require('../services/templateDraftService');
 const solutionTemplates = require('../services/solutionTemplateService');
+const requireAdmin = require('../services/requireAdmin');
 
 // /api/proposals/templates/* - template versions and the upload -> review -> confirm flow.
-// Admin handling is the same as the rest of the proposal feature (the UI only shows these screens to admins).
+// Everything that uploads, reviews, changes or activates a template is admin-only (requireAdmin); reading the versions is open to approved users.
 //
 //   POST   /upload                  one step: analyse, tag, clean and activate (used by the Proposal Hub)
 //   POST   /drafts                  upload a .docx: it is analysed (tags, outline, AI mapping) and kept as a draft
@@ -39,9 +40,9 @@ function summary(t) {
 }
 
 // Product + Solution template: its own upload -> review -> Confirm routes (before the /:id routes below)
-router.use('/product-solution', require('./productSolutionTemplates')({ upload, who, send }));
+router.use('/product-solution', requireAdmin, require('./productSolutionTemplates')({ upload, who, send }));
 
-router.post('/drafts', upload.single('template'), async (req, res) => {
+router.post('/drafts', requireAdmin, upload.single('template'), async (req, res) => {
   try {
     if (!req.file || !req.file.buffer) return res.status(400).json({ error: 'Please select a .docx template file to upload.' });
     res.json({ success: true, draft: await drafts.create({ buffer: req.file.buffer, filename: req.file.originalname, uploadedBy: who(req) }) });
@@ -50,7 +51,7 @@ router.post('/drafts', upload.single('template'), async (req, res) => {
 
 // One step: analyse, tag, clean and activate. Only one upload runs at a time (a second one is refused, not queued).
 let uploading = false;
-router.post('/upload', upload.single('template'), async (req, res) => {
+router.post('/upload', requireAdmin, upload.single('template'), async (req, res) => {
   if (uploading) return res.status(409).json({ error: 'Another template upload is still running. Wait for it to finish.' });
   uploading = true;
   try {
@@ -85,19 +86,19 @@ router.post('/upload', upload.single('template'), async (req, res) => {
   } catch (err) { send(res, err, 'Upload'); } finally { uploading = false; }
 });
 
-router.get('/drafts', (req, res) => {
+router.get('/drafts', requireAdmin, (req, res) => {
   try { res.json({ success: true, drafts: drafts.list() }); } catch (err) { send(res, err, 'Draft list'); }
 });
 
-router.get('/drafts/:id', (req, res) => {
+router.get('/drafts/:id', requireAdmin, (req, res) => {
   try { res.json({ success: true, draft: drafts.get(req.params.id) }); } catch (err) { send(res, err, 'Draft view'); }
 });
 
-router.put('/drafts/:id/overrides', (req, res) => {
+router.put('/drafts/:id/overrides', requireAdmin, (req, res) => {
   try { res.json({ success: true, draft: drafts.setOverrides(req.params.id, req.body && req.body.overrides) }); } catch (err) { send(res, err, 'Draft overrides'); }
 });
 
-router.get('/drafts/:id/original', (req, res) => {
+router.get('/drafts/:id/original', requireAdmin, (req, res) => {
   try {
     const { filename, buffer } = drafts.original(req.params.id);
     res.setHeader('Content-Type', DOCX_MIME);
@@ -106,11 +107,11 @@ router.get('/drafts/:id/original', (req, res) => {
   } catch (err) { send(res, err, 'Draft download'); }
 });
 
-router.post('/drafts/:id/confirm', async (req, res) => {
+router.post('/drafts/:id/confirm', requireAdmin, async (req, res) => {
   try { res.json({ success: true, ...(await drafts.confirm(req.params.id, who(req))) }); } catch (err) { send(res, err, 'Draft confirm'); }
 });
 
-router.delete('/drafts/:id', (req, res) => {
+router.delete('/drafts/:id', requireAdmin, (req, res) => {
   try { drafts.remove(req.params.id); res.json({ success: true }); } catch (err) { send(res, err, 'Draft delete'); }
 });
 
@@ -132,7 +133,7 @@ router.get('/:id', (req, res) => {
   }
 });
 
-router.post('/:id/activate', (req, res) => {
+router.post('/:id/activate', requireAdmin, (req, res) => {
   try {
     const entry = store.activate(req.params.id);
     if (!entry) return res.status(404).json({ error: 'Template version not found' });

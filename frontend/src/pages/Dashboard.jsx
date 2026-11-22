@@ -22,7 +22,6 @@ import {
   saveSearchHistory
 } from '../api';
 import ProposalAgent from '../components/ProposalAgent';
-import ProposalMaintenance from '../components/ProposalMaintenance';
 import ConfirmModal from '../components/ConfirmModal';
 
 
@@ -939,7 +938,7 @@ const Dashboard = () => {
                 key={agent.id}
                 onClick={() => {
                   setMobileMenuOpen(false);
-                  if (isProposalAgent && isAdmin) {
+                  if (isProposalAgent) {
                     window.open('/proposals', 'InsightHub_ProposalHub');
                     return;
                   }
@@ -975,7 +974,7 @@ const Dashboard = () => {
               >
                 <Icon size={18} color={isActive ? '#ffffff' : '#64748b'} />
                 <span style={{ flex: 1 }}>{agent.name}</span>
-                {isProposalAgent && isAdmin ? (
+                {isProposalAgent ? (
                   <ExternalLink size={15} color="#0066FF" title="Opens Proposal Hub in a new tab" />
                 ) : (
                   isActive && <ChevronRight size={16} color="#ffffff" />
@@ -1151,14 +1150,10 @@ const Dashboard = () => {
         </div>
 
         {activeAgent.id === 'proposal' ? (
-          isAdmin ? (
-            <ProposalAgent
-              user={proposalUser || { name: localStorage.getItem('userName') || '', email: userEmail, designation: '', phone: '', division: '' }}
-              accent={activeAgent.color}
-            />
-          ) : (
-            <ProposalMaintenance onBack={() => setActiveAgent(agents[0])} />
-          )
+          <ProposalAgent
+            user={proposalUser || { name: localStorage.getItem('userName') || '', email: userEmail, designation: '', phone: '', division: '' }}
+            accent={activeAgent.color}
+          />
         ) : (
           <>
         {isAdmin && activeAgent.id === 'newBusinesses' && (

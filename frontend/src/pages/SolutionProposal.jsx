@@ -26,7 +26,7 @@ const DEFAULT_FLOW = {
     getTemplate: getSolutionTemplate, upload: uploadSolutionExcel, extract: (uploadId, sheet, user, email) => extractSolutionSheet(uploadId, sheet, user, email),
     get: getSolutionProposal, save: saveSolutionFields, exportFile: exportSolutionProposal, source: downloadSolutionSource, regenerate: regenerateSolutionProposal,
   },
-  adminOnly: true, // TODO (existing): keep in step with ProposalHub
+  adminOnly: false,
   templateType: 'solution', generatePath: '/proposals/solution', // the shared header's tabs
   subtitle: 'Solution Proposal',
   templateWords: 'solution template', // "fill the active ..."

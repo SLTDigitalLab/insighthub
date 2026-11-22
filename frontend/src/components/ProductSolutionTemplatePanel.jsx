@@ -32,7 +32,7 @@ export default function ProductSolutionTemplatePanel({ userEmail, showToast }) {
   const [draft, setDraft] = useState(null);       // the analysed upload waiting for its single Confirm
   const [result, setResult] = useState(null);     // the last confirmed upload
   const [problems, setProblems] = useState([]);
-  const headers = { 'x-user-email': userEmail || 'admin' };
+  const headers = { 'x-user-email': userEmail || '' };
 
   const load = async () => {
     try {
