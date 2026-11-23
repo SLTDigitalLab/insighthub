@@ -133,7 +133,7 @@ async function runAgent({ grid, schema, rep, refNo, refRequest, today, template 
   const quotation = ([...refVotes.entries()].sort((a, b) => b[1] - a[1])[0] || [''])[0];
   const finalRef = refNo ? refService.sanitizeSolutionRef(refNo) || refNo : refService.safeSolutionRef(rep.account, quotation); // never throws, never ""
   const result = schemaSvc.validate(schema, voted.raw, grid, [rep.phone, rep.email, finalRef, today], rep, template && template.userSource);
-  result.values = schemaSvc.applyReference(schema, result.values, finalRef, true);
+  result.values = schemaSvc.applyReference(schema, result.values, finalRef, true, true);
   voted.disagreements.forEach(tag => result.warnings.push({ kind: 'row', path: tag, tag, row: null, column: null, value: '', reason: 'The runs of the AI agent disagreed on this table; please check its rows.' }));
   if (template && template.id) store.mergeUserSource(template.id, result.userSource);
 
@@ -189,6 +189,23 @@ function clearRef(values, ref) {
   try { return JSON.parse(JSON.stringify(values).split(r).join('')); } catch { return values; }
 }
 
+// Company name fields: the extracted company name, else the customer name; never a reference number. The acknowledgement company name
+// is the same value. Reference placeholders are not touched.
+const COMPANY_TAG = /^company_?name$/i;
+const ACK_COMPANY_TAG = /^ack_?company_?name$/i;
+function fillCompanyNames(schema, values, customer, refNo) {
+  const isRef = v => { const t = clean(v); return !!t && (/^SLTM-/i.test(t) || (!!refNo && t === refNo)); };
+  const out = { ...values };
+  const tags = (schema || []).filter(t => t.type === 'text');
+  const main = tags.find(t => COMPANY_TAG.test(t.name));
+  const ack = tags.filter(t => ACK_COMPANY_TAG.test(t.name));
+  const current = main ? clean(out[main.name]) : '';
+  const name = (current && !isRef(current)) ? current : clean(customer);
+  if (main) out[main.name] = name;
+  ack.forEach(t => { out[t.name] = name; });
+  return out;
+}
+
 async function extract({ uploadId, sheetName, user }) {
   const { id, meta, buffer } = loadPending(uploadId);
   if (!meta.sheets.some(s => s.name === sheetName)) throw fail(400, 'Please choose one of the sheets of the uploaded workbook.');
@@ -206,7 +223,8 @@ async function extract({ uploadId, sheetName, user }) {
   if (refNo && !refNo.endsWith('-') && refService.find(refNo)) { console.warn(`[solution] reference number ${refNo} is already used; using the short form`); rejected = refNo; refNo = ''; }
   if (!refNo) refNo = refService.safeSolutionRef(rep.account, '');
   if (rejected) result.values = clearRef(result.values, rejected);
-  result.values = schemaSvc.applyReference(schema, result.values, refNo, true); // the reference placeholder holds the saved reference
+  result.values = schemaSvc.applyReference(schema, result.values, refNo, true, true); // the reference placeholder holds the saved reference
+  result.values = fillCompanyNames(schema, result.values, result.meta.customerName, refNo);
 
   const saved = proposalStorage.saveProposal({
     refNo,
@@ -244,7 +262,8 @@ async function regenerate(id, user) {
     ? await generate({ buffer, sheetName, user, refNo: ownRef, template })
     : await generateAllowingNoRef({ buffer, sheetName, user, refRequest, template });
   // the saved reference does not change on a regeneration, so the placeholder shows exactly that (or nothing)
-  result.values = schemaSvc.applyReference(schema, result.values, ownRef, true);
+  result.values = schemaSvc.applyReference(schema, result.values, ownRef, true, true);
+  result.values = fillCompanyNames(schema, result.values, clean(proposal.companyName) || result.meta.customerName, ownRef);
   const revised = proposalStorage.reviseProposal(docs.keyOf(proposal), p => ({
     ...p,
     // a regeneration keeps the customer logo the user uploaded
@@ -271,7 +290,7 @@ function saveFields(id, { fields, companyName, logo }, userEmail = '') {
   const { proposal, schema } = getSolution(id);
   const ownRef = refService.sanitizeSolutionRef(proposal.refNo) || (refService.isValid(proposal.refNo) ? proposal.refNo : '');
   // a reference placeholder holds a full SLTM reference or nothing: junk such as "PR:" is replaced by the proposal's own reference
-  const values = schemaSvc.applyReference(schema, schemaSvc.sanitize(schema, fields), ownRef);
+  const values = schemaSvc.applyReference(schema, schemaSvc.sanitize(schema, fields), ownRef, false, true);
   // the picture settings (customer logo) are not template tags: they are kept from the stored proposal and changed only by `logo`
   const meta = logoSvc.withLogo(proposal.fields && proposal.fields[logoSvc.META_KEY], logo);
   if (logoSvc.hasKeys(meta)) values[logoSvc.META_KEY] = meta;

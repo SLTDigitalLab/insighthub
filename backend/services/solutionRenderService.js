@@ -167,7 +167,7 @@ async function render({ templateId, fields, companyName, format = 'docx', refNo 
   const file = store.readFile(entry.id);
   if (!file) throw fail(404, 'Template file is missing on the server');
   if (!fields || typeof fields !== 'object') throw fail(400, 'fields are required');
-  const withRef = refNo === undefined ? fields : applyReference(buildSchema(entry.tags), fields, refNo);
+  const withRef = refNo === undefined ? fields : applyReference(buildSchema(entry.tags), fields, refNo, false, true);
   const docx = await fillWithLogo(file, entry.tags, withRef, `v${entry.version}`);
   const baseName = `${files.namePrefix}Solution_${clean(companyName).replace(/[^a-z0-9]+/gi, '_').replace(/^_|_$/g, '') || 'Draft'}`;
   return { buffer: format === 'pdf' ? await docxToPdf(docx) : await require('./pdfService').refreshContents(docx), baseName, entry };
