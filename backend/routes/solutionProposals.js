@@ -99,8 +99,12 @@ router.post('/export', async (req, res) => {
       const meta = logoSvc.withLogo(saved && saved.fields && saved.fields[renderSvc.META_KEY], logo);
       if (logoSvc.hasKeys(meta)) body[renderSvc.META_KEY] = meta;
     }
-    const { buffer, baseName } = await renderSvc.render({ templateId, fields: body, companyName, format, refNo: ref });
-    const fileName = docs.buildFileName([docs.fileRef(saved), saved ? saved.companyName || companyName : companyName, 'Solution'], format);
+    // The document prints the reference of the proposal's current step: <base> for Original / Confirmed / Completed, <base>-Vn after a status change
+    const steps = saved ? docs.buildSteps(saved.statusHistory) : [];
+    const printRef = ref ? docs.stepRef(ref, steps[steps.length - 1]) : ref;
+    const printFields = body && typeof body === 'object' && !Array.isArray(body) && ref && printRef !== ref ? docs.fieldsWithRef(body, docs.refTagKeysOf(body, ref), ref, printRef) : body;
+    const { buffer, baseName } = await renderSvc.render({ templateId, fields: printFields, companyName, format, refNo: printRef });
+    const fileName = docs.buildFileName([docs.fileRef(saved && printRef ? { ...saved, refNo: printRef } : saved), saved ? saved.companyName || companyName : companyName, 'Solution'], format);
     res.setHeader('Content-Type', format === 'pdf' ? 'application/pdf' : DOCX_MIME);
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition');

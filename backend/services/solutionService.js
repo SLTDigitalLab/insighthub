@@ -222,6 +222,12 @@ async function extract({ uploadId, sheetName, user }) {
   if (rejected) console.warn(`[solution] ignoring an invalid reference number ("${rejected}")`);
   if (refNo && !refNo.endsWith('-') && refService.find(refNo)) { console.warn(`[solution] reference number ${refNo} is already used; using the short form`); rejected = refNo; refNo = ''; }
   if (!refNo) refNo = refService.safeSolutionRef(rep.account, '');
+  // The agent found no quotation reference (short form): look for a plain "Reference" / "Ref No" label with a value in the sheet itself
+  if (refNo.endsWith('-')) {
+    const found = refService.findQuotationRefInGrid(grid);
+    const built = found ? refService.safeSolutionRef(rep.account, found) : '';
+    if (built && !built.endsWith('-') && !refService.find(built)) refNo = built;
+  }
   if (rejected) result.values = clearRef(result.values, rejected);
   result.values = schemaSvc.applyReference(schema, result.values, refNo, true, true); // the reference placeholder holds the saved reference
   result.values = fillCompanyNames(schema, result.values, result.meta.customerName, refNo);

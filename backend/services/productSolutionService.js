@@ -186,7 +186,14 @@ async function extract({ uploadId, sheetName, user, productIds }) {
 
   const { schema, grid, rep, products, result } = await generate({ buffer, sheetName, user, productIds, template });
   // The reference never stops a proposal: what the workflow built is used when it is valid; otherwise "SLTM-" / SLTM-<SEC>-<SUB>-SP (a warning is logged)
-  const refNo = refService.resolveProductSolutionRef(rep.account, result.refNo);
+  let refNo = refService.resolveProductSolutionRef(rep.account, result.refNo);
+  // The workflow found no Excel reference (short form SLTM-<SEC>-<SUB>-SP): look for a plain "Reference" / "Ref No" label with a value in the sheet
+  const shortForm = refService.productSolutionFallbackRef(rep.account);
+  if (shortForm !== 'SLTM-' && refNo === shortForm) {
+    const found = refService.findQuotationRefInGrid(grid);
+    const built = found ? refService.sanitizeProductSolutionRef(`${shortForm}${found}`) : '';
+    if (built && refService.isFullProductSolutionRef(built) && !refService.find(built)) refNo = built;
+  }
   const fields = finish(schema, result, refNo, {});
 
   const saved = proposalStorage.saveProposal({

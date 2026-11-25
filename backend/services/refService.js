@@ -44,6 +44,24 @@ function cleanQuotationRef(raw) {
   return v;
 }
 
+// Safety net for when the AI agent returned no quotation reference: the VALUE next to a label cell that is only "Reference", "Ref No",
+// "Quotation No" ... (cell to the right, else the cell below). A bare "PR:" label is not looked at: the agent already handles it, and an
+// empty "PR:" cell must not hide a filled "Reference :" row. "" when nothing usable is found.
+const REF_LABEL_CELL = /^\s*(?:quotation|quote|proposal)?\s*ref(?:erence)?\.?\s*(?:no\.?|number|num\.?|#)?\s*[:#.\-]*\s*$/i;
+function findQuotationRefInGrid(grid) {
+  const cells = (grid && grid.cells) || [];
+  const at = (row, col) => cells.find(c => c.row === row && c.col === col);
+  for (const c of cells) {
+    if (typeof c.value !== 'string' || !REF_LABEL_CELL.test(c.value)) continue;
+    for (const n of [at(c.row, c.col + 1), at(c.row + 1, c.col)]) {
+      if (!n || n.value === '' || n.value == null) continue;
+      const q = cleanQuotationRef(n.value);
+      if (q) return q;
+    }
+  }
+  return '';
+}
+
 // { section, subSection } of the account exactly as stored (upper case, letters and digits only); null when either is missing.
 // No testing fallback here: a user without them gets a proposal with no reference.
 function solutionSectionOf(account) {
@@ -153,4 +171,4 @@ function resolveProductSolutionRef(account, workflowRef) {
   return fallback;
 }
 
-module.exports = { PS_REF_PATTERN, sanitizeProductSolutionRef, productSolutionFallbackRef, isFullProductSolutionRef, resolveProductSolutionRef, PRODUCT_REF_PATTERN, BARE_PRODUCT_REF, randomEightDigits, buildProductRef, safeProductRef, isValid, find, fail, REF_PATTERN, SOLUTION_REF_PATTERN, sanitizeSolutionRef, cleanQuotationRef, solutionSectionOf, buildSolutionRef, safeSolutionRef };
+module.exports = { PS_REF_PATTERN, sanitizeProductSolutionRef, productSolutionFallbackRef, isFullProductSolutionRef, resolveProductSolutionRef, PRODUCT_REF_PATTERN, BARE_PRODUCT_REF, randomEightDigits, buildProductRef, safeProductRef, isValid, find, fail, REF_PATTERN, SOLUTION_REF_PATTERN, sanitizeSolutionRef, cleanQuotationRef, findQuotationRefInGrid, solutionSectionOf, buildSolutionRef, safeSolutionRef };
