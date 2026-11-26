@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FileText, Layers, Boxes, ArrowLeft, ChevronRight } from 'lucide-react';
+import { FileText, Layers, Boxes, ArrowLeft, ChevronRight, Search } from 'lucide-react';
 
 const OPTIONS = [
   {
@@ -55,6 +55,12 @@ export default function ProposalTypeSelect() {
             <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Choose the type of proposal you want to create</div>
           </div>
         </div>
+        <button
+          onClick={() => navigate('/proposals/product?tab=archive&only=archive')}
+          style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6, background: '#0284c7', border: 'none', borderRadius: 6, padding: '8px 14px', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', color: '#fff' }}
+        >
+          <Search size={16} /> Search Generated Proposals
+        </button>
       </header>
 
       <main style={{ flex: 1, padding: '48px 36px', maxWidth: 900, margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>

@@ -71,6 +71,7 @@ const AdminPortal = () => {
   const [inviteSection, setInviteSection] = useState('Enterprise Large');
   const [inviteSubSection, setInviteSubSection] = useState('WPC1');
   const [inviteOtherSub, setInviteOtherSub] = useState(''); // sub-section of a non-REBM section (free text, stored uppercase)
+  const [designationEdit, setDesignationEdit] = useState(null); // { user, designation, saving }
   const [profileEdit, setProfileEdit] = useState(null); // { user, section, subSection, saving } while the section editor is open
   const [inviteDesignation, setInviteDesignation] = useState('Account Manager');
   const [inviteFullName, setInviteFullName] = useState('');
@@ -263,6 +264,21 @@ const AdminPortal = () => {
       showToast(err.response?.data?.error || 'Error authorizing user.', 'error');
     } finally {
       setInviteLoading(false);
+    }
+  };
+
+  const saveDesignation = async () => {
+    const { user, designation } = designationEdit;
+    setDesignationEdit(p => ({ ...p, saving: true }));
+    try {
+      const currentAdmin = (localStorage.getItem('userEmail') || '').toLowerCase().trim();
+      await axios.post('/api/admin/user-designation', { userId: user.id, designation, requesterEmail: currentAdmin }, { headers: { 'x-user-email': currentAdmin } });
+      showToast('Designation updated.', 'success');
+      setDesignationEdit(null);
+      fetchUsers();
+    } catch (err) {
+      showToast((err.response && err.response.data && err.response.data.error) || 'Failed to update designation.', 'error');
+      setDesignationEdit(p => (p ? { ...p, saving: false } : p));
     }
   };
 
@@ -462,6 +478,21 @@ const AdminPortal = () => {
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', color: '#0f172a', fontFamily: 'system-ui, sans-serif' }}>
+      {designationEdit && (
+        <div onClick={() => !designationEdit.saving && setDesignationEdit(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#fff', borderRadius: 12, width: '100%', maxWidth: 420, padding: '1.25rem 1.5rem', boxShadow: '0 12px 40px rgba(0,0,0,0.25)' }}>
+            <h3 style={{ margin: 0, fontSize: '1.05rem', color: '#0f172a' }}>Designation</h3>
+            <p style={{ margin: '0.3rem 0 1rem', fontSize: '0.8rem', color: '#64748b' }}>{designationEdit.user.email}</p>
+            <select value={designationEdit.designation} onChange={e => setDesignationEdit(p => ({ ...p, designation: e.target.value }))} style={{ width: '100%', padding: '0.6rem', border: '1px solid #cbd5e1', borderRadius: '0.5rem' }}>
+              {DESIGNATIONS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', marginTop: '1.1rem' }}>
+              <button type="button" disabled={designationEdit.saving} onClick={() => setDesignationEdit(null)} style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid #cbd5e1', background: '#fff', cursor: 'pointer', fontWeight: 600 }}>Cancel</button>
+              <button type="button" disabled={designationEdit.saving} onClick={saveDesignation} style={{ padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: 'none', background: '#0066FF', color: '#fff', cursor: 'pointer', fontWeight: 700 }}>{designationEdit.saving ? 'Saving...' : 'Save'}</button>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Toast Notification */}
       {profileEdit && (
         <div onClick={() => !profileEdit.saving && setProfileEdit(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -1312,6 +1343,15 @@ const AdminPortal = () => {
                         }}>
                           {displayDesignation}
                         </span>
+                        {isApproved && (
+                          <button
+                            type="button"
+                            onClick={() => setDesignationEdit({ user: u, designation: displayDesignation, saving: false })}
+                            style={{ display: 'block', marginTop: '0.3rem', padding: 0, background: 'none', border: 'none', color: '#0066FF', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}
+                          >
+                            Edit designation
+                          </button>
+                        )}
                       </td>
 
                       <td style={{ padding: '1rem 1.25rem', color: '#334155', fontSize: '0.85rem' }}>

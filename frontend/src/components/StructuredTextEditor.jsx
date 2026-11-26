@@ -7,7 +7,9 @@ import { Plus, Trash2, ArrowUp, ArrowDown } from 'lucide-react';
 // ("1.", "2." ...) and the Word formatting are added when the document is made, from the template's layout.
 //
 // value: { intro, items: [{ title, text }] } or a plain string (an older proposal / the AI's text: shown as the introduction)
-// onChange(next): next is always { intro, items }
+// onChange(next): next is always { intro, items } (+ removed: true while the section is removed)
+// removable: shows a "Remove section" button next to the title; a removed section stays in the proposal data as { removed: true } so the
+// server leaves its heading and page out of the document, and the editor shows a one-line "Restore" row instead of the fields
 const BORDER = '1px solid #e2e8f0';
 const input = { width: '100%', boxSizing: 'border-box', padding: '8px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: '0.88rem', fontFamily: 'inherit', background: '#fff' };
 const smallBtn = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '5px 7px', borderRadius: 6, border: '1px solid #cbd5e1', background: '#f8fafc', color: '#475569', cursor: 'pointer' };
@@ -17,15 +19,24 @@ export function toStructured(value) {
     return {
       intro: value.intro == null ? '' : String(value.intro),
       items: (Array.isArray(value.items) ? value.items : []).filter(it => it && typeof it === 'object').map(it => ({ title: it.title == null ? '' : String(it.title), text: it.text == null ? '' : String(it.text) })),
+      ...(value.removed === true ? { removed: true } : {}),
     };
   }
   return { intro: value == null ? '' : String(value), items: [] };
 }
 
 // extra: something that belongs to this section and is shown right under its heading, above the introduction (the customer logo)
-export default function StructuredTextEditor({ label, value, onChange, introLabel = 'Introduction', itemName = 'item', warn = null, extra = null }) {
+export default function StructuredTextEditor({ label, value, onChange, introLabel = 'Introduction', itemName = 'item', warn = null, extra = null, removable = false }) {
   const v = toStructured(value);
-  const set = (next) => onChange({ intro: next.intro, items: next.items });
+  const set = (next) => onChange({ intro: next.intro, items: next.items, ...(next.removed ? { removed: true } : {}) });
+  if (v.removed) {
+    return (
+      <div style={{ marginBottom: 18, border: '1px dashed #cbd5e1', borderRadius: 10, padding: '10px 12px', background: '#f8fafc', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ flex: 1, fontSize: '0.86rem', color: '#64748b' }}><strong style={{ color: '#475569' }}>{label}</strong> was removed from this proposal.</span>
+        <button type="button" onClick={() => set({ ...v, removed: false })} style={{ ...smallBtn, padding: '5px 12px', color: '#0369a1', fontWeight: 700, fontSize: '0.8rem' }}>Restore</button>
+      </div>
+    );
+  }
   const setItem = (i, patch) => set({ ...v, items: v.items.map((it, j) => (j === i ? { ...it, ...patch } : it)) });
   const move = (i, to) => {
     if (to < 0 || to >= v.items.length) return;
@@ -37,7 +48,15 @@ export default function StructuredTextEditor({ label, value, onChange, introLabe
   return (
     // one framed section: heading, then what belongs to it (logo), the introduction and the items
     <div style={{ marginBottom: 18, border: BORDER, borderRadius: 10, padding: 12, background: '#fcfdff' }}>
-      <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#0B2A6F', paddingBottom: 8, marginBottom: 10, borderBottom: BORDER }}>{label}</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, paddingBottom: 8, marginBottom: 10, borderBottom: BORDER }}>
+        <span style={{ flex: 1, fontSize: '0.9rem', fontWeight: 800, color: '#0B2A6F' }}>{label}</span>
+        {removable && (
+          <button type="button" title="Remove this whole section from the proposal" onClick={() => set({ ...v, removed: true })}
+            style={{ ...smallBtn, gap: 4, padding: '4px 9px', color: '#dc2626', borderColor: '#fecaca', background: '#fef2f2', fontSize: '0.76rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+            <Trash2 size={13} /> Remove section
+          </button>
+        )}
+      </div>
       {extra}
       <label style={{ display: 'block', fontSize: '0.74rem', fontWeight: 600, color: '#64748b', marginBottom: 3 }}>{introLabel}</label>
       <textarea rows={4} value={v.intro} style={input} onChange={e => set({ ...v, intro: e.target.value })} />

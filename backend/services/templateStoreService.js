@@ -211,4 +211,35 @@ function activate(id) {
   return target;
 }
 
-module.exports = { PS_TYPE, list, get, getActive, readFile, readOriginal, addTagged, activate, mergeUserSource };
+// "Restore Default" of the Product template: makes the bundled default file (templates/default_proposal_template.docx) the active
+// version. A stored product version with exactly the same file is re-activated; when the bundled file was replaced after this server
+// first started (so version 1 is an older default), it is added as a new version. Returns the active entry, null when the file is missing.
+function restoreDefault() {
+  if (!fs.existsSync(DEFAULT_TEMPLATE)) return null;
+  const buffer = fs.readFileSync(DEFAULT_TEMPLATE);
+  const index = ensureInitialised();
+  let entry = index.find(t => typeOf(t) === 'product' && t.sizeBytes === buffer.length && (() => { const f = readFile(t.id); return f && f.equals(buffer); })());
+  if (!entry) {
+    const report = extractTags(buffer);
+    if (report.errors.length) throw new Error(`The default template could not be read: ${report.errors.map(e => e.message).join('; ')}`);
+    entry = addVersion(index, { buffer, filename: path.basename(DEFAULT_TEMPLATE), uploadedBy: 'System (default)', tags: report.tags, active: false });
+  }
+  index.forEach(t => { if (typeOf(t) === 'product') t.isActive = t.id === entry.id; });
+  writeIndex(index);
+  return withBindings(entry);
+}
+
+// Deletes a PREVIOUS version (the active one cannot be deleted). Proposals already made with it keep working: a render whose
+// version is gone uses the active template of its type. Returns the removed entry, null when it does not exist; throws when it is active.
+function remove(id) {
+  const index = ensureInitialised();
+  const at = index.findIndex(t => t.id === id);
+  if (at === -1) return null;
+  if (index[at].isActive) throw Object.assign(new Error('The active template cannot be deleted. Activate another version first.'), { status: 409 });
+  const [entry] = index.splice(at, 1);
+  writeIndex(index);
+  [fileOf(entry.id), originalOf(entry.id)].forEach(f => { try { fs.unlinkSync(f); } catch { /* already gone */ } });
+  return entry;
+}
+
+module.exports = { PS_TYPE, list, get, getActive, readFile, readOriginal, addTagged, activate, remove, restoreDefault, mergeUserSource };

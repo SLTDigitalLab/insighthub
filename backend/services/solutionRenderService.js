@@ -5,6 +5,7 @@ const { applyPlaceholderColours } = require('./placeholderColourService');
 const { tidyContents } = require('./contentsTidyService');
 const { textToOoxml } = require('./ooxml');
 const structured = require('./structuredTextService');
+const { removeSectionByTag } = require('./sectionRemovalService');
 const { prepareClientLogo, applyClientLogo } = require('./logoService');
 const { docxToPdf } = require('./pdfService');
 const { GROUP_FLAG, buildSchema, flattenTags, applyReference } = require('./solutionSchemaService');
@@ -115,7 +116,10 @@ function open(file, tags, values) {
   const main = zip.file('word/document.xml');
   if (main) {
     const xml = main.asText();
-    const next = removeEmptyLoopTables(xml, flat, values);
+    // a section the rep removed on the edit screen (its block carries { removed: true }) leaves the document with its heading
+    const gone = flat.filter(t => structured.isStructuredTag(t) && structured.isRemoved(values && values[t.name])).map(t => t.name);
+    const cut = gone.reduce((x, name) => removeSectionByTag(x, name), xml);
+    const next = removeEmptyLoopTables(cut, flat, values);
     if (next !== xml) zip.file('word/document.xml', next);
   }
   return { zip, flat };
@@ -162,8 +166,10 @@ async function fillWithLogo(file, tags, values, label = '') {
 // that value, never junk the AI or the sheet put there ("PR:"). Left alone when refNo is not given.
 async function render({ templateId, fields, companyName, format = 'docx', refNo }) {
   const fail = (status, message) => Object.assign(new Error(message), { status });
-  const entry = templateId ? store.get(templateId) : store.getActive('solution');
-  if (!entry || entry.type !== 'solution') throw fail(templateId ? 404 : 409, templateId ? 'Solution template version not found' : 'There is no active solution template. Upload one first.');
+  // a version that was deleted from the previous versions list: the proposal prints with the active solution template instead
+  const found = templateId ? store.get(templateId) : null;
+  const entry = found && found.type === 'solution' ? found : store.getActive('solution');
+  if (!entry || entry.type !== 'solution') throw fail(409, 'There is no active solution template. Upload one first.');
   const file = store.readFile(entry.id);
   if (!file) throw fail(404, 'Template file is missing on the server');
   if (!fields || typeof fields !== 'object') throw fail(400, 'fields are required');

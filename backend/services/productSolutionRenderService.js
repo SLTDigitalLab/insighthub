@@ -10,6 +10,8 @@ const { prepareClientLogo, applyClientLogo } = require('./logoService');
 const { resolveForRender: resolveDiagrams } = require('./diagramService');
 const { PRODUCT_BY_ID } = require('./productCatalog');
 const { files } = require('../proposal/renderSettings');
+const structured = require('./structuredTextService');
+const { removeSectionByTag } = require('./sectionRemovalService');
 
 // Fills the stored PRODUCT + SOLUTION template with the (edited) values. Same idea as solutionRenderService: the data is built from the
 // template's own tags (text -> string, raw XML -> paragraphs, loop -> rows), so no tag name, heading or table layout is written here.
@@ -44,7 +46,10 @@ async function fill(file, tags, fields, { products = [], label = '' } = {}) {
     const main = zip.file('word/document.xml');
     if (main) {
       const xml = main.asText();
-      const next = removeEmptyLoopTables(xml, flat, values);
+      // a section the rep removed on the edit screen (its block carries { removed: true }) leaves the document with its heading
+      const gone = flat.filter(t => structured.isStructuredTag(t) && structured.isRemoved(values[t.name])).map(t => t.name);
+      const cut = gone.reduce((x, name) => removeSectionByTag(x, name), xml);
+      const next = removeEmptyLoopTables(cut, flat, values);
       if (next !== xml) zip.file('word/document.xml', next);
     }
     // {%client_logo} text tags become logo pictures before docxtemplater reads the template (a template without one is fine)

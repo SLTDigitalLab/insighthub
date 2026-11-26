@@ -42,7 +42,7 @@ const slim = tag => ({
   context: readable(tag.context).slice(0, 200),
   ...(tag.section ? { section: tag.section } : {}),
   // the edit screen shows the "about" / "requirements" blocks as an introduction + items (structuredTextService.js), not as one text box
-  ...(structured.isStructuredTag(tag) ? { editor: 'structured' } : {}),
+  ...(structured.isStructuredTag(tag) ? { editor: 'structured', role: structured.roleOf(tag.name) } : {}),
   ...(tag.type === 'loop' ? { children: (tag.children || []).map(slim) } : {}),
 });
 

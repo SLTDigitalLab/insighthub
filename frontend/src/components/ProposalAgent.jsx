@@ -326,6 +326,9 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
     contactEdits.current = on ? { ...rest, ackPrefill: true } : { ...rest, ackPrefill: false, ackCompanyName: '', ackAddress: '', ackSolution: '' };
     // Kept for the next Generate: on = take the new proposal's values, off = stay empty
   };
+  // A section the rep removed is listed in fields.removedSections ('about'); the server leaves it out of the PDF / Word file
+  const aboutRemoved = !!fields && (fields.removedSections || []).includes('about');
+  const setAboutRemoved = on => setFields(f => ({ ...f, removedSections: on ? [...new Set([...(f.removedSections || []), 'about'])] : (f.removedSections || []).filter(x => x !== 'about') }));
   const setRow = (list, i, key, value) => setFields(f => ({ ...f, [list]: f[list].map((r, n) => (n === i ? { ...r, [key]: value } : r)) }));
   const addRow = (list, empty) => setFields(f => ({ ...f, [list]: [...(f[list] || []), empty] }));
   const delRow = (list, i) => setFields(f => ({ ...f, [list]: f[list].filter((_, n) => n !== i) }));
@@ -874,7 +877,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
           <fieldset disabled={viewOnly} style={{ border: 0, margin: 0, padding: 0, minWidth: 0 }}>
           <div style={S.h2}>Edit proposal</div>
           <p style={{ ...S.meta, marginBottom: 12 }}>Click Refresh preview to see your edits in the PDF.</p>
-          {logoHome === 'own' && <Section title="Client Logo">{logoCard}</Section>}
+          {(logoHome === 'own' || (logoHome === 'about' && aboutRemoved)) && <Section title="Client Logo">{logoCard}</Section>}
 
           <Section title="Cover & letter (pages 1–3)">
             {logoHome === 'coverLetter' && logoCard}
@@ -920,7 +923,8 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
             <button style={S.add} onClick={() => addRow('requirements', { id: '', title: '', text: '' })}><Plus size={14} /> Add requirement</button>
           </Section>
 
-          <Section title="About you and how we can help you (page 7)">
+          {aboutRemoved ? <RemovedSection title="About you and how we can help you" onRestore={() => setAboutRemoved(false)} /> : (
+          <Section title="About you and how we can help you (page 7)" onRemove={() => setAboutRemoved(true)}>
             {logoHome === 'about' && logoCard}
             {field('About the business (2–4 sentences)', 'aboutDescription', 5)}
             <p style={S.meta}>Written only from the business details above. Add facts you know about the customer; nothing is looked up.</p>
@@ -948,6 +952,7 @@ export default function ProposalAgent({ user = {}, accent = '#0284c7', initialPr
             {(fields.recommendations || []).filter(r => byId[r.id]).length < 3 && <p style={{ ...S.meta, color: '#b45309' }}>Recommend 3 to 5 products.</p>}
             <p style={S.meta}>This section always prints on one page; very long text is shortened in the PDF/Word only.</p>
           </Section>
+          )}
 
           <Section title="Your investment (LKR)">
             {logoHome === 'investment' && logoCard}
@@ -1302,8 +1307,8 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
           })}
         </div>
 
-        {/* Section: About You & How We Can Help */}
-        <div id="proposal-sec-about" style={{ padding: '28px 36px', borderBottom: border }}>
+        {/* Section: About You & How We Can Help (left out when the rep removed it) */}
+        {!(fields.removedSections || []).includes('about') && <div id="proposal-sec-about" style={{ padding: '28px 36px', borderBottom: border }}>
           <div style={{ fontSize: '1rem', fontWeight: 800, color: navy, marginBottom: 12 }}>
             ABOUT YOU AND HOW WE CAN HELP YOU
           </div>
@@ -1335,7 +1340,7 @@ function ProposalDocumentPreview({ fields, byId, accent }) {
               </div>
             ))}
           </div>
-        </div>
+        </div>}
 
         {/* Section: Investment */}
         <div id="proposal-sec-investment" style={{ padding: '28px 36px', borderBottom: border }}>
@@ -1405,16 +1410,34 @@ function ProductRow({ p, on, onToggle, accent }) {
   );
 }
 
-function Section({ title, closed = false, children }) {
+function Section({ title, closed = false, onRemove = null, children }) {
   const [open, setOpen] = useState(!closed);
-  // Collapsible group of edit fields
+  // Collapsible group of edit fields; onRemove adds a "Remove section" button next to the title (the whole section then leaves the proposal)
   return (
     <div style={S.group}>
-      <button style={S.groupToggle} onClick={() => setOpen(o => !o)}>
-        {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        <span style={{ flex: 1, textAlign: 'left' }}>{title}</span>
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <button style={S.groupToggle} onClick={() => setOpen(o => !o)}>
+          {open ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          <span style={{ flex: 1, textAlign: 'left' }}>{title}</span>
+        </button>
+        {onRemove && (
+          <button type="button" onClick={onRemove} title="Remove this whole section from the proposal"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flex: '0 0 auto', padding: '4px 9px', borderRadius: 8, border: '1px solid #fecaca', background: '#fef2f2', color: '#dc2626', fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+            <Trash2 size={13} /> Remove section
+          </button>
+        )}
+      </div>
       {open && <div style={{ padding: '4px 6px 6px' }}>{children}</div>}
+    </div>
+  );
+}
+
+// What the editor shows in place of a section the rep removed: one line with a way back
+function RemovedSection({ title, onRestore }) {
+  return (
+    <div style={{ ...S.group, display: 'flex', alignItems: 'center', gap: 8, background: '#f8fafc', borderStyle: 'dashed' }}>
+      <span style={{ flex: 1, padding: 6, fontSize: '0.88rem', color: '#64748b' }}><strong style={{ color: '#475569' }}>{title}</strong> was removed from this proposal.</span>
+      <button type="button" onClick={onRestore} style={{ padding: '4px 10px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#0369a1', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer' }}>Restore</button>
     </div>
   );
 }

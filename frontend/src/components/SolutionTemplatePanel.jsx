@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Upload, Download, FileUp, RefreshCw, RotateCcw, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Upload, Download, FileUp, RefreshCw, RotateCcw, Trash2, CheckCircle2, AlertCircle } from 'lucide-react';
 
 // "Upload Latest Template" tab, type = Solution: the solution template has its own single active version. The .docx must already
 // contain its {tags} (text tags, {#rows}...{/rows} loops, {@raw} tags); they are detected on upload, there is no field mapping.
@@ -53,6 +53,18 @@ export default function SolutionTemplatePanel({ userEmail, showToast }) {
       load();
     } catch (err) {
       showToast(err.response?.data?.error || 'Failed to restore this version.', 'error');
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (v) => {
+    if (!window.confirm(`Delete version ${v.version} (${v.filename}) permanently? This cannot be undone. Proposals already made with it keep working and print with the active template.`)) return;
+    setBusy(true);
+    try {
+      await axios.delete(`/api/proposals/templates/${v.id}`, { headers: { 'x-user-email': (localStorage.getItem('userEmail') || '').toLowerCase().trim() } });
+      showToast(`Solution template version ${v.version} was deleted.`);
+      load();
+    } catch (err) {
+      showToast(err.response?.data?.error || 'Failed to delete this version.', 'error');
     } finally { setBusy(false); }
   };
 
@@ -116,7 +128,13 @@ export default function SolutionTemplatePanel({ userEmail, showToast }) {
               {versions.filter(v => !v.isActive).map(v => (
                 <div key={v.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: '1px solid #f1f5f9', flexWrap: 'wrap' }}>
                   <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0B2A6F' }}>Version {v.version} • {v.filename}<div style={{ fontSize: '0.76rem', color: '#64748b', fontWeight: 400 }}>{v.uploadedAt ? new Date(v.uploadedAt).toLocaleString() : ''}</div></div>
+                  <div style={{ display: 'flex', gap: 6 }}>
                   <button type="button" disabled={busy} onClick={() => restore(v)} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#f8fafc', color: '#475569', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer' }}><RotateCcw size={13} /> Restore</button>
+                  <button type="button" disabled={busy} onClick={() => remove(v)} title={`Delete version ${v.version} permanently`}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#fef2f2', color: '#dc2626', borderRadius: 6, border: '1px solid #fecaca', fontSize: '0.8rem', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
+                    <Trash2 size={13} /> Delete
+                  </button>
+                  </div>
                 </div>
               ))}
             </div>

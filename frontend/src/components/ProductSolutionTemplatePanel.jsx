@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { Upload, Download, FileUp, RefreshCw, RotateCcw, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { Upload, Download, FileUp, RefreshCw, RotateCcw, Trash2, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { getProductSolutionTemplate } from '../api';
 
 // "Upload Latest Template" tab, type = Product + Solution. Its own single active template (the Product and Solution templates are not touched),
@@ -29,8 +29,7 @@ export default function ProductSolutionTemplatePanel({ userEmail, showToast }) {
   const [schema, setSchema] = useState([]);
   const [file, setFile] = useState(null);
   const [busy, setBusy] = useState(false);
-  const [draft, setDraft] = useState(null);       // the analysed upload waiting for its single Confirm
-  const [result, setResult] = useState(null);     // the last confirmed upload
+    const [result, setResult] = useState(null);     // the last confirmed upload
   const [problems, setProblems] = useState([]);
   const headers = { 'x-user-email': userEmail || '' };
 
@@ -50,28 +49,19 @@ export default function ProductSolutionTemplatePanel({ userEmail, showToast }) {
   const isDocx = file && /\.docx$/i.test(file.name);
   const errorOf = err => err.response?.data?.error || err.message || 'Something went wrong.';
 
+  // One step, like the Product and Solution templates: the file is analysed (tags read, or written by the AI when it has none) and the
+  // tagged copy becomes the active template straight away
   const analyse = async (e) => {
     e.preventDefault();
     if (!isDocx || busy) return;
-    setBusy(true); setResult(null); setProblems([]); setDraft(null);
+    setBusy(true); setResult(null); setProblems([]);
     showToast('Analysing the template...', 'info');
     const fd = new FormData();
     fd.append('template', file);
     try {
-      const { data } = await axios.post(`${BASE}/templates/product-solution/analyse`, fd, { headers: { ...headers, 'Content-Type': 'multipart/form-data' }, timeout: 300000 });
-      setDraft(data.draft);
-    } catch (err) {
-      setProblems([errorOf(err)]);
-      showToast(errorOf(err), 'error');
-    } finally { setBusy(false); }
-  };
-
-  const confirm = async () => {
-    if (!draft || busy) return;
-    setBusy(true); setProblems([]);
-    try {
-      const { data } = await axios.post(`${BASE}/templates/product-solution/drafts/${draft.id}/confirm`, {}, { headers, timeout: 120000 });
-      setResult(data); setDraft(null); setFile(null);
+      const { data: analysed } = await axios.post(`${BASE}/templates/product-solution/analyse`, fd, { headers: { ...headers, 'Content-Type': 'multipart/form-data' }, timeout: 300000 });
+      const { data } = await axios.post(`${BASE}/templates/product-solution/drafts/${analysed.draft.id}/confirm`, {}, { headers, timeout: 120000 });
+      setResult({ ...data, aiError: analysed.draft.aiError }); setFile(null);
       showToast(`Product + Solution template version ${data.version} is now the active template.`);
       load();
     } catch (err) {
@@ -80,17 +70,23 @@ export default function ProductSolutionTemplatePanel({ userEmail, showToast }) {
     } finally { setBusy(false); }
   };
 
-  const cancel = async () => {
-    const id = draft && draft.id;
-    setDraft(null); setFile(null);
-    if (id) { try { await axios.delete(`${BASE}/templates/product-solution/drafts/${id}`, { headers }); } catch { /* it is purged later anyway */ } }
-  };
-
   const restore = async (v) => {
     setBusy(true);
     try {
       await axios.post(`${BASE}/templates/${v.id}/activate`);
       showToast(`Product + Solution template version ${v.version} is now active.`);
+      load();
+    } catch (err) {
+      showToast(errorOf(err), 'error');
+    } finally { setBusy(false); }
+  };
+
+  const remove = async (v) => {
+    if (!window.confirm(`Delete version ${v.version} (${v.filename}) permanently? This cannot be undone. Proposals already made with it keep working and print with the active template.`)) return;
+    setBusy(true);
+    try {
+      await axios.delete(`${BASE}/templates/${v.id}`, { headers });
+      showToast(`Product + Solution template version ${v.version} was deleted.`);
       load();
     } catch (err) {
       showToast(errorOf(err), 'error');
@@ -118,11 +114,11 @@ export default function ProductSolutionTemplatePanel({ userEmail, showToast }) {
 
           <form onSubmit={analyse}>
             <div style={{ border: '2px dashed #93c5fd', borderRadius: 10, padding: '32px 20px', textAlign: 'center', background: '#f0f9ff', marginBottom: 14 }}>
-              <input type="file" id="ps-template-file-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: 'none' }} onChange={e => { setFile(e.target.files[0] || null); setDraft(null); setResult(null); setProblems([]); }} />
+              <input type="file" id="ps-template-file-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document" style={{ display: 'none' }} onChange={e => { setFile(e.target.files[0] || null); setResult(null); setProblems([]); }} />
               <label htmlFor="ps-template-file-input" style={{ cursor: 'pointer', display: 'block' }}>
                 <Upload size={38} color="#0284c7" style={{ margin: '0 auto 10px' }} />
                 <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0369a1' }}>{file ? file.name : 'Click or drag Microsoft Word (.docx) template here'}</div>
-                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4 }}>{file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB ready to analyse` : 'Strictly .docx format'}</div>
+                <div style={{ fontSize: '0.8rem', color: '#64748b', marginTop: 4 }}>{file ? `${(file.size / (1024 * 1024)).toFixed(2)} MB ready to upload` : 'Strictly .docx format'}</div>
               </label>
             </div>
             {file && !isDocx && (
@@ -130,36 +126,11 @@ export default function ProductSolutionTemplatePanel({ userEmail, showToast }) {
                 Only <strong>.docx</strong> files are supported. Open the file in Word and use <strong>File &rarr; Save As &rarr; Word Document (.docx)</strong> first.
               </div>
             )}
-            <button type="submit" disabled={!isDocx || busy || !!draft}
-              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: isDocx && !draft ? 'linear-gradient(135deg, #0284c7 0%, #0B2A6F 100%)' : '#cbd5e1', color: '#fff', fontWeight: 700, fontSize: '0.92rem', cursor: isDocx && !busy && !draft ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              {busy && !draft ? <><RefreshCw size={18} className="spin" /> Analysing Template...</> : <><Upload size={18} /> Analyse Template (.docx)</>}
+            <button type="submit" disabled={!isDocx || busy}
+              style={{ width: '100%', padding: 12, borderRadius: 8, border: 'none', background: isDocx ? 'linear-gradient(135deg, #0284c7 0%, #0B2A6F 100%)' : '#cbd5e1', color: '#fff', fontWeight: 700, fontSize: '0.92rem', cursor: isDocx && !busy ? 'pointer' : 'not-allowed', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {busy ? <><RefreshCw size={18} className="spin" /> Analysing and activating...</> : <><Upload size={18} /> Analyse and activate</>}
             </button>
           </form>
-
-          {draft && (
-            <div style={{ marginTop: 16, padding: '14px 16px', background: '#f8fafc', border: '1px solid #bfdbfe', borderRadius: 8, fontSize: '0.84rem', color: '#334155', lineHeight: 1.5 }}>
-              <div style={{ fontWeight: 700, color: '#0B2A6F' }}>Review: {draft.filename} ({(draft.sizeBytes / (1024 * 1024)).toFixed(2)} MB)</div>
-              <div style={{ marginTop: 6 }}>
-                <strong>{draft.tags.length} fill-in tag{draft.tags.length === 1 ? '' : 's'} found</strong>
-                {draft.autoTagged ? ' (the AI tagged the file)' : ' (already in the file, kept as they are)'}:{' '}
-                {draft.tags.map(t => (t.type === 'loop' ? `${t.name} (table: ${t.fields.join(', ')})` : t.name)).join(' · ')}
-              </div>
-              {draft.aiError && <div style={{ marginTop: 6, color: '#92400e' }}><AlertTriangle size={14} style={{ verticalAlign: -2 }} /> The AI field matching could not tag everything ({draft.aiError}). The template can still be used; tags that are missing stay empty.</div>}
-              {draft.comparedWith && (draft.comparedWith.added.length > 0 || draft.comparedWith.removed.length > 0) && (
-                <div style={{ marginTop: 6 }}>
-                  Compared with the active template (version {draft.comparedWith.version}):
-                  {draft.comparedWith.added.length > 0 && <div><strong>New:</strong> {draft.comparedWith.added.join(', ')}</div>}
-                  {draft.comparedWith.removed.length > 0 && <div><strong>No longer in the template:</strong> {draft.comparedWith.removed.join(', ')}</div>}
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
-                <button type="button" onClick={confirm} disabled={busy} style={{ padding: '9px 18px', borderRadius: 8, border: 'none', background: 'linear-gradient(135deg, #16a34a 0%, #166534 100%)', color: '#fff', fontWeight: 700, cursor: busy ? 'wait' : 'pointer', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                  {busy ? <RefreshCw size={15} className="spin" /> : <CheckCircle2 size={15} />} Confirm and make active
-                </button>
-                <button type="button" onClick={cancel} disabled={busy} style={{ padding: '9px 14px', borderRadius: 8, border: '1px solid #cbd5e1', background: '#fff', color: '#475569', fontWeight: 600, cursor: 'pointer' }}>Cancel</button>
-              </div>
-            </div>
-          )}
 
           {problems.length > 0 && (
             <div style={{ marginTop: 14, padding: '12px 14px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#991b1b', fontSize: '0.84rem' }}>
@@ -171,6 +142,7 @@ export default function ProductSolutionTemplatePanel({ userEmail, showToast }) {
           {result && (
             <div style={{ marginTop: 14, padding: '12px 14px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 8, color: '#166534', fontSize: '0.84rem' }}>
               <div style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}><CheckCircle2 size={16} /> Version {result.version} is now the active Product + Solution template</div>
+              {result.aiError && <div style={{ marginTop: 4, color: '#92400e' }}><AlertTriangle size={14} style={{ verticalAlign: -2 }} /> The AI could not tag every field ({result.aiError}); tags that are missing stay empty.</div>}
             </div>
           )}
 
@@ -201,10 +173,16 @@ export default function ProductSolutionTemplatePanel({ userEmail, showToast }) {
                         <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0B2A6F' }}>Version {v.version} &nbsp;•&nbsp; {v.filename}</div>
                         <div style={{ fontSize: '0.76rem', color: '#64748b' }}>{v.uploadedAt ? new Date(v.uploadedAt).toLocaleString() : ''}</div>
                       </div>
+                      <div style={{ display: 'flex', gap: 6 }}>
                       <button type="button" disabled={busy} onClick={() => restore(v)} title={`Make version ${v.version} the active template again`}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#f8fafc', color: '#475569', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: '0.8rem', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
                         <RotateCcw size={13} /> Restore
                       </button>
+                      <button type="button" disabled={busy} onClick={() => remove(v)} title={`Delete version ${v.version} permanently`}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#fef2f2', color: '#dc2626', borderRadius: 6, border: '1px solid #fecaca', fontSize: '0.8rem', fontWeight: 600, cursor: busy ? 'not-allowed' : 'pointer' }}>
+                        <Trash2 size={13} /> Delete
+                      </button>
+                      </div>
                     </div>
                   ))}
                 </div>

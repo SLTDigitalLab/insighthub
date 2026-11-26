@@ -93,7 +93,7 @@ function TagField({ tag, value, path, prefix, onChange, warn, placeholder, above
   }
   if (tag.editor === 'structured') {
     // the "about" / "requirements" blocks: an introduction + items the user can add, remove and move; plain text, never XML
-    return <StructuredTextEditor label={label(tag.name)} value={value} warn={warn[key]} onChange={next => onChange(path, next, key)} itemName="product" extra={above} />;
+    return <StructuredTextEditor label={label(tag.name)} value={value} warn={warn[key]} onChange={next => onChange(path, next, key)} itemName="product" extra={above} removable={tag.role === 'about'} />;
   }
   const w = warn[key];
   if (above) return <div>{above}<TagField tag={tag} value={value} path={path} prefix={prefix} onChange={onChange} warn={warn} placeholder={placeholder} /></div>;
@@ -421,7 +421,8 @@ export default function SolutionProposal({ flow = DEFAULT_FLOW, selection = null
     const actionBtn = { ...ghostBtn, padding: '7px 12px' };
     // The customer logo upload sits in the section of the form that holds the template's logo place (the About block of the templates we have);
     // a template without such a section, or without a logo place at all, gets it on its own at the top of the fields
-    const logoInSection = schema.some(t => t.name === logoField && t.type !== 'loop');
+    // (when the rep removed that section the logo box stands alone at the top instead, so the logo can still be set)
+    const logoInSection = schema.some(t => t.name === logoField && t.type !== 'loop') && !(fields[logoField] && fields[logoField].removed === true);
     const hideLogo = flow.templateType === 'solution'; // the Solution proposal has no customer logo box (Product + Solution keeps it)
     const logoNode = (inSection) => hideLogo ? null : (
       <CustomerLogoField logo={logoOf(fields)} place={logoPlace} inSection={inSection}

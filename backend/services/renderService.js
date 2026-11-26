@@ -13,6 +13,7 @@ const { resolveForRender: resolveDiagrams } = require('./diagramService');
 const { docxToPdf } = require('./pdfService');
 const { BY_KEY, FIELDS, CHIP_SECTIONS, TERMS_LOOP } = require('../proposal/fieldSchema');
 const { wording, files } = require('../proposal/renderSettings');
+const { removeSectionByTag } = require('./sectionRemovalService');
 
 // Last step: fill a stored template version with the (edited) `fields` of the edit screen.
 // The template is used exactly as stored (no XML rewriting at render time). Which schema field fills which {tag} comes from
@@ -116,6 +117,14 @@ async function fillTemplate(file, entry, rawFields) {
   const fields = Array.isArray(rawFields[TERMS_LOOP]) ? rawFields : { ...rawFields, [TERMS_LOOP]: termsRows(productsOf(rawFields)) };
   const zip = new PizZip(file);
   applyPlaceholderColours(zip); // placeholder runs take their colour from the label next to them (see placeholderColourService.js)
+  // sections the rep removed on the edit screen (fields.removedSections, e.g. ['about']) leave the document with their heading and page break
+  const removed = Array.isArray(fields.removedSections) ? fields.removedSections : [];
+  if (removed.length && zip.file('word/document.xml')) {
+    const tagsOf = how => Object.entries(entry.bindings || {}).filter(([, b]) => b && b.kind === 'compose' && b.how === how).map(([name]) => name);
+    let xml = zip.file('word/document.xml').asText();
+    removed.forEach(section => tagsOf(section).forEach(name => { xml = removeSectionByTag(xml, name); }));
+    zip.file('word/document.xml', xml);
+  }
   let formats = entry.formats;
   if (!formats) {
     formats = entry.id && formatCache.has(entry.id) ? formatCache.get(entry.id) : captureFormats(file);
@@ -139,8 +148,9 @@ async function fillTemplate(file, entry, rawFields) {
 // format: 'docx' | 'pdf'. Returns { buffer, baseName, entry }.
 async function render({ templateId, fields, format = 'docx' }) {
   const fail = (status, message) => Object.assign(new Error(message), { status });
-  const entry = templateId ? store.get(templateId) : store.getActive();
-  if (!entry) throw fail(templateId ? 404 : 409, templateId ? 'Template version not found' : 'There is no active proposal template. Activate a template version first.');
+  // a version that was deleted from the previous versions list: the proposal prints with the active template instead
+  const entry = (templateId && store.get(templateId)) || store.getActive();
+  if (!entry) throw fail(409, 'There is no active proposal template. Activate a template version first.');
   const file = store.readFile(entry.id);
   if (!file) throw fail(404, 'Template file is missing on the server');
   if (!fields || typeof fields !== 'object') throw fail(400, 'fields are required');

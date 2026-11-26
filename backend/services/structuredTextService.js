@@ -31,10 +31,13 @@ function normalize(value) {
   if (isStructured(value)) {
     const items = (Array.isArray(value.items) ? value.items : []).filter(isObj)
       .map(it => ({ title: clean(it.title).trim(), text: clean(it.text).trim() })).filter(it => it.title || it.text);
-    return { intro: clean(value.intro).trim(), items };
+    return { intro: clean(value.intro).trim(), items, ...(value.removed === true ? { removed: true } : {}) };
   }
   return { intro: clean(value).trim(), items: [] };
 }
+
+// the rep pressed "Remove section" on the edit screen: the block is stored as { intro, items, removed: true }
+const isRemoved = value => isObj(value) && value.removed === true;
 
 const isEmpty = value => { const v = normalize(value); return !v.intro && !v.items.length; };
 
@@ -55,4 +58,4 @@ const toXml = value => blocksToOoxml(toBlocks(value));
 // plain text of the whole block (checks that read text, never printed)
 const toPlainText = value => toBlocks(value).map(b => b.title || b.text).join('\n');
 
-module.exports = { STRUCTURED_TAGS, roleOf, isStructuredTag, isStructured, normalize, isEmpty, toBlocks, toXml, toPlainText };
+module.exports = { STRUCTURED_TAGS, roleOf, isStructuredTag, isStructured, isRemoved, normalize, isEmpty, toBlocks, toXml, toPlainText };

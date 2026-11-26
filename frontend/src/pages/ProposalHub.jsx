@@ -23,6 +23,8 @@ export default function ProposalHub() {
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTabParam = searchParams.get('tab') || 'generator'; // 'generator' | 'template' | 'archive'
   const [activeTab, setActiveTab] = useState(activeTabParam);
+  // Opened from the Proposal Hub's "Search Generated Proposals" button: show only the archive tab in the header
+  const [archiveOnly] = useState(searchParams.get('only') === 'archive');
 
   const [isAdmin, setIsAdmin] = useState(false);
   const [canDelete, setCanDelete] = useState(false); // admin or Section Manager
@@ -200,6 +202,31 @@ export default function ProposalHub() {
     });
   };
 
+  const handleDeleteVersion = (v) => {
+    setConfirmModal({
+      isOpen: true,
+      title: `Delete Version ${v.version}?`,
+      message: `Delete version ${v.version} (${v.filename}) permanently? This cannot be undone. Proposals already made with it keep working and print with the active template.`,
+      confirmText: 'Yes, Delete This Version',
+      cancelText: 'Keep It',
+      variant: 'danger',
+      icon: <Trash2 size={24} color="#dc2626" />,
+      onConfirm: async () => {
+        setConfirmModal(prev => ({ ...prev, isOpen: false }));
+        try {
+          setUploadingTemplate(true);
+          await axios.delete(`/api/proposals/templates/${v.id}`, { headers: { 'x-user-email': (localStorage.getItem('userEmail') || '').toLowerCase().trim() } });
+          showToast(`Template version ${v.version} was deleted.`);
+          fetchTemplateInfo();
+        } catch (err) {
+          showToast(err.response?.data?.error || 'Failed to delete this template version.', 'error');
+        } finally {
+          setUploadingTemplate(false);
+        }
+      }
+    });
+  };
+
   const handleRestoreVersion = (v) => {
     setConfirmModal({
       isOpen: true,
@@ -358,7 +385,7 @@ export default function ProposalHub() {
       )}
 
       {/* Top Header (shared with the Solution and Product + Solution pages) */}
-      <ProposalHubHeader activeTab={activeTab} onTab={tab => { if (tab === 'generator') setSelectedProposal(null); if (tab === 'archive') fetchSavedProposals(); handleTabChange(tab); }} count={savedProposals.length} showGenerate showTemplate={isAdmin} />
+      <ProposalHubHeader activeTab={activeTab} onTab={tab => { if (tab === 'generator') setSelectedProposal(null); if (tab === 'archive') fetchSavedProposals(); handleTabChange(tab); }} count={savedProposals.length} showGenerate={!archiveOnly} showTemplate={isAdmin && !archiveOnly} />
 
       {/* Main Content Area */}
       <main className="proposal-hub-main" style={{ flex: 1, padding: activeTab === 'generator' ? '20px 24px' : '32px 36px', maxWidth: activeTab === 'generator' ? '100%' : '1350px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
@@ -604,6 +631,7 @@ export default function ProposalHub() {
                               <div style={{ fontSize: '0.86rem', fontWeight: 700, color: '#0B2A6F' }}>Version {v.version} &nbsp;•&nbsp; {v.filename}</div>
                               <div style={{ fontSize: '0.76rem', color: '#64748b' }}>{v.uploadedAt ? new Date(v.uploadedAt).toLocaleString() : ''}</div>
                             </div>
+                            <div style={{ display: 'flex', gap: 6 }}>
                             <button
                               type="button"
                               onClick={() => handleRestoreVersion(v)}
@@ -613,6 +641,11 @@ export default function ProposalHub() {
                             >
                               <RotateCcw size={13} /> Restore
                             </button>
+                            <button type="button" disabled={uploadingTemplate} onClick={() => handleDeleteVersion(v)} title={`Delete version ${v.version} permanently`}
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', background: '#fef2f2', color: '#dc2626', borderRadius: 6, border: '1px solid #fecaca', fontSize: '0.8rem', fontWeight: 600, cursor: uploadingTemplate ? 'not-allowed' : 'pointer' }}>
+                              <Trash2 size={13} /> Delete
+                            </button>
+                            </div>
                           </div>
                         ))}
                       </div>

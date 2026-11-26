@@ -143,6 +143,16 @@ router.post('/:id/activate', requireAdmin, (req, res) => {
   }
 });
 
+router.delete('/:id', requireAdmin, (req, res) => {
+  try {
+    const entry = store.remove(req.params.id);
+    if (!entry) return res.status(404).json({ error: 'Template version not found' });
+    res.json({ success: true, deleted: summary(entry) });
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.message });
+  }
+});
+
 router.get('/:id/download', (req, res) => {
   try {
     const entry = store.get(req.params.id);

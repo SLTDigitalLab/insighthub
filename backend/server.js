@@ -16,8 +16,8 @@ const searchHistoryService = require('./services/searchHistoryService');
 const monitoring = require('./monitoring');
 
 const app = express();
-// Monitoring first so the metrics middleware sees every request; /metrics and /api/health/{storage,chromadb,monitoring}
-// are guarded by METRICS_TOKEN + MONITORING_ALLOWED_IPS. The existing /api/health below is untouched.
+// Monitoring first so the metrics middleware sees every request. /metrics is guarded by METRICS_TOKEN +
+// MONITORING_ALLOWED_IPS; /api/health/{storage,chromadb,monitoring} by METRICS_TOKEN only. /api/health below is untouched.
 app.use(monitoring.middleware);
 monitoring.mountRoutes(app);
 const PORT = process.env.PORT || 5005;
@@ -1461,6 +1461,20 @@ app.post('/api/admin/user-profile', (req, res) => {
     }
     const { userId, section, subSection } = req.body || {};
     const user = userService.updateSectionProfile(userId, { section, subSection });
+    res.json({ success: true, user });
+  } catch (err) {
+    res.status(400).json({ success: false, error: err.message });
+  }
+});
+
+// Admin Portal: change a user's designation
+app.post('/api/admin/user-designation', (req, res) => {
+  try {
+    if (!verifyAdminRequest(req)) {
+      return res.status(403).json({ success: false, error: 'Access denied. Administrator privileges required.' });
+    }
+    const { userId, designation } = req.body || {};
+    const user = userService.updateDesignation(userId, designation);
     res.json({ success: true, user });
   } catch (err) {
     res.status(400).json({ success: false, error: err.message });

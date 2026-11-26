@@ -318,9 +318,10 @@ router.get('/template/download', (req, res) => {
 // Back to the first version (the system default template)
 router.post('/template/reset', requireAdmin, (req, res) => {
   try {
-    const first = store.list().slice().sort((a, b) => a.version - b.version)[0];
-    if (!first) return res.status(404).json({ error: 'No template versions exist' });
-    res.json({ success: true, message: 'Proposal template has been restored to the system default template.', template: templateMeta(store.activate(first.id)) });
+    // the bundled default file (it may be newer than version 1, which was imported from the default of an earlier release)
+    const entry = store.restoreDefault();
+    if (!entry) return res.status(404).json({ error: 'The default template file is missing on the server' });
+    res.json({ success: true, message: 'Proposal template has been restored to the system default template.', template: templateMeta(entry) });
   } catch (err) {
     res.status(500).json({ error: err.message || 'Failed to reset template' });
   }

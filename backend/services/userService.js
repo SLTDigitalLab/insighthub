@@ -121,6 +121,25 @@ class UserService {
     return user;
   }
 
+  /**
+   * Admin: change a user's designation (Account Manager / Section Manager); keeps the composite userType in sync.
+   */
+  updateDesignation(userId, designation) {
+    const user = this.getUserById(userId);
+    if (!user) throw new Error('User not found.');
+    if (!['Account Manager', 'Section Manager'].includes(designation)) throw new Error('Unknown designation.');
+    const hierarchy = this.formatUserHierarchy({
+      company: user.company,
+      section: user.section,
+      subSection: user.subSection || user.rebmArea,
+      designation
+    });
+    user.designation = hierarchy.designation;
+    user.userType = hierarchy.userType;
+    this.saveUsers();
+    return user;
+  }
+
   getUserById(id) {
     return this.users.find(u => u.id === id);
   }
