@@ -12,11 +12,15 @@ All of them are served by the backend on its API port (**5000** in compose and `
 |---|---|---|---|---|---|
 | `http://<INSIGHTHUB_HOST>:5000/metrics` | GET | 5000 | IP allowlist + bearer token | 200 (Prometheus text) | 401 bad/missing token, 403 IP not allowed, 503 `METRICS_TOKEN` not configured |
 | `http://<INSIGHTHUB_HOST>:5000/api/health` | GET | 5000 | none (unchanged) | 200 `{"status":"ok","message":"InsightHub Backend & Vector Gateway is running."}` | no response / connection error |
-| `http://<INSIGHTHUB_HOST>:5000/api/health/storage` | GET | 5000 | IP allowlist + bearer token | 200 `{"status":"ok","component":"json_storage","path",...}` | 503 `{"status":"error",...,"error":"..."}` (401/403/503 as above for auth) |
-| `http://<INSIGHTHUB_HOST>:5000/api/health/chromadb` | GET | 5000 | IP allowlist + bearer token | 200 `{"status":"ok","component":"chromadb","heartbeat":...,"apiVersion":"v1\|v2",...}` | 503 with `error` |
-| `http://<INSIGHTHUB_HOST>:5000/api/health/monitoring` | GET | 5000 | IP allowlist + bearer token | 200 only if api, storage and chromadb are all ok | 503, body shows which one failed |
+| `https://insighthub.raccoon-ai.io/api/health/storage` | GET | 443 (gateway) or 5000 | bearer token only | 200 `{"status":"ok","component":"json_storage","path",...}` | 503 `{"status":"error",...,"error":"..."}` (401 bad/missing token, 503 `METRICS_TOKEN` not configured) |
+| `https://insighthub.raccoon-ai.io/api/health/chromadb` | GET | 443 (gateway) or 5000 | bearer token only | 200 `{"status":"ok","component":"chromadb","heartbeat":...,"apiVersion":"v1\|v2",...}` | 503 with `error` |
+| `https://insighthub.raccoon-ai.io/api/health/monitoring` | GET | 443 (gateway) or 5000 | bearer token only | 200 only if api, storage and chromadb are all ok | 503, body shows which one failed |
 
-The same paths under `/api/` also work through the frontend nginx on port 80. There the backend sees nginx's container address, which is not on the allowlist, so those calls get 403. That is intentional. Prometheus should scrape port 5000 directly.
+`/api/health` is also reachable through the gateway (`https://insighthub.raccoon-ai.io/api/health`) and stays public. It only reports the backend itself, so a ChromaDB outage does not make it unhealthy.
+
+**Health endpoints are token only (no IP allowlist).** Monitoring-Pulse calls them through the public gateway, where the backend's TCP peer is the proxy, not 201.79.102.125, so an IP check would always return 403. No IP whitelisting is needed for them.
+
+`/metrics` keeps IP allowlist + token. It is not under `/api/`, so the gateway does not proxy it. Prometheus must scrape it on port 5000 directly.
 
 `/metrics` and `/api/health*` are not counted in the API traffic counters, so scrapes don't inflate them.
 
@@ -27,10 +31,10 @@ Authorization: Bearer <value of METRICS_TOKEN>
 ```
 
 - Env var: `METRICS_TOKEN`. It must be set on the backend, and the same value goes into Prometheus. If it is empty the monitoring endpoints answer 503, so they fail closed.
-- A real random token was generated into `backend/.env`, which is gitignored. Copy it from there. It is not in any committed file.
-- `MONITORING_ALLOWED_IPS` is a comma-separated list of exact IPs. Default: `201.79.102.125,127.0.0.1,::1`.
+- **No token exists yet.** Generate one on the production server with `openssl rand -hex 32` and put it in that server's `backend/.env` as `METRICS_TOKEN=<value>` (gitignored, never committed). With Docker, it goes in the root `.env` instead. Restart the backend afterwards (`pm2 restart all --update-env`). Give the same value to Monitoring-Pulse through a private channel, not by email.
+- `MONITORING_ALLOWED_IPS` is a comma-separated list of exact IPs. Default: `201.79.102.125,127.0.0.1,::1`. It applies to `/metrics` only.
 - The client IP is the TCP peer address. `X-Forwarded-For` and `CF-Connecting-IP` are deliberately ignored and `trust proxy` is not set, because no proxy in front of the backend is confirmed. If a proxy is added later, the peer becomes the proxy's address and the allowlist will deny the monitoring server. See open items.
-- Check order: IP first (403), then token (401).
+- Check order on `/metrics`: IP first (403), then token (401). The `/api/health/*` probes check the token only (401).
 - **Decision:** `/metrics` is served on the API port, not a separate `METRICS_PORT`. That keeps it to one port, one firewall rule and one compose mapping. Token plus allowlist protect it. A separate port would add a mapping for no real gain.
 - **Deviation from the brief:** `/api/health/storage` also requires auth. Its response contains a filesystem path and raw error text, so it shouldn't be public. The `insighthub_storage_up` gauge covers it anyway.
 
@@ -125,15 +129,14 @@ up{job="insighthub"}
 |---|---|
 | `backend/monitoring/metrics.js` (new) | prom-client registry, `insighthub_` default metrics, HTTP counters, histogram, last-request gauge, `storage_up` and `chromadb_up` gauges, request middleware |
 | `backend/monitoring/health.js` (new) | storage probe (`DATA_DIR` or `backend/data`: stat, R_OK, readdir, parse the smallest `.json`) and ChromaDB probe (`CHROMA_URL`, v1 then v2 on 404/410, 3 s timeout) |
-| `backend/monitoring/auth.js` (new) | IP allowlist then bearer token (constant-time compare), fails closed |
-| `backend/monitoring/index.js` (new) | mounts `/metrics` and `/api/health/{storage,chromadb,monitoring}` |
+| `backend/monitoring/auth.js` (new) | `monitoringAuth` (IP allowlist then bearer token) and `tokenAuth` (bearer token only), constant-time compare, both fail closed |
+| `backend/monitoring/index.js` (new) | mounts `/metrics` (`monitoringAuth`) and `/api/health/{storage,chromadb,monitoring}` (`tokenAuth`) |
 | `backend/server.js` | 4 lines right after `express()`: metrics middleware and monitoring routes mounted before everything else. Existing `/api/health` untouched |
 | `backend/package.json`, `package-lock.json` | adds `prom-client` ^15.1.3 |
-| `backend/.env.example` | `METRICS_TOKEN` (placeholder), `MONITORING_ALLOWED_IPS`, optional `DATA_DIR` |
+| `backend/.env.example` | `METRICS_TOKEN` (empty placeholder) and `MONITORING_ALLOWED_IPS` |
 | `docker-compose.yml` | passes `METRICS_TOKEN` and `MONITORING_ALLOWED_IPS` through to the backend container |
 | `scripts/verify-monitoring.sh` / `.ps1` (new) | the verification checks |
 | `docs/MONITORING.md` (new) | this file |
-| `backend/.env` (gitignored, not committed) | real `METRICS_TOKEN` generated |
 
 `METRICS_PORT` is not used.
 
@@ -153,7 +156,7 @@ up{job="insighthub"}
 - `docker port` and `compose ps` output for 8000 (step 6). There is no compose service to show.
 - Which server Monitoring-Pulse should scrape, and how the backend is actually run in production (`deploy.bat` suggests pm2).
 - Whether Cloudflare or another proxy sits in front of the origin. If one does, the exact-IP allowlist needs a trusted-proxy setup.
-- The same-token-everywhere assumption. The compose passthrough reads `METRICS_TOKEN` from the shell or the root `.env`, not from `backend/.env`.
+- `METRICS_TOKEN` has not been set on the production server yet (see section 2). With pm2 it goes in `backend/.env`; with Docker, compose reads it from the shell or the root `.env`, not from `backend/.env`.
 - The chromadb service name and port. Compose references `chromadb:8000` but defines no such service.
 
 **Pre-existing, unrelated:** `server.js` defines `/api/health` twice (the first wins).

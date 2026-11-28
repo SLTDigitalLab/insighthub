@@ -84,7 +84,7 @@ const liveIndex = (() => { try { return JSON.parse(fs.readFileSync(path.join(REA
 const live = liveIndex.find(t => t.isActive);
 const BASE = live && fs.existsSync(path.join(REAL, 'data', 'templates', `${live.id}.docx`))
   ? fs.readFileSync(path.join(REAL, 'data', 'templates', `${live.id}.docx`))
-  : fs.readFileSync(path.join(REAL, 'templates', 'default_proposal_template.docx'));
+  : fs.readFileSync(path.join(REAL, 'templates', 'Product_Proposal_Template.docx'));
 
 // ---- helpers --------------------------------------------------------------------------------------------------------------
 const paras = xml => xml.match(/<w:p[ >][\s\S]*?<\/w:p>|<w:p\/>/g) || [];

@@ -1,7 +1,7 @@
 // Monitoring entry point: `app.use(monitoring.middleware)` first, then `monitoring.mountRoutes(app)`.
 const metrics = require('./metrics');
 const health = require('./health');
-const { monitoringAuth } = require('./auth');
+const { monitoringAuth, tokenAuth } = require('./auth');
 
 function mountRoutes(app) {
   app.get('/metrics', monitoringAuth, async (req, res) => {
@@ -17,9 +17,10 @@ function mountRoutes(app) {
     const result = await check();
     res.status(result.status === 'ok' ? 200 : 503).json(result);
   };
-  app.get('/api/health/storage', monitoringAuth, probe(health.checkStorage));
-  app.get('/api/health/chromadb', monitoringAuth, probe(health.checkChroma));
-  app.get('/api/health/monitoring', monitoringAuth, async (req, res) => {
+  // Token only (no IP allowlist): these are reached through the public gateway, where the peer is the proxy.
+  app.get('/api/health/storage', tokenAuth, probe(health.checkStorage));
+  app.get('/api/health/chromadb', tokenAuth, probe(health.checkChroma));
+  app.get('/api/health/monitoring', tokenAuth, async (req, res) => {
     const { healthy, body } = await health.checkAll();
     res.status(healthy ? 200 : 503).json(body);
   });

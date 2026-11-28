@@ -11,7 +11,7 @@ const { detectPlaceholders } = require('./logoService');
 //   DATA_DIR/proposal_templates.json   index: [{ id, version, filename, uploadedBy, uploadedAt, isActive, tags, bindings }]
 //   bindings = which schema field fills which tag (proposal/autoBind.js; the admin can correct them)
 //   DATA_DIR/templates/<id>.docx       the file itself
-// The default template (templates/default_proposal_template.docx) is imported as version 1 on first run.
+// The default template (templates/Product_Proposal_Template.docx) is imported as version 1 on first run.
 
 const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, '..', 'data');
 const INDEX_FILE = path.join(DATA_DIR, 'proposal_templates.json');
@@ -110,7 +110,7 @@ const withBindings = t => {
 
 // The Product + Solution template starts with the combined template shipped in backend/templates (as version 1, active). Only done for
 // that type and only while it has no version at all, so the product and solution templates are never touched by it.
-const PS_SEED_FILES = ['Product_Solution_Proposal_Template_Tagged.docx', 'Product_Solution_Proposal_Template_Tagged.docx.docx'].map(f => path.join(__dirname, '..', 'templates', f));
+const PS_SEED_FILES = ['Product_Solution_Proposal_Template.docx'].map(f => path.join(__dirname, '..', 'templates', f));
 function ensurePsSeeded() {
   const list = ensureInitialised();
   if (list.some(t => typeOf(t) === PS_TYPE)) return list;
@@ -123,7 +123,7 @@ function ensurePsSeeded() {
     return list;
   }
   // the seed already holds its tags: it is stored as it is (no tagged copy is needed)
-  addVersion(list, { buffer, filename: 'Product_Solution_Proposal_Template_Tagged.docx', uploadedBy: 'System (seed)', tags: report.tags, active: true, type: PS_TYPE, extra: { type: PS_TYPE, kind: 'seed', bindings: {} } });
+  addVersion(list, { buffer, filename: 'Product_Solution_Proposal_Template.docx', uploadedBy: 'System (seed)', tags: report.tags, active: true, type: PS_TYPE, extra: { type: PS_TYPE, kind: 'seed', bindings: {} } });
   writeIndex(list);
   console.log('[templateStore] Imported the Product + Solution template as version 1 (active).');
   return list;
@@ -131,7 +131,7 @@ function ensurePsSeeded() {
 // The Solution template starts with the one shipped in backend/templates (as version 1, active), the same way as the Product + Solution
 // one. Only done for the solution type and only while it has no version at all, so an upload made by an admin is never replaced and the
 // product and Product + Solution templates are never touched by it.
-const SOLUTION_SEED_FILE = path.join(__dirname, '..', 'templates', 'Solution_Proposal_Template_Tagged.docx');
+const SOLUTION_SEED_FILE = path.join(__dirname, '..', 'templates', 'Solution_Proposal_Template.docx');
 function ensureSolutionSeeded() {
   const list = ensureInitialised();
   if (list.some(t => typeOf(t) === 'solution')) return list;
@@ -143,7 +143,7 @@ function ensureSolutionSeeded() {
     return list;
   }
   // the seed already holds its tags: it is stored as it is (no tagged copy is needed)
-  addVersion(list, { buffer, filename: 'Solution_Proposal_Template_Tagged.docx', uploadedBy: 'System (seed)', tags: report.tags, active: true, type: 'solution', extra: { type: 'solution', kind: 'seed', bindings: {} } });
+  addVersion(list, { buffer, filename: 'Solution_Proposal_Template.docx', uploadedBy: 'System (seed)', tags: report.tags, active: true, type: 'solution', extra: { type: 'solution', kind: 'seed', bindings: {} } });
   writeIndex(list);
   console.log('[templateStore] Imported the Solution template as version 1 (active).');
   return list;
@@ -211,7 +211,7 @@ function activate(id) {
   return target;
 }
 
-// "Restore Default" of the Product template: makes the bundled default file (templates/default_proposal_template.docx) the active
+// "Restore Default" of the Product template: makes the bundled default file (templates/Product_Proposal_Template.docx) the active
 // version. A stored product version with exactly the same file is re-activated; when the bundled file was replaced after this server
 // first started (so version 1 is an older default), it is added as a new version. Returns the active entry, null when the file is missing.
 function restoreDefault() {

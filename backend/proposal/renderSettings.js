@@ -11,7 +11,7 @@ const BACKEND = path.join(__dirname, '..');
 module.exports = {
   paths: {
     // imported as version 1 on first run; "Restore Default" goes back to the first version
-    defaultTemplate: path.join(BACKEND, 'templates', 'default_proposal_template.docx'),
+    defaultTemplate: path.join(BACKEND, 'templates', 'Product_Proposal_Template.docx'),
     // product diagrams (file names come from each product's `diagram` field in data/products.json)
     diagramDir: path.join(BACKEND, 'templates', 'diagrams'),
   },
